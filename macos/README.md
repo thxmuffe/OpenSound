@@ -67,10 +67,13 @@ development environments.
 
 ## Implementation
 
-SwiftUI owns presentation; `ChatModel` manages the runtime subprocess and polls
-snapshots over private stdin/stdout pipes. `parvi_bridge` adapts those requests
-to the existing OTP actor API. Chat state and peer membership remain in Erlang.
-This Mac subprocess approach does not establish iOS embedding feasibility.
+SwiftUI owns presentation; `ChatModel` receives runtime snapshots through
+`ChatRuntime`. The UI and model now live in the shared
+`ParviKit` package; `MacErlangRuntime` owns the subprocess and its private
+stdin/stdout pipes. `parvi_bridge` adapts requests to the OTP actor API. Chat
+state and peer membership remain in Erlang. The iPhone project reuses ParviKit
+but still needs an embedded runtime; the Mac launcher does not establish iOS
+embedding feasibility.
 
 The bundle copies the repository Apache-2.0 license. OTP components retain their
 own licensing and bundled notices. No third-party UI packages are used.

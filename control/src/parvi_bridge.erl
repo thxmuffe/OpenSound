@@ -1,7 +1,7 @@
-%% Private, line-delimited JSON interface for the native macOS host.
-%% stdin/stdout are pipes owned by the app, never a network listener.
+%% Shared JSON interface for native hosts. request/1 is transport-independent.
+%% macOS main/0 uses app-owned stdin/stdout pipes, never a network listener.
 -module(parvi_bridge).
--export([main/0]).
+-export([main/0, request/1]).
 
 main() ->
     logger:update_handler_config(default, config, #{type => standard_error}),
@@ -14,16 +14,20 @@ loop() ->
         eof -> init:stop();
         {error, _} -> init:stop(1);
         Line ->
-            Reply = try
-                Request = json:decode(Line),
-                Result = command(Request),
-                (snapshot())#{<<"error">> => Result}
-            catch
-                _:_ -> (snapshot())#{<<"error">> => <<"Invalid request or unavailable worker. Try again.">>}
-            end,
-            io:put_chars(standard_io, [json:encode(Reply), $\n]),
+            io:put_chars(standard_io, [request(Line), $\n]),
             loop()
     end.
+
+%% An embedded host can call this same function without emulating terminal I/O.
+request(JSON) ->
+    Reply = try
+        Request = json:decode(JSON),
+        Result = command(Request),
+        (snapshot())#{<<"error">> => Result}
+    catch
+        _:_ -> (snapshot())#{<<"error">> => <<"Invalid request or unavailable worker. Try again.">>}
+    end,
+    iolist_to_binary(json:encode(Reply)).
 
 command(#{<<"method">> := <<"snapshot">>}) -> null;
 command(#{<<"method">> := <<"send">>, <<"text">> := Text}) ->

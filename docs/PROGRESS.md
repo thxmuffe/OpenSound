@@ -1,5 +1,25 @@
 # Progress
 
+## 2026-10-26 — Shared native code and iPhone project
+
+Extracted the existing Mac UI and model into the local `shared/ParviKit` Swift
+package. Mac retains a small app entry point and its Erlang process adapter.
+Created `ios/Parvi.xcodeproj` using that same package, with an explicit unavailable
+embedded-runtime adapter. There is no fake iPhone chat or remote-execution proxy.
+Extracted the transport-independent Erlang JSON entry point `parvi_bridge:request/1`.
+
+Full Xcode 27.1 and the iOS 27.1 SDK are now available. The unsigned arm64 iPhone
+project builds with Xcode. The Mac app rebuilds using the shared sources, and
+EUnit passes (4 tests), including the native JSON entry point. The bundled Mac
+runtime's messaging smoke test also passes, and sending through the extracted
+shared SwiftUI view was verified in the native Mac window.
+
+Next: pin and integrate an actual in-process iOS BEAM runtime, then prove shared
+Erlang worker execution on a signed physical device. Building the UI shell does
+not satisfy that gate. See [iPhone project](../ios/README.md),
+[shared package](../shared/ParviKit/README.md) and
+[decision 0002](decisions/0002-shared-native-app-code.md).
+
 ## 2026-10-26 — Native Mac application
 
 Added a SwiftUI application in `macos/` with chat bubbles, composition, runtime

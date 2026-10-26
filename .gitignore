@@ -18,6 +18,10 @@ deps/
 erl_crash.dump
 target/
 macos/build/
+ios/build/
+.build/
+DerivedData/
+xcuserdata/
 
 # Local experiments and measurement captures
 tmp/

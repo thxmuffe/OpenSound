@@ -4,7 +4,15 @@
 chat_test_() ->
     {setup, fun() -> {ok, _} = parvi:start() end,
      fun(_) -> application:stop(parvi) end,
-     [fun messaging/0, fun validation_and_bounds/0, fun restart/0]}.
+     [fun messaging/0, fun validation_and_bounds/0, fun bridge_request/0, fun restart/0]}.
+
+bridge_request() ->
+    Reply = json:decode(parvi_bridge:request(<<"{\"method\":\"send\",\"text\":\"native host\"}">>)),
+    ?assertEqual(null, maps:get(<<"error">>, Reply)),
+    ?assertEqual(<<"native host">>, maps:get(<<"text">>, lists:last(maps:get(<<"messages">>, Reply)))),
+    Invalid = json:decode(parvi_bridge:request(<<"not json">>)),
+    ?assert(is_binary(maps:get(<<"error">>, Invalid))),
+    ?assert(is_process_alive(whereis(parvi_chat))).
 
 messaging() ->
     ok = parvi:subscribe(),

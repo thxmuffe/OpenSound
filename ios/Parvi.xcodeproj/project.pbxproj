@@ -1,0 +1,32 @@
+// !$*UTF8*$!
+{
+ archiveVersion = 1;
+ classes = {};
+ objectVersion = 56;
+ objects = {
+  A00000000000000000000001 = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = YES; LastUpgradeCheck = 2710; TargetAttributes = {A00000000000000000000002 = {CreatedOnToolsVersion = 27.1; }; }; }; buildConfigurationList = A00000000000000000000010; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0; knownRegions = (en, Base); mainGroup = A00000000000000000000003; packageReferences = (A00000000000000000000020); productRefGroup = A00000000000000000000005; projectDirPath = ""; projectRoot = ""; targets = (A00000000000000000000002); };
+  A00000000000000000000002 = {isa = PBXNativeTarget; buildConfigurationList = A00000000000000000000011; buildPhases = (A00000000000000000000006, A00000000000000000000007, A00000000000000000000008); buildRules = (); dependencies = (); name = Parvi; packageProductDependencies = (A00000000000000000000021); productName = Parvi; productReference = A00000000000000000000009; productType = "com.apple.product-type.application"; };
+  A00000000000000000000003 = {isa = PBXGroup; children = (A00000000000000000000004, A00000000000000000000005); sourceTree = "<group>"; };
+  A00000000000000000000004 = {isa = PBXGroup; children = (A0000000000000000000000A, A0000000000000000000000B, A0000000000000000000000C); path = Parvi; sourceTree = "<group>"; };
+  A00000000000000000000005 = {isa = PBXGroup; children = (A00000000000000000000009); name = Products; sourceTree = "<group>"; };
+  A00000000000000000000006 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A0000000000000000000000D, A0000000000000000000000E); runOnlyForDeploymentPostprocessing = 0; };
+  A00000000000000000000007 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A00000000000000000000022); runOnlyForDeploymentPostprocessing = 0; };
+  A00000000000000000000008 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+  A00000000000000000000009 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Parvi.app; sourceTree = BUILT_PRODUCTS_DIR; };
+  A0000000000000000000000A = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParviApp.swift; sourceTree = "<group>"; };
+  A0000000000000000000000B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSErlangRuntime.swift; sourceTree = "<group>"; };
+  A0000000000000000000000C = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+  A0000000000000000000000D = {isa = PBXBuildFile; fileRef = A0000000000000000000000A; };
+  A0000000000000000000000E = {isa = PBXBuildFile; fileRef = A0000000000000000000000B; };
+  A00000000000000000000010 = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000012, A00000000000000000000013); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+  A00000000000000000000011 = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000014, A00000000000000000000015); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+  A00000000000000000000012 = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SWIFT_VERSION = 5.0; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; DEBUG_INFORMATION_FORMAT = dwarf; }; name = Debug; };
+  A00000000000000000000013 = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 17.0; SWIFT_VERSION = 5.0; SWIFT_OPTIMIZATION_LEVEL = "-O"; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; }; name = Release; };
+  A00000000000000000000014 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Parvi/Info.plist; PRODUCT_BUNDLE_IDENTIFIER = org.opensound.parvi.ios.prototype; PRODUCT_NAME = "$(TARGET_NAME)"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; TARGETED_DEVICE_FAMILY = 1; ENABLE_PREVIEWS = YES; }; name = Debug; };
+  A00000000000000000000015 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Parvi/Info.plist; PRODUCT_BUNDLE_IDENTIFIER = org.opensound.parvi.ios.prototype; PRODUCT_NAME = "$(TARGET_NAME)"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; TARGETED_DEVICE_FAMILY = 1; }; name = Release; };
+  A00000000000000000000020 = {isa = XCLocalSwiftPackageReference; relativePath = ../shared/ParviKit; };
+  A00000000000000000000021 = {isa = XCSwiftPackageProductDependency; package = A00000000000000000000020; productName = ParviKit; };
+  A00000000000000000000022 = {isa = PBXBuildFile; productRef = A00000000000000000000021; };
+ };
+ rootObject = A00000000000000000000001;
+}
