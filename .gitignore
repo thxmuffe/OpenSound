@@ -17,6 +17,7 @@ _build/
 deps/
 erl_crash.dump
 target/
+macos/build/
 
 # Local experiments and measurement captures
 tmp/

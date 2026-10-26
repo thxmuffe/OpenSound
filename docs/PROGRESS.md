@@ -1,5 +1,22 @@
 # Progress
 
+## 2026-10-26 — Native Mac application
+
+Added a SwiftUI application in `macos/` with chat bubbles, composition, runtime
+status, visible chat peers and a manual connection sheet. The `.app` bundles an
+OTP release and starts Erlang as a child process. A private JSON pipe bridge
+keeps chat and membership logic in Erlang. No terminal is needed to launch it.
+
+The build uses the installed Swift command-line tools, with ad hoc signing for
+local execution. Public distribution, notarization, iPhone embedding and LAN
+onboarding remain future steps. Connections are intentionally loopback-only.
+
+The bundled-runtime smoke test passed for startup, UTF-8, validation, two-way
+chat and peer departure. The native app was launched and visually checked;
+sending through the SwiftUI composer displayed the message in history. Existing
+EUnit checks still pass (3 tests). The app's ad hoc signature verifies. See
+[Mac build and usage](../macos/README.md).
+
 ## 2026-10-26 — Mac chat baseline
 
 Read all design documents and followed the newer Parvi handover's chat-first

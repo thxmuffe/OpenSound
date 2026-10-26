@@ -4,6 +4,9 @@ An open platform for synchronized, distributed audio playback and processing.
 
 **Status: first Erlang/OTP chat prototype; audio remains in early design.**
 
+A native Mac app is now available: [build and launch Parvi](macos/README.md).
+It bundles Erlang and supports chat between app instances on the same Mac.
+
 The newer [Parvi Audio handover](notes%2020261026.md) sets the immediate goal:
 real Erlang chat on Mac and iPhone, before audio. The first Mac step is implemented
 in [control/](control/README.md), with supervised chat actors and a two-node local
