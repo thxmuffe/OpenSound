@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Parvi Reception desk</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/qrcode.js" defer></script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+<main>
+  <h1>Reception desk</h1>
+  <p>Register an Erlang node name and get the known names back.</p>
+  <form id="join">
+    <label for="node">Erlang node name</label>
+    <div class="row"><input id="node" name="node_id" placeholder="mac@192.168.1.10" maxlength="255" required autocomplete="off" spellcheck="false"><button>Register</button></div>
+  </form>
+  <p id="status" role="status" aria-live="polite">Loading directory…</p>
+  <section>
+    <div class="row"><h2>Known node names</h2><button id="refresh" type="button">Refresh</button></div>
+    <ul id="nodes"></ul>
+    <p class="note">The reception desk keeps node names, not chat messages. Names stay until it restarts. This is not a live connection check; no cookies are stored or exchanged.</p>
+  </section>
+  <section>
+    <h2>Open this join page</h2>
+    <div id="qr" aria-label="QR code for the join page"></div>
+    <p><a id="join-url"></a></p>
+    <p class="note" id="network-note"></p>
+  </section>
+  <details><summary>API for apps</summary><pre>GET /api/nodes
+
+POST /api/nodes
+Content-Type: application/json
+{"node_id":"mac@192.168.1.10"}
+
+Response:
+{"node_ids":["mac@192.168.1.10"],
+ "registered_node_id":"mac@192.168.1.10"}</pre>
+    <p class="note">The app filters out its own name and attempts handshakes with reachable peers using separately configured credentials.</p>
+  </details>
+</main>
+</body>
+</html>

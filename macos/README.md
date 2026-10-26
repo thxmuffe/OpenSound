@@ -31,6 +31,11 @@ the session.
 
 ## Connect two app instances
 
+With the [Reception desk](../broker/README.md) running, **Connect → Register / Find
+nodes** registers this app and fetches known names. Register each instance and
+refresh in the first after the second joins. Select a returned name and provide
+that peer's cookie separately. The manual copy/paste route below also works.
+
 Launch a second process:
 
 ```sh
@@ -47,8 +52,9 @@ test instance.
 
 This build binds distribution to loopback and accepts only other native Parvi
 node names on this Mac. It does not yet connect to another computer, an iPhone,
-or a browser. No broker, QR enrollment, persistent identity or public networking
-is implemented. EPMD, Erlang's local name service, may remain running after quit.
+or a browser. The optional broker supplies discovery names; automatic QR
+enrollment, persistent identity and public networking remain unimplemented.
+EPMD, Erlang's local name service, may remain running after quit.
 If EPMD was already running, its existing interface configuration is unchanged.
 
 ## Validation

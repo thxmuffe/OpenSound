@@ -9,6 +9,8 @@ import UIKit
 public final class ChatModel: ObservableObject {
     @Published var messages: [ChatMessage] = []
     @Published var peers: [String] = []
+    @Published var knownNodes: [String] = []
+    @Published var brokerURL = "http://127.0.0.1:8765"
     @Published var node = "Starting Erlang…"
     @Published var running = false
     @Published var error: String?
@@ -34,6 +36,7 @@ public final class ChatModel: ObservableObject {
             self.node = snapshot.node
             self.messages = snapshot.messages
             self.peers = snapshot.peers
+            self.knownNodes = snapshot.known_nodes ?? []
             if let error = snapshot.error { self.error = error }
         }, onFailure: { [weak self] error in
             self?.running = false
@@ -55,6 +58,11 @@ public final class ChatModel: ObservableObject {
         error = nil
         runtime.request(["method": "connect", "node": peerName.trimmingCharacters(in: .whitespacesAndNewlines),
                          "cookie": peerCookie.trimmingCharacters(in: .whitespacesAndNewlines)])
+    }
+
+    func discover() {
+        error = nil
+        runtime.request(["method": "discover", "url": brokerURL.trimmingCharacters(in: .whitespacesAndNewlines)])
     }
 
     func copy(_ value: String) {

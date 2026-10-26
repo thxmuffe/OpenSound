@@ -22,22 +22,28 @@ class Instance:
             str(RUNTIME / "releases/0.1.0/start"), "-noshell", "-name", self.node,
             "-setcookie", self.cookie, "-kernel", "inet_dist_use_interface", "{127,0,0,1}",
             "-s", "parvi_bridge", "main"], env=env, stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE, text=True, bufsize=1)
+            stdout=subprocess.PIPE, bufsize=0)
+        self.buffer = b""
 
     def request(self, method, **args):
-        self.process.stdin.write(json.dumps(dict(method=method, **args)) + "\n")
+        self.process.stdin.write((json.dumps(dict(method=method, **args)) + "\n").encode())
         self.process.stdin.flush()
         deadline = time.monotonic() + 10
         while time.monotonic() < deadline:
-            if not select.select([self.process.stdout], [], [], 1)[0]:
-                continue
-            line = self.process.stdout.readline()
-            if not line:
-                raise RuntimeError(f"Erlang exited: {self.process.poll()}")
+            if b"\n" not in self.buffer:
+                if not select.select([self.process.stdout], [], [], 1)[0]:
+                    continue
+                chunk = os.read(self.process.stdout.fileno(), 65536)
+                if not chunk:
+                    raise RuntimeError(f"Erlang exited: {self.process.poll()}")
+                self.buffer += chunk
+                if b"\n" not in self.buffer:
+                    continue
+            line, self.buffer = self.buffer.split(b"\n", 1)
             try:
                 return json.loads(line)
             except json.JSONDecodeError:
-                print("Runtime:", line.rstrip())
+                print("Runtime:", line.decode(errors="replace").rstrip())
                 continue  # startup logs, if any, precede bridge configuration
         raise TimeoutError("No bridge response within 10 seconds")
 
@@ -59,26 +65,31 @@ def await_state(instance, predicate):
     raise AssertionError("State did not converge")
 
 
-first = Instance(1)
-second = None
-try:
-    second = Instance(2)
-    assert first.request("snapshot")["node"] == first.node
-    assert second.request("snapshot")["node"] == second.node
-    assert first.request("send", text="Hello from the native bridge 🐦")["error"] is None
-    assert first.request("send", text="")["error"] is not None
-    assert first.request("connect", node=second.node, cookie=second.cookie)["error"] is None
-    await_state(first, lambda s: second.node in s["peers"])
-    await_state(second, lambda s: first.node in s["peers"])
-    first.request("send", text="First app to second app")
-    await_state(second, lambda s: any(m["text"] == "First app to second app" for m in s["messages"]))
-    second.request("send", text="Reply from second app")
-    await_state(first, lambda s: any(m["text"] == "Reply from second app" for m in s["messages"]))
-    second.close()
+def main():
+    first = Instance(1)
     second = None
-    await_state(first, lambda s: s["peers"] == [])
-    print("PASS: bundled runtime, JSON bridge, UTF-8, validation, two-way chat and peer departure")
-finally:
-    if second is not None:
+    try:
+        second = Instance(2)
+        assert first.request("snapshot")["node"] == first.node
+        assert second.request("snapshot")["node"] == second.node
+        assert first.request("send", text="Hello from the native bridge 🐦")["error"] is None
+        assert first.request("send", text="")["error"] is not None
+        assert first.request("connect", node=second.node, cookie=second.cookie)["error"] is None
+        await_state(first, lambda s: second.node in s["peers"])
+        await_state(second, lambda s: first.node in s["peers"])
+        first.request("send", text="First app to second app")
+        await_state(second, lambda s: any(m["text"] == "First app to second app" for m in s["messages"]))
+        second.request("send", text="Reply from second app")
+        await_state(first, lambda s: any(m["text"] == "Reply from second app" for m in s["messages"]))
         second.close()
-    first.close()
+        second = None
+        await_state(first, lambda s: s["peers"] == [])
+        print("PASS: bundled runtime, JSON bridge, UTF-8, validation, two-way chat and peer departure")
+    finally:
+        if second is not None:
+            second.close()
+        first.close()
+
+
+if __name__ == "__main__":
+    main()

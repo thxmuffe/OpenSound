@@ -30,6 +30,11 @@ request(JSON) ->
     iolist_to_binary(json:encode(Reply)).
 
 command(#{<<"method">> := <<"snapshot">>}) -> null;
+command(#{<<"method">> := <<"discover">>, <<"url">> := URL}) ->
+    case parvi_discovery:discover(URL) of
+        ok -> null;
+        {error, Error} -> Error
+    end;
 command(#{<<"method">> := <<"send">>, <<"text">> := Text}) ->
     case parvi:send(Text) of
         {ok, _} -> null;
@@ -54,6 +59,7 @@ command(_) -> <<"Unsupported request.">>.
 snapshot() ->
     Status = parvi:status(),
     #{<<"node">> => atom_to_binary(node()),
+      <<"known_nodes">> => parvi_discovery:nodes(),
       <<"peers">> => [atom_to_binary(N) || N <- maps:get(chat_nodes, Status), N =/= node()],
       <<"messages">> => [message(M) || M <- parvi:history()]}.
 

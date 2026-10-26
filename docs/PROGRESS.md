@@ -1,5 +1,26 @@
 # Progress
 
+## 2026-10-26 — Reception desk (local discovery)
+
+Added `broker/`: supervised in-memory directory, OTP HTTP server on
+127.0.0.1:8765, JSON list/register API, join form and local QR generation. Duplicate
+names are deduplicated and all names are forgotten on restart. The directory
+stores names as binaries, caps resource usage and makes no liveness claims.
+The website and native connection sheet call it **Reception desk**. It runs in
+Erlang, but does not join the registered nodes' cluster or store chat messages.
+
+Added a shared Erlang discovery client and a minimal **Register / Find nodes**
+action in the native connection sheet. It registers the actual local node name
+and returns known names for selection. Cookies remain separate. Mac transport
+is still loopback-only; iPhone runtime integration remains pending.
+
+Broker EUnit and control EUnit checks pass. Both Mac and unsigned iPhone UI
+builds succeed. End-to-end testing passed for real app registration, returned
+peer names, authenticated Erlang connection, two-way chat and broker reset.
+Native registration and idempotent web registration were also verified in the
+UI; the page renders its local QR code. See [broker guide and API](../broker/README.md)
+for usage, limits, QR behavior and the integration-test command.
+
 ## 2026-10-26 — Shared native code and iPhone project
 
 Extracted the existing Mac UI and model into the local `shared/ParviKit` Swift

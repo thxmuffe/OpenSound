@@ -65,11 +65,13 @@ The shell is the initial interface; automatic chat rendering is deferred.
 parvi_app -> parvi_sup (rest_for_one)
                 +-- parvi_pg (OTP pg scope)
                 +-- parvi_chat (gen_server)
+                +-- parvi_discovery (local HTTP directory client)
 ```
 
 `parvi` is the UI boundary: send, history, status, subscribe/unsubscribe and manual
 connect/disconnect. The worker publishes directly to members of one versioned
-`pg` chat group. There is no broker. Starting more named nodes with the same
+`pg` chat group. Messages do not pass through the optional discovery directory.
+Starting more named nodes with the same
 application and cookie allows additional participants; three-device operation
 has not been tested. `connected_nodes` reports Erlang connections, while
 `chat_nodes` reports devices whose chat workers have joined the group. These

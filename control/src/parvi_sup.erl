@@ -8,5 +8,6 @@ init([]) ->
     %% Restart chat too if its process-group scope disappears.
     {ok, {#{strategy => rest_for_one, intensity => 5, period => 10}, [
         #{id => parvi_pg, start => {pg, start_link, [parvi_pg]}},
-        #{id => parvi_chat, start => {parvi_chat, start_link, []}}
+        #{id => parvi_chat, start => {parvi_chat, start_link, []}},
+        #{id => parvi_discovery, start => {parvi_discovery, start_link, []}}
     ]}}.

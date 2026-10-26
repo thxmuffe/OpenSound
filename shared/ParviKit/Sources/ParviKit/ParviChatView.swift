@@ -139,6 +139,27 @@ public struct ParviChatView: View {
                 Button("Copy cookie") { model.copy(model.cookie) }
             }
             Divider()
+            Text("Reception desk").font(.headline)
+            HStack {
+                TextField("http://127.0.0.1:8765", text: $model.brokerURL)
+                Button("Register / Find nodes") { model.discover() }
+            }
+            if !model.knownNodes.isEmpty {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(model.knownNodes, id: \.self) { node in
+                            Button(node) { model.peerName = node }
+                                .font(.system(.caption, design: .monospaced))
+                        }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }.frame(maxHeight: 90)
+            }
+            Text("Register this app and fetch known names. Select a returned name, then supply its cookie separately. Discovery does not establish a connection.")
+                .font(.caption).foregroundStyle(.secondary)
+            if let error = model.error {
+                Text(error).font(.caption).foregroundStyle(.orange)
+            }
+            Divider()
             TextField("Other instance’s node name", text: $model.peerName)
             SecureField("Other instance’s cookie", text: $model.peerCookie)
             Text(model.runtime.connectionHelp)

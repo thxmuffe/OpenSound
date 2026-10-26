@@ -11,6 +11,10 @@ The Mac app and [iPhone project](ios/README.md) now reuse the local
 [ParviKit package](shared/ParviKit/README.md). The iPhone UI shell builds, but
 on-device Erlang integration is still pending.
 
+A minimal [Reception desk](broker/README.md) now runs in Erlang and
+serves a node-name API and QR join page. The Mac connection sheet can register
+and fetch known names; authentication and peer connections remain separate.
+
 The newer [Parvi Audio handover](notes%2020261026.md) sets the immediate goal:
 real Erlang chat on Mac and iPhone, before audio. The first Mac step is implemented
 in [control/](control/README.md), with supervised chat actors and a two-node local
