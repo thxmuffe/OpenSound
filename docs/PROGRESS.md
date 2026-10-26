@@ -20,10 +20,12 @@ Validation:
   history. Core EUnit checks pass (4 tests).
 
 The physical iPhone 12 mini is paired over USB and reports iOS 26.6.1. Developer
-Mode is now enabled and an Apple Account is signed into Xcode. The project is
-open on Signing & Capabilities, with automatic signing enabled and **Team: None**.
-The user needs to select their Personal Team so Xcode can create a signing
-identity/profile, then run on the selected phone. A physical run remains unverified.
+Mode is enabled. Personal Team signing is configured and the user authorized
+the macOS signing-key prompt. The development-signed build succeeds, its code
+signature verifies, and `devicectl` successfully installed it on the phone.
+iOS currently refuses launch pending the user's developer-profile trust step
+under Settings → General → VPN & Device Management. Physical runtime execution
+remains unverified until that step and a successful launch.
 
 This build is foreground/local-only: it intentionally remains an unnamed node
 without EPMD, peer joins or Reception desk access. It proves the embedded-runtime

@@ -197,6 +197,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = L36PNJ4MYU;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Parvi/Info.plist;
@@ -213,6 +214,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = L36PNJ4MYU;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Parvi/Info.plist;
 				PRODUCT_BUNDLE_IDENTIFIER = org.opensound.parvi.ios.prototype;
