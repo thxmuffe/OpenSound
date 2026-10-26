@@ -21,6 +21,9 @@ public struct ParviChatView: View {
                             Label(model.running ? "Erlang running" : "Erlang unavailable",
                                   systemImage: model.running ? "checkmark.circle.fill" : "exclamationmark.circle")
                                 .font(.caption).foregroundStyle(model.running ? .green : .orange)
+                            if !model.runtimeInfo.isEmpty {
+                                Text(model.runtimeInfo).font(.caption2).foregroundStyle(.secondary)
+                            }
                             #endif
                         }
                         Spacer()

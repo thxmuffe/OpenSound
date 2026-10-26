@@ -1,5 +1,35 @@
 # Progress
 
+## 2026-10-26 — Embedded iOS BEAM runtime test build
+
+Replaced the unavailable iOS adapter with a real in-process OTP host using the
+pinned Mob iOS runtime artifacts for OTP 29.1.2 / ERTS 17.1.1. SHA-256 checks
+match the upstream release digests. Native startup and static-driver glue are
+small platform-specific files; the UI, chat state, JSON contract and supervision
+remain shared. Runtime provenance is in `ios/THIRD_PARTY.md`.
+
+Validation:
+
+- Physical-device arm64 and arm64 simulator builds both succeed.
+- The simulator actually boots BEAM and executes the shared `parvi_chat` worker.
+- Erlang's startup self-test verifies messaging, kills the worker and confirms
+  supervisor recovery. Its JSON receipt reports `status=passed`, OTP 29,
+  ERTS 17.1.1, different worker PIDs (`<0.91.0>` → `<0.93.0>`), and the same
+  OS process PID returned by the simulator app launcher.
+- A message typed and sent through the simulator SwiftUI composer appears in
+  history. Core EUnit checks pass (4 tests).
+
+The physical iPhone 12 mini is paired over USB and reports iOS 26.6.1. Developer
+Mode is now enabled and an Apple Account is signed into Xcode. The project is
+open on Signing & Capabilities, with automatic signing enabled and **Team: None**.
+The user needs to select their Personal Team so Xcode can create a signing
+identity/profile, then run on the selected phone. A physical run remains unverified.
+
+This build is foreground/local-only: it intentionally remains an unnamed node
+without EPMD, peer joins or Reception desk access. It proves the embedded-runtime
+path in the simulator, not the final Mac–iPhone messaging milestone. Next: the
+signed physical-phone test, then private-LAN transport.
+
 ## 2026-10-26 — Reception desk (local discovery)
 
 Added `broker/`: supervised in-memory directory, OTP HTTP server on

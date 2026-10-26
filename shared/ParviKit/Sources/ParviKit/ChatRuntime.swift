@@ -9,6 +9,7 @@ public struct ChatMessage: Identifiable, Decodable {
 
 public struct ChatSnapshot: Decodable {
     public let known_nodes: [String]?
+    public let runtime_info: String?
     public let node: String
     public let peers: [String]
     public let messages: [ChatMessage]

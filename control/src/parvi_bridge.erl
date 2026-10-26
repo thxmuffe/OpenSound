@@ -59,6 +59,8 @@ command(_) -> <<"Unsupported request.">>.
 snapshot() ->
     Status = parvi:status(),
     #{<<"node">> => atom_to_binary(node()),
+      <<"runtime_info">> => iolist_to_binary(io_lib:format("OTP ~s / ERTS ~s / worker ~p",
+          [erlang:system_info(otp_release), erlang:system_info(version), whereis(parvi_chat)])),
       <<"known_nodes">> => parvi_discovery:nodes(),
       <<"peers">> => [atom_to_binary(N) || N <- maps:get(chat_nodes, Status), N =/= node()],
       <<"messages">> => [message(M) || M <- parvi:history()]}.

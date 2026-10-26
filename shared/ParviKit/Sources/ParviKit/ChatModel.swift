@@ -10,6 +10,7 @@ public final class ChatModel: ObservableObject {
     @Published var messages: [ChatMessage] = []
     @Published var peers: [String] = []
     @Published var knownNodes: [String] = []
+    @Published var runtimeInfo = ""
     @Published var brokerURL = "http://127.0.0.1:8765"
     @Published var node = "Starting Erlang…"
     @Published var running = false
@@ -37,6 +38,7 @@ public final class ChatModel: ObservableObject {
             self.messages = snapshot.messages
             self.peers = snapshot.peers
             self.knownNodes = snapshot.known_nodes ?? []
+            self.runtimeInfo = snapshot.runtime_info ?? ""
             if let error = snapshot.error { self.error = error }
         }, onFailure: { [weak self] error in
             self?.running = false
