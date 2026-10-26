@@ -2,6 +2,12 @@
 
 Created: 2026-10-23. Status: proposal for discussion and experimentation.
 
+Update 2026-10-26: the newer [Parvi handover](notes%2020261026.md) introduces a
+chat-first feasibility phase before these audio milestones. The Mac OTP chat
+baseline is now implemented; iPhone execution remains pending. Follow
+[the progress log](docs/PROGRESS.md) and [decision 0001](docs/decisions/0001-chat-first-and-ios-feasibility.md)
+for current scope and next steps. The audio targets below remain unvalidated.
+
 ## Objective
 
 Demonstrate that independently clocked commodity receiver nodes can play subscribed audio in sustained alignment while applying local processing. Use the results to define a small, open, language-independent protocol and an implementation others can reproduce.
@@ -104,8 +110,13 @@ tests/interop/       protocol vectors and independent-client tests
 examples/            reproducible hardware and session configurations
 ```
 
-Only the root documentation exists initially. Add implementation directories when there is code to put in them.
+`control/` now contains the initial chat application and `docs/` records its
+decisions and progress. Add the remaining directories when there is code to put
+in them.
 
 ## Resuming work
 
-Start with Milestone 0. Read this plan and the README, inspect the current repository state, select the receiver and capture hardware, then record the first architecture decision. Preserve measured failures as useful results. Update this plan when evidence changes an assumption.
+For the current chat-first phase, start with `docs/PROGRESS.md` and decision 0001.
+When beginning audio, start with Milestone 0: select receiver and capture hardware
+and record the reuse assessment before implementing transport. Preserve measured
+failures as useful results and update this plan when evidence changes an assumption.

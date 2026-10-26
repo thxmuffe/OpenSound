@@ -2,7 +2,14 @@
 
 An open platform for synchronized, distributed audio playback and processing.
 
-**Status: early design. No implementation or interoperability guarantee exists yet.**
+**Status: first Erlang/OTP chat prototype; audio remains in early design.**
+
+The newer [Parvi Audio handover](notes%2020261026.md) sets the immediate goal:
+real Erlang chat on Mac and iPhone, before audio. The first Mac step is implemented
+in [control/](control/README.md), with supervised chat actors and a two-node local
+smoke test. iPhone runtime execution is still unverified; see the
+[iOS investigation](docs/decisions/0001-chat-first-and-ios-feasibility.md) and
+[progress log](docs/PROGRESS.md). No audio or interoperability guarantee exists yet.
 
 OpenSound explores a simple idea: publish audio onto a network with a shared playback timeline, then let intelligent speakers subscribe to the streams they need and process them locally. Sources and outputs should be able to join a running system without rebuilding a fixed audio installation.
 
@@ -80,7 +87,7 @@ OpenSound is not currently compatible with any of these systems. Prefer reuse an
 
 ## Roadmap and participation
 
-See [PLAN.md](PLAN.md) for milestones, experiments, acceptance criteria, and unresolved decisions. There is nothing to install or run yet.
+See [PLAN.md](PLAN.md) for the longer-term audio milestones, experiments, acceptance criteria, and unresolved decisions. Start with [the chat prototype guide](control/README.md) to build and run the current implementation.
 
 Early contributions are especially welcome in clock synchronization, audio drivers, DSP, network protocols, measurements, and accessibility. Propose substantial changes through an issue or pull request with the problem, alternatives, and a reproducible validation plan.
 

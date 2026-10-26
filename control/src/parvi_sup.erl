@@ -1,0 +1,12 @@
+-module(parvi_sup).
+-behaviour(supervisor).
+-export([start_link/0, init/1]).
+
+start_link() -> supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+
+init([]) ->
+    %% Restart chat too if its process-group scope disappears.
+    {ok, {#{strategy => rest_for_one, intensity => 5, period => 10}, [
+        #{id => parvi_pg, start => {pg, start_link, [parvi_pg]}},
+        #{id => parvi_chat, start => {parvi_chat, start_link, []}}
+    ]}}.
