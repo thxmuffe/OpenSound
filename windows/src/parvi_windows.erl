@@ -2,27 +2,28 @@
 -module(parvi_windows).
 -behaviour(wx_object).
 -include_lib("wx/include/wx.hrl").
--export([main/0, start/0, init/1, handle_event/2, handle_info/2,
+-export([main/0, start/0, start_link/0, init/1, handle_event/2, handle_info/2,
          handle_call/3, handle_cast/2, terminate/2, code_change/3]).
 
 main() ->
-    {ok, _} = application:ensure_all_started(crypto),
-    Cookie = binary:encode_hex(crypto:strong_rand_bytes(24)),
-    %% The launcher starts distribution with loopback binding and an ephemeral cookie.
-    true = node() =/= nonode@nohost,
-    erlang:set_cookie(binary_to_atom(Cookie)),
-    {ok, _} = parvi:start(),
-    Object = start(),
-    Ref = monitor(process, wx_object:get_pid(Object)),
-    receive {'DOWN', Ref, process, _, normal} -> init:stop();
-            {'DOWN', Ref, process, _, _} -> init:stop(1)
-    end.
+    %% Tail-call the stable host: no old UI code remains on its stack at reload.
+    parvi_windows_host:main().
 
 start() -> wx_object:start(?MODULE, [], []).
+start_link() ->
+    case wx_object:start_link(?MODULE, [], []) of
+        {error, _} = Error -> Error;
+        Object -> {ok, wx_object:get_pid(Object)}
+    end.
 
 init([]) ->
     wx:new(),
-    Frame = wxFrame:new(wx:null(), ?wxID_ANY, "Parvi", [{size, {1020, 740}}]),
+    try build_window(parvi_windows_model:get())
+    catch Class:Reason:Stack -> wx:destroy(), erlang:raise(Class, Reason, Stack) end.
+
+build_window(Saved) ->
+    Frame = wxFrame:new(wx:null(), ?wxID_ANY, "Parvi",
+        [{size, maps:get(size, Saved, {1020, 740})}]),
     wxFrame:setMinSize(Frame, {760, 560}),
     Root = wxPanel:new(Frame),
     Row = wxBoxSizer:new(?wxHORIZONTAL),
@@ -65,6 +66,7 @@ init([]) ->
         [{style, ?wxTE_PROCESS_ENTER}, {value, ""}]),
     wxTextCtrl:setToolTip(Draft, "Message the swarm (Enter to send)"),
     wxTextCtrl:connect(Draft, command_text_enter, [{userData, send}]),
+    wxTextCtrl:connect(Draft, command_text_updated, [{userData, edit_draft}]),
     wxSizer:add(Composer, Draft, [{proportion, 1}, {flag, ?wxEXPAND bor ?wxRIGHT}, {border, 12}]),
     Send = button(Content, "Send", send),
     wxSizer:add(Composer, Send),
@@ -75,20 +77,38 @@ init([]) ->
     wxFrame:createStatusBar(Frame),
     wxFrame:connect(Frame, close_window),
     wxFrame:connect(Frame, size, [{skip, true}]),
+    wxFrame:connect(Frame, move, [{skip, true}]),
+    case maps:find(position, Saved) of
+        {ok, Position} -> wxFrame:move(Frame, Position);
+        error -> ok
+    end,
     wxFrame:show(Frame),
+    wxFrame:maximize(Frame, [{maximize, maps:get(maximized, Saved, false)}]),
+    wxTextCtrl:changeValue(Draft, maps:get(draft, Saved, "")),
     wxTextCtrl:setFocus(Draft),
     self() ! refresh,
-    {Frame, #{frame => Frame, peers => Peers, summary => Summary,
+    State = #{frame => Frame, peers => Peers, summary => Summary,
               conversation => Conversation, messages => Messages, draft => Draft,
               error => Error, send => Send, connect => Connect, dialog => undefined,
-              history => undefined, busy => false, node_names => []}}.
+              history => undefined, busy => false, node_names => []},
+    Restored = case maps:get(dialog, Saved, false) of
+        false -> State;
+        true -> open_dialog(State)
+    end,
+    {Frame, Restored}.
 
 handle_event(#wx{event = #wxClose{}, obj = Obj}, #{frame := Obj} = S) ->
     {stop, normal, S};
 handle_event(#wx{event = #wxClose{}}, S) -> {noreply, close_dialog(S)};
 handle_event(#wx{event = #wxSize{}}, S) ->
+    remember_geometry(S),
     self() ! relayout,
     {noreply, S};
+handle_event(#wx{event = #wxMove{}}, S) -> remember_geometry(S), {noreply, S};
+handle_event(#wx{userData = edit_draft}, S) ->
+    parvi_windows_model:put(#{draft => wxTextCtrl:getValue(maps:get(draft, S))}), {noreply, S};
+handle_event(#wx{userData = {edit, Key}, obj = Ctrl}, S) ->
+    parvi_windows_model:put(#{Key => wxTextCtrl:getValue(Ctrl)}), {noreply, S};
 handle_event(#wx{userData = connect}, S) -> {noreply, open_dialog(S)};
 handle_event(#wx{userData = cancel}, S) -> {noreply, close_dialog(S)};
 handle_event(#wx{userData = copy_node_connection, event = #wxCommand{cmdString = Label}}, S) ->
@@ -128,7 +148,18 @@ handle_event(_, S) -> {noreply, S}.
 
 handle_info(refresh, S) ->
     erlang:send_after(600, self(), refresh),
-    {noreply, request(#{method => snapshot}, snapshot, S)};
+    Model = parvi_windows_model:get(),
+    Draft = maps:get(draft, S),
+    Text = maps:get(draft, Model, ""),
+    case wxTextCtrl:getValue(Draft) =:= Text of
+        true -> ok;
+        false -> wxTextCtrl:changeValue(Draft, Text)
+    end,
+    Current = case {maps:get(dialog, Model, false), maps:get(dialog, S)} of
+        {false, D} when D =/= undefined -> close_dialog(S);
+        _ -> S
+    end,
+    {noreply, request(#{method => snapshot}, snapshot, Current)};
 handle_info(relayout, S) -> {noreply, render(maps:get(history, S), S)};
 handle_info({node_connection, Ref, Result}, #{copy_ref := Ref} = S) ->
     case Result of
@@ -150,11 +181,8 @@ handle_info({node_connection, Ref, Result}, #{copy_ref := Ref} = S) ->
         _ -> show_error("Could not get this node's connection string. Check the connection and restart older app instances.", S)
     end,
     {noreply, maps:remove(copy_ref, S)};
-handle_info(run_queued, #{queued := {Command, Kind}} = S) ->
-    {noreply, request(Command, Kind, maps:remove(queued, S))};
 handle_info({reply, Ref, Kind, Result}, #{busy := Ref} = S0) ->
     S = busy(false, S0),
-    case maps:is_key(queued, S) of true -> self() ! run_queued; false -> ok end,
     case Result of
         #{<<"messages">> := History, <<"peers">> := Peers, <<"error">> := Error} ->
             Names = [atom_to_binary(node()) | Peers],
@@ -195,15 +223,9 @@ handle_info({reply, Ref, Kind, Result}, #{busy := Ref} = S0) ->
 handle_info(_, S) -> {noreply, S}.
 
 request(_, snapshot, #{busy := Ref} = S) when Ref =/= false -> S;
-request(Command, Kind, #{busy := Ref} = S) when Ref =/= false ->
-    busy(Ref, S#{queued => {Command, Kind}});
 request(Command, Kind, S) ->
-    Parent = self(), Ref = make_ref(),
-    spawn(fun() ->
-        Reply = try json:decode(parvi_bridge:request(iolist_to_binary(json:encode(Command))))
-                catch _:_ -> unavailable end,
-        Parent ! {reply, Ref, Kind, Reply}
-    end),
+    Ref = make_ref(),
+    parvi_windows_model:request(Command, Kind, self(), Ref),
     case Kind of snapshot -> S#{busy := Ref}; _ -> busy(Ref, S) end.
 
 busy(Ref, S) ->
@@ -252,6 +274,8 @@ bubble(Parent, Sizer, #{<<"sender">> := Sender, <<"text">> := Text, <<"time">> :
 
 open_dialog(#{dialog := D} = S) when D =/= undefined -> wxDialog:raise(D), S;
 open_dialog(S) ->
+    Model = parvi_windows_model:get(),
+    parvi_windows_model:put(#{dialog => true}),
     D = wxDialog:new(maps:get(frame, S), ?wxID_ANY, "Connect a Parvi instance",
         [{size, {610, 610}}, {style, ?wxDEFAULT_DIALOG_STYLE bor ?wxRESIZE_BORDER}]),
     Column = wxBoxSizer:new(?wxVERTICAL),
@@ -259,14 +283,16 @@ open_dialog(S) ->
         "Copy a connection string here and paste it into the other instance."), 0, 12),
     OwnConnection = parvi_connection:local(),
     field(D, Column, "This instance's connection string", OwnConnection, ?wxTE_READONLY),
-    Connection = field(D, Column, "Other instance's connection string", "", 0),
+    Connection = field(D, Column, "Other instance's connection string", maps:get(connection, Model, ""), 0),
+    wxTextCtrl:connect(Connection, command_text_updated, [{userData, {edit, connection}}]),
     add(Column, wxStaticText:new(D, ?wxID_ANY,
         "The string includes the address and private session credentials.\nThis build connects instances on this Windows PC only."), 0, 12),
     DialogError = wxStaticText:new(D, ?wxID_ANY, ""),
     wxStaticText:setForegroundColour(DialogError, {155,65,25}),
     add(Column, DialogError, 0, 8),
     add(Column, title(D, "Reception desk", 14), 0, 12),
-    URL = field(D, Column, "Reception desk URL", "http://127.0.0.1:8765", 0),
+    URL = field(D, Column, "Reception desk URL", maps:get(url, Model, "http://127.0.0.1:8765"), 0),
+    wxTextCtrl:connect(URL, command_text_updated, [{userData, {edit, url}}]),
     Discover = button(D, "Register / Find nodes", discover),
     add(Column, Discover, 0, 12),
     Nodes = wxListBox:new(D, ?wxID_ANY),
@@ -285,7 +311,8 @@ open_dialog(S) ->
         dialog_error => DialogError, known_nodes => Nodes, discover => Discover, join => Join}).
 
 close_dialog(#{dialog := undefined} = S) -> S;
-close_dialog(#{dialog := D} = S) -> wxDialog:destroy(D), S#{dialog := undefined}.
+close_dialog(#{dialog := D} = S) ->
+    parvi_windows_model:put(#{dialog => false}), wxDialog:destroy(D), S#{dialog := undefined}.
 
 update_nodes(Reply, #{dialog := D, known_nodes := List}) when D =/= undefined ->
     Nodes = maps:get(<<"known_nodes">>, Reply, []),
@@ -320,6 +347,10 @@ title(Parent, Text, Size) ->
     wxStaticText:setFont(T, Font), wxFont:destroy(Font), T.
 add(Sizer, Item, Proportion, Border) ->
     wxSizer:add(Sizer, Item, [{proportion, Proportion}, {flag, ?wxEXPAND bor ?wxALL}, {border, Border}]).
+remember_geometry(S) ->
+    Frame = maps:get(frame, S),
+    parvi_windows_model:put(#{position => wxFrame:getPosition(Frame),
+        size => wxFrame:getSize(Frame), maximized => wxFrame:isMaximized(Frame)}).
 handle_call(_, _, S) -> {reply, {error, unsupported}, S}.
 handle_cast(_, S) -> {noreply, S}.
 terminate(_, S) -> wxFrame:destroy(maps:get(frame, S)), wx:destroy(), ok.

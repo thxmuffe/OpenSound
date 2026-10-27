@@ -29,7 +29,8 @@ The resulting `_build/Parvi/` folder contains `Parvi.exe`, `ebin/`, and `runtime
 Keep these together. This first exercise retains the full runtime libraries;
 package-size reduction and a signed installer are later work. Windows may need
 the Microsoft Visual C++ runtime required by the official OTP distribution.
-The build directory is ignored by Git. Close the app before rebuilding.
+The build directory is ignored by Git. UI builds can run while the app is open;
+close the app when changing the native C launcher itself.
 
 For terminal diagnostics, run `.\windows\run.ps1`. Each launch creates an
 independent named Erlang node with a fresh session cookie. The cookie included in
@@ -47,9 +48,38 @@ or **Send** submits a message; invalid messages leave the draft intact.
 
 Click a node in the **Nodes** sidebar to copy its connection string. For a remote
 node, Parvi requests that node's own string over the existing trusted Erlang
-connection. Restart both Windows instances after updating so both expose this
-operation. Discovery-only names do not contain credentials and cannot be copied
+connection. Both nodes must include the shared connection-string operation.
+Discovery-only names do not contain credentials and cannot be copied
 as complete connection strings.
+
+## Automatic UI reload during development
+
+Restart existing instances once to activate the reload host. After that, compiling
+`windows/src/parvi_windows.erl` into the app's `ebin/` directory automatically
+rebuilds each running window, normally within about a second. Use
+`.\windows\build.ps1` while the app is running; the script skips rebuilding an
+unchanged native launcher. There is no need to reconnect or recopy connection
+strings for a UI edit.
+
+The Windows supervisor owns three children: a model process, a reload watcher,
+and a disposable wx window. The model stores current drafts, window geometry,
+and connection-dialog fields as edits happen. It also dispatches requests so an
+in-flight send survives destruction of the window. Chat history stays exclusively
+in the existing chat worker; windows read fresh snapshots instead of restoring
+old chat data. The Erlang node, cookie, and peer connections remain alive. The
+window may briefly flicker when recreated.
+
+Incomplete compiler output is ignored. There is **no rollback** and no saved old
+UI binary. If new UI code fails to initialize, the window remains unavailable
+until a corrected build arrives; the model and backend continue running. A window
+that crashes during normal operation is restarted by its OTP supervisor using
+the current code. Repeated crashes escalate through normal supervisor restart
+limits. Closing the current window normally still ends the app.
+
+This watches the Windows UI module only. Changes to the host, shared backend,
+native libraries, or runtime still require a deliberate upgrade or restart.
+For an explicit rebuild from an Erlang debugging connection, call
+`parvi_windows_host:reload/0`.
 
 The versioned format is `parvi://connect/v1?node=...&cookie=...`, with URI-encoded
 values. The string contains private credentials; it is not encryption or a public
@@ -77,6 +107,7 @@ The PowerShell launcher supports the same `PARVI_BROKER_BIND` and
 .\windows\build.ps1 -Test
 # Run broker/run.ps1 once to compile it, then stop it if desired.
 python .\windows\smoke.py
+python .\windows\reload-smoke.py
 ```
 
 The smoke test starts its own directory on a temporary loopback port and two real
@@ -84,6 +115,11 @@ Windows BEAM nodes. It checks directory registration, peer selection, cookie
 authentication, two-way UTF-8 chat, oversized input, and peer departure. It does
 not alter the normal desk on port 8765. Core EUnit tests cover worker and `pg`
 restart recovery. A GUI send and the connection dialog were checked separately.
+
+The native-window reload test uses an isolated copy of the app modules. It checks
+repeated automatic reloads, retained model data, unchanged node/cookie/chat workers,
+continued messaging while UI code is broken, corrected-build recovery, supervised
+window-crash recovery, and sends that survive window replacement.
 
 ## Current scope
 

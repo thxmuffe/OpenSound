@@ -23,15 +23,21 @@ if (!(Test-Path -LiteralPath (Join-Path $runtime 'bin\erl.exe'))) {
         $_.Name -in @('bin', 'lib', 'releases') -or $_.Name -like 'erts-*'
     } | Copy-Item -Destination $runtime -Recurse
 }
-$vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-$vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-if (!$vs) { throw 'Install the Visual Studio Desktop development with C++ workload to build Parvi.exe.' }
-$dev = Join-Path $vs 'Common7\Tools\VsDevCmd.bat'
 $source = Join-Path $PSScriptRoot 'launcher.c'
-# Compiler environment and compilation run in the same shell; no filesystem mutation through cmd.
-$compile = "`"$dev`" -no_logo -arch=x64 -host_arch=x64 && cl /nologo /W4 /MT `"$source`" /Fo`"$out\launcher.obj`" /Fe`"$out\Parvi.exe`" /link /SUBSYSTEM:WINDOWS user32.lib bcrypt.lib"
-& $env:ComSpec /d /s /c $compile
-if ($LASTEXITCODE) { throw 'Native launcher compilation failed.' }
+$launcher = Join-Path $out 'Parvi.exe'
+if (!(Test-Path -LiteralPath $launcher) -or
+    (Get-Item -LiteralPath $source).LastWriteTimeUtc -gt (Get-Item -LiteralPath $launcher).LastWriteTimeUtc) {
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    $vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+    if (!$vs) { throw 'Install the Visual Studio Desktop development with C++ workload to build Parvi.exe.' }
+    $dev = Join-Path $vs 'Common7\Tools\VsDevCmd.bat'
+    # Compile in one shell with the Visual Studio environment.
+    $compile = "`"$dev`" -no_logo -arch=x64 -host_arch=x64 && cl /nologo /W4 /MT `"$source`" /Fo`"$out\launcher.obj`" /Fe`"$launcher`" /link /SUBSYSTEM:WINDOWS user32.lib bcrypt.lib"
+    & $env:ComSpec /d /s /c $compile
+    if ($LASTEXITCODE) { throw 'Native launcher compilation failed. Close Parvi if its launcher needs rebuilding.' }
+} else {
+    Write-Host 'Native launcher unchanged; compiled Erlang modules only.'
+}
 if ($Test) {
     $tests = @(Get-ChildItem -LiteralPath (Join-Path $repo 'control\test') -Filter '*.erl' | ForEach-Object FullName)
     & $erlc -Werror -o $ebin @tests

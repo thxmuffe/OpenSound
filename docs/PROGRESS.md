@@ -1,5 +1,41 @@
 # Progress
 
+## 2026-10-27 — Supervised disposable UI; no rollback
+
+Replaced reload-time state capture and old-code rollback with a Windows OTP
+supervisor, a small live UI-model process, and a disposable wx child. Drafts,
+geometry, and connection fields are updated in the model as edits happen. Chat
+history is read from its existing worker. Requests belong to the model so a send
+can finish after its window disappears. The watcher retains only a build hash,
+not an old UI binary. A failed new build leaves no window until corrected; normal
+runtime window crashes are restarted by the supervisor using current code.
+
+The isolated native-window test passes for repeated reload, persistent model and
+backend identity, messaging while UI initialization fails, corrected-build
+recovery, supervised crash recovery, and in-flight sends. Existing instances need
+one restart because the host architecture changed. This supersedes the earlier
+rollback implementation described below.
+
+## 2026-10-27 — Automatic Windows UI reload
+
+Added a stable `parvi_windows_host` that watches the compiled Windows UI module.
+Each changed valid build replaces the wx process/window without restarting the
+node or shared OTP application. Draft, geometry, maximized state, visible history,
+error text, and connection-dialog fields are restored. Reload waits for active
+requests; incomplete files are ignored and failed initialization rolls back to
+the previous UI. Closing the active window still closes the app normally.
+
+The build script now skips an unchanged C launcher, so UI builds can run while
+Parvi.exe is open. Existing instances need one restart to activate the host.
+Backend, host, and native-runtime changes remain separate upgrades.
+
+Validation: warnings-as-errors compilation and an isolated native-wx integration
+test pass. The test proves repeated automatic replacements, retained UI fields,
+unchanged node/cookie/chat and pg workers, peer connectivity and message delivery
+across reloads, invalid-file rejection, failed-build rollback, corrected-build
+recovery, and normal shutdown. The deliberate broken-build crash report is
+expected. See `windows/reload-smoke.py`.
+
 ## 2026-10-27 — Click a node to copy its connection string
 
 The Windows Nodes list now copies the selected node's connection string to the
