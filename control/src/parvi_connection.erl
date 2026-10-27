@@ -1,6 +1,8 @@
 %% A portable UI format, not a replacement for Erlang's authentication cookie.
 -module(parvi_connection).
--export([format/2, parse/1]).
+-export([local/0, format/2, parse/1]).
+
+local() -> format(atom_to_binary(node()), atom_to_binary(erlang:get_cookie())).
 
 format(Node, Cookie) when is_binary(Node), is_binary(Cookie) ->
     Query = uri_string:compose_query([{<<"node">>, Node}, {<<"cookie">>, Cookie}]),

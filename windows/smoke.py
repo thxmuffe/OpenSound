@@ -87,7 +87,8 @@ def main():
         nodes.extend([a, b])
         assert a.request()['node'] == a.name
         assert b.request()['node'] == b.name
-        assert a.request('discover', url=url)['error'] is None
+        discovery_error = a.request('discover', url=url)['error']
+        assert discovery_error is None, discovery_error
         assert a.name in b.request('discover', url=url)['known_nodes']
         assert b.name in a.request('discover', url=url)['known_nodes']
         assert a.request('connect', node='parvi_windows_1@192.168.1.5', cookie='test')['error']
@@ -96,6 +97,17 @@ def main():
         assert a.request('connect', connection_string=connection)['error'] is None
         await_snapshot(a, lambda r: b.name in r['peers'])
         await_snapshot(b, lambda r: a.name in r['peers'])
+        # B accepted A using B's cookie. Asking B for A's connection string must
+        # fetch A's actual default cookie, not reuse B's handshake cookie.
+        probe = f'parvi_windows_{os.getpid()}3@127.0.0.1'
+        code = (f'Expected = parvi_connection:format(<<"{a.name}">>, <<"{a.cookie}">>), '
+                f'Expected = erpc:call(\'{b.name}\', erpc, call, '
+                f'[\'{a.name}\', parvi_connection, local, [], 2000], 3000), halt().')
+        subprocess.run([str(ERL), '-noshell', '-name', probe, '-setcookie', b.cookie,
+                        '-kernel', 'inet_dist_use_interface', '{127,0,0,1}',
+                        '-pa', str(EBIN), '-eval', code], check=True, timeout=10,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                       env={**os.environ, 'ERL_EPMD_ADDRESS': '127.0.0.1'})
         text = 'Hello from Windows: Hei parvi! 🐦 <>&'
         assert a.request('send', text=text)['error'] is None
         await_snapshot(b, lambda r: any(m['text'] == text for m in r['messages']))
@@ -105,7 +117,7 @@ def main():
         b.close()
         nodes.remove(b)
         await_snapshot(a, lambda r: b.name not in r['peers'])
-        print('PASS: real Windows nodes, directory discovery, authenticated connection, UTF-8 two-way chat, validation, departure')
+        print('PASS: real Windows nodes, discovery, connection strings including remote retrieval, UTF-8 two-way chat, validation, departure')
     finally:
         for node in nodes:
             node.close()

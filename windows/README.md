@@ -5,7 +5,7 @@ Mac/iOS prototypes. The UI runs in the local BEAM process through wxErlang;
 the small C launcher starts the private runtime without a console. There is no
 browser, remote backend substitute, or separate chat implementation.
 
-The layout follows the shared SwiftUI app: device sidebar, Swarm chat heading,
+The layout follows the shared SwiftUI app: node sidebar, Swarm chat heading,
 conversation, composer, and a connection dialog with Reception desk discovery.
 History stays in the existing bounded, transient chat worker (200 messages).
 
@@ -41,9 +41,15 @@ Launch `Parvi.exe` twice. Open **Connect** in each instance. In the first, selec
 **This instance's connection string** and copy with Ctrl+A, Ctrl+C (or the native
 context menu). Paste into **Other instance's connection string** in the second
 instance with Ctrl+V, then click **Connect**. The first field is read-only; the
-second is editable. Wait for both device
-lists to show two participants, then send messages in either direction. Enter
+second is editable. Wait for both node
+lists to show two nodes, then send messages in either direction. Enter
 or **Send** submits a message; invalid messages leave the draft intact.
+
+Click a node in the **Nodes** sidebar to copy its connection string. For a remote
+node, Parvi requests that node's own string over the existing trusted Erlang
+connection. Restart both Windows instances after updating so both expose this
+operation. Discovery-only names do not contain credentials and cannot be copied
+as complete connection strings.
 
 The versioned format is `parvi://connect/v1?node=...&cookie=...`, with URI-encoded
 values. The string contains private credentials; it is not encryption or a public

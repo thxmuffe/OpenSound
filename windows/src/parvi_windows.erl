@@ -31,8 +31,10 @@ init([]) ->
     Side = wxBoxSizer:new(?wxVERTICAL),
     add(Side, title(Sidebar, "Parvi", 24), 0, 20),
     add(Side, wxStaticText:new(Sidebar, ?wxID_ANY, "Erlang running"), 0, 12),
-    add(Side, wxStaticText:new(Sidebar, ?wxID_ANY, "DEVICES"), 0, 12),
+    add(Side, wxStaticText:new(Sidebar, ?wxID_ANY, "NODES"), 0, 12),
     Peers = wxListBox:new(Sidebar, ?wxID_ANY),
+    wxListBox:connect(Peers, command_listbox_selected, [{userData, copy_node_connection}]),
+    wxListBox:setToolTip(Peers, "Click a node to copy its connection string"),
     add(Side, Peers, 1, 12),
     add(Side, wxStaticText:new(Sidebar, ?wxID_ANY,
         "PARVI PROTOTYPE\nChat runs in Erlang/OTP.\nHistory lasts for this session."), 0, 16),
@@ -44,7 +46,7 @@ init([]) ->
     Header = wxBoxSizer:new(?wxHORIZONTAL),
     Heading = wxBoxSizer:new(?wxVERTICAL),
     wxSizer:add(Heading, title(Content, "Swarm chat", 20)),
-    Summary = wxStaticText:new(Content, ?wxID_ANY, "1 device - This Windows PC"),
+    Summary = wxStaticText:new(Content, ?wxID_ANY, "1 node"),
     wxSizer:add(Heading, Summary, [{flag, ?wxTOP}, {border, 6}]),
     wxSizer:add(Header, Heading, [{proportion, 1}]),
     Connect = button(Content, "Connect", connect),
@@ -79,7 +81,7 @@ init([]) ->
     {Frame, #{frame => Frame, peers => Peers, summary => Summary,
               conversation => Conversation, messages => Messages, draft => Draft,
               error => Error, send => Send, connect => Connect, dialog => undefined,
-              history => undefined, busy => false}}.
+              history => undefined, busy => false, node_names => []}}.
 
 handle_event(#wx{event = #wxClose{}, obj = Obj}, #{frame := Obj} = S) ->
     {stop, normal, S};
@@ -89,6 +91,28 @@ handle_event(#wx{event = #wxSize{}}, S) ->
     {noreply, S};
 handle_event(#wx{userData = connect}, S) -> {noreply, open_dialog(S)};
 handle_event(#wx{userData = cancel}, S) -> {noreply, close_dialog(S)};
+handle_event(#wx{userData = copy_node_connection, event = #wxCommand{cmdString = Label}}, S) ->
+    Selected = unicode:characters_to_binary(Label),
+    LocalLabel = <<(atom_to_binary(node()))/binary, " (this node)">>,
+    Name = case Selected of LocalLabel -> atom_to_binary(node()); _ -> Selected end,
+    case lists:member(Name, maps:get(node_names, S)) of
+        false -> {noreply, S};
+        true ->
+            Ref = make_ref(), Parent = self(),
+            spawn(fun() ->
+                Result = try
+                    Node = binary_to_existing_atom(Name),
+                    String = case Node =:= node() of
+                        true -> parvi_connection:local();
+                        false -> erpc:call(Node, parvi_connection, local, [], 2000)
+                    end,
+                    {ok, #{node := Name}} = parvi_connection:parse(String),
+                    {ok, String}
+                catch _:_ -> unavailable end,
+                Parent ! {node_connection, Ref, Result}
+            end),
+            {noreply, S#{copy_ref => Ref}}
+    end;
 handle_event(#wx{userData = send}, S) ->
     Text = unicode:characters_to_binary(wxTextCtrl:getValue(maps:get(draft, S))),
     case string:trim(Text) of
@@ -106,6 +130,26 @@ handle_info(refresh, S) ->
     erlang:send_after(600, self(), refresh),
     {noreply, request(#{method => snapshot}, snapshot, S)};
 handle_info(relayout, S) -> {noreply, render(maps:get(history, S), S)};
+handle_info({node_connection, Ref, Result}, #{copy_ref := Ref} = S) ->
+    case Result of
+        {ok, String} ->
+            Clipboard = wxClipboard:get(),
+            case wxClipboard:open(Clipboard) of
+                true ->
+                    try
+                        Data = wxTextDataObject:new([{text, String}]),
+                        case wxClipboard:setData(Clipboard, Data) of
+                            true ->
+                                show_error("", S),
+                                wxFrame:setStatusText(maps:get(frame, S), "Connection string copied.");
+                            false -> show_error("Could not copy the connection string. Try again.", S)
+                        end
+                    after wxClipboard:close(Clipboard) end;
+                false -> show_error("Clipboard is unavailable. Click the node to try again.", S)
+            end;
+        _ -> show_error("Could not get this node's connection string. Check the connection and restart older app instances.", S)
+    end,
+    {noreply, maps:remove(copy_ref, S)};
 handle_info(run_queued, #{queued := {Command, Kind}} = S) ->
     {noreply, request(Command, Kind, maps:remove(queued, S))};
 handle_info({reply, Ref, Kind, Result}, #{busy := Ref} = S0) ->
@@ -113,9 +157,17 @@ handle_info({reply, Ref, Kind, Result}, #{busy := Ref} = S0) ->
     case maps:is_key(queued, S) of true -> self() ! run_queued; false -> ok end,
     case Result of
         #{<<"messages">> := History, <<"peers">> := Peers, <<"error">> := Error} ->
-            wxListBox:set(maps:get(peers, S), ["This Windows PC" | Peers]),
+            Names = [atom_to_binary(node()) | Peers],
+            case Names =:= maps:get(node_names, S) of
+                true -> ok;
+                false -> wxListBox:set(maps:get(peers, S), [[atom_to_list(node()), " (this node)"] | Peers])
+            end,
+            WithNodes = S#{node_names := Names},
             wxStaticText:setLabel(maps:get(summary, S),
-                io_lib:format("~B device(s) - This Windows PC", [length(Peers) + 1])),
+                case length(Peers) of
+                    0 -> "1 node";
+                    N -> io_lib:format("~B nodes", [N + 1])
+                end),
             wxFrame:setStatusText(maps:get(frame, S),
                 [atom_to_list(node()), " | ", maps:get(<<"runtime_info">>, Result)]),
             case {Kind, Error} of
@@ -126,9 +178,9 @@ handle_info({reply, Ref, Kind, Result}, #{busy := Ref} = S0) ->
             S1 = case {Kind, Error} of
                 {send, null} ->
                     wxTextCtrl:changeValue(maps:get(draft, S), ""),
-                    wxTextCtrl:setFocus(maps:get(draft, S)), S;
-                {join, null} -> close_dialog(S);
-                _ -> S
+                    wxTextCtrl:setFocus(maps:get(draft, S)), WithNodes;
+                {join, null} -> close_dialog(WithNodes);
+                _ -> WithNodes
             end,
             update_nodes(Result, S1),
             S2 = case History =:= maps:get(history, S1) of
@@ -186,7 +238,7 @@ bubble(Parent, Sizer, #{<<"sender">> := Sender, <<"text">> := Text, <<"time">> :
     Panel = wxPanel:new(Parent),
     wxPanel:setBackgroundColour(Panel, case Mine of true -> {219,241,238}; false -> {240,242,244} end),
     Column = wxBoxSizer:new(?wxVERTICAL),
-    Label = case Mine of true -> <<"This Windows PC">>; false -> Sender end,
+    Label = case Mine of true -> <<Sender/binary, " (this node)">>; false -> Sender end,
     add(Column, wxStaticText:new(Panel, ?wxID_ANY, Label), 0, 8),
     Body = wxStaticText:new(Panel, ?wxID_ANY, binary:replace(Text, <<"&">>, <<"&&">>, [global])),
     {Width, _} = wxWindow:getClientSize(Parent),
@@ -205,7 +257,7 @@ open_dialog(S) ->
     Column = wxBoxSizer:new(?wxVERTICAL),
     add(Column, wxStaticText:new(D, ?wxID_ANY,
         "Copy a connection string here and paste it into the other instance."), 0, 12),
-    OwnConnection = parvi_connection:format(atom_to_binary(node()), atom_to_binary(erlang:get_cookie())),
+    OwnConnection = parvi_connection:local(),
     field(D, Column, "This instance's connection string", OwnConnection, ?wxTE_READONLY),
     Connection = field(D, Column, "Other instance's connection string", "", 0),
     add(Column, wxStaticText:new(D, ?wxID_ANY,

@@ -1,5 +1,18 @@
 # Progress
 
+## 2026-10-27 — Click a node to copy its connection string
+
+The Windows Nodes list now copies the selected node's connection string to the
+clipboard. Remote strings are fetched asynchronously from the connected node,
+with a timeout and validation, rather than guessing its cookie from the local
+connection. Snapshot refreshes preserve list selection when membership is
+unchanged. Both instances must be restarted after the update.
+
+Warnings-as-errors compilation passes. The two-node integration test passes,
+including retrieval of the initiating node's actual connection string through
+its peer when their default cookies differ. The first test run hit a directory
+discovery failure; a diagnostic rerun passed all checks.
+
 ## 2026-10-27 — Standard text fields for connection strings
 
 Simplified the Windows dialog to a selectable read-only local connection string
