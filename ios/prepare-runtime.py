@@ -35,7 +35,7 @@ assert version == '17.1.1', f'Expected ERTS 17.1.1 compiler, got {version}'
 subprocess.run(['rebar3', 'compile'], cwd=ROOT / 'control', check=True)
 resources = ROOT / f'ios/build/Resources-{target}/runtime'
 resources.mkdir(parents=True, exist_ok=True)
-for name in ['kernel', 'stdlib', 'inets']:
+for name in ['kernel', 'stdlib', 'inets', 'crypto']:
     matches = list((otp / 'lib').glob(f'{name}-*'))
     assert len(matches) == 1, (name, matches)
     app = matches[0]

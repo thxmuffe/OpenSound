@@ -70,21 +70,35 @@ def main():
     second = None
     try:
         second = Instance(2)
-        assert first.request("snapshot")["node"] == first.node
+        initial = first.request("snapshot")
+        assert initial["node"] == first.node
+        assert initial["connection_string"].startswith("parvi://connect/v1?")
         assert second.request("snapshot")["node"] == second.node
         assert first.request("send", text="Hello from the native bridge 🐦")["error"] is None
         assert first.request("send", text="")["error"] is not None
-        assert first.request("connect", node=second.node, cookie=second.cookie)["error"] is None
+        bad = first.request("connect", connection_string="not an invitation", request_id="bad-join")
+        assert bad["error"] is not None and bad["request_id"] == "bad-join"
+        invitation = second.request("snapshot")["connection_string"]
+        joined = first.request("connect", connection_string=invitation, request_id="join-1")
+        assert joined["error"] is None and joined["request_id"] == "join-1"
         await_state(first, lambda s: second.node in s["peers"])
         await_state(second, lambda s: first.node in s["peers"])
+        await_state(first, lambda s: any(n["id"] == second.node and n["state"] == "running"
+                                        for n in s["network"]["nodes"]))
+        network = first.request("snapshot")["network"]
+        assert sorted([first.node, second.node]) in network["edges"]
         first.request("send", text="First app to second app")
         await_state(second, lambda s: any(m["text"] == "First app to second app" for m in s["messages"]))
         second.request("send", text="Reply from second app")
         await_state(first, lambda s: any(m["text"] == "Reply from second app" for m in s["messages"]))
+        departed_node = second.node
         second.close()
         second = None
         await_state(first, lambda s: s["peers"] == [])
-        print("PASS: bundled runtime, JSON bridge, UTF-8, validation, two-way chat and peer departure")
+        departed = await_state(first, lambda s: any(n["id"] == departed_node and n["state"] == "down"
+                                                    for n in s["network"]["nodes"]))
+        assert not departed["network"]["edges"]
+        print("PASS: bundled runtime, invitation join, correlated errors, network status/topology, UTF-8, two-way chat and departure")
     finally:
         if second is not None:
             second.close()

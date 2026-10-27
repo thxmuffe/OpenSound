@@ -3,10 +3,10 @@ import ParviKit
 
 @MainActor
 final class MacErlangRuntime: ChatRuntime {
-    let cookie = UUID().uuidString.replacingOccurrences(of: "-", with: "")
+    private(set) var cookie = ""
     let localDeviceName = "This Mac"
-    let connectionDescription = "This build connects app instances on the same Mac. Share your node name and cookie with the other instance."
-    let connectionHelp = "Cookies allow trusted Erlang connections. Keep them private. Phone and LAN connections are not enabled yet."
+    let connectionDescription = "Local prototype · swarm invitations currently work between Parvi instances on this Mac."
+    let connectionHelp = "Invitations contain private Erlang credentials. Membership, leave and mutual removal are scoped to each swarm. This is trusted local transport, not hardened internet authorization; LAN and internet connections are not enabled."
     let canConnect = true
     private var process: Process?
     private var input: FileHandle?
@@ -19,6 +19,7 @@ final class MacErlangRuntime: ChatRuntime {
         self.onSnapshot = onSnapshot
         self.onFailure = onFailure
         guard process == nil else { return }
+        cookie = UUID().uuidString.replacingOccurrences(of: "-", with: "")
         let runtime = Bundle.main.resourceURL!.appendingPathComponent("runtime")
         do {
             let folders = try FileManager.default.contentsOfDirectory(atPath: runtime.path)
@@ -28,7 +29,7 @@ final class MacErlangRuntime: ChatRuntime {
             }
             let task = Process()
             task.executableURL = runtime.appendingPathComponent("\(erts)/bin/erlexec")
-            let name = "parvi_mac_\(ProcessInfo.processInfo.processIdentifier)@127.0.0.1"
+            let name = "parvi_mac_\(ProcessInfo.processInfo.processIdentifier)\(Int.random(in: 100000...999999))@127.0.0.1"
             task.arguments = ["-boot", runtime.appendingPathComponent("releases/0.1.0/start").path,
                               "-noshell", "-name", name, "-setcookie", cookie,
                               "-kernel", "inet_dist_use_interface", "{127,0,0,1}",

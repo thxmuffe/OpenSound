@@ -7,10 +7,10 @@ struct ParviApp: App {
     var body: some Scene {
         WindowGroup("Parvi") {
             ParviChatView(model: model)
-                .frame(minWidth: 760, minHeight: 520)
+                .frame(minWidth: 420, minHeight: 600)
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in model.stop() }
         }
-        .defaultSize(width: 960, height: 680)
+        .defaultSize(width: 1080, height: 780)
         .commands { CommandGroup(replacing: .newItem) {} }
     }
 }

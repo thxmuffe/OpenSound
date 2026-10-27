@@ -41,6 +41,22 @@ bridge_request() ->
         maps:get(<<"error">>, BadConnection)),
     ?assert(is_process_alive(whereis(parvi_chat))).
 
+correlated_snapshot_test_() ->
+    {setup, fun() -> {ok, _} = parvi:start() end,
+     fun(_) -> application:stop(parvi) end,
+     fun() ->
+        Reply = json:decode(parvi_bridge:request(
+            <<"{\"method\":\"snapshot\",\"request_id\":\"ui-request-123\"}">>)),
+        ?assertEqual(<<"ui-request-123">>, maps:get(<<"request_id">>, Reply)),
+        ?assertEqual(null, maps:get(<<"connection_string">>, Reply)),
+        #{<<"nodes">> := Rows, <<"edges">> := []} = maps:get(<<"network">>, Reply),
+        ?assert(lists:any(fun(#{<<"id">> := Id}) -> Id =:= atom_to_binary(node()) end, Rows)),
+        Failed = json:decode(parvi_bridge:request(
+            <<"{\"method\":\"connect\",\"connection_string\":\"bad\",\"request_id\":\"join-1\"}">>)),
+        ?assertEqual(<<"join-1">>, maps:get(<<"request_id">>, Failed)),
+        ?assert(is_binary(maps:get(<<"error">>, Failed)))
+     end}.
+
 messaging() ->
     ok = parvi:subscribe(),
     ok = parvi:subscribe(),

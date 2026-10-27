@@ -23,13 +23,34 @@ request(JSON) ->
     Reply = try
         Request = json:decode(JSON),
         Result = command(Request),
-        (snapshot())#{<<"error">> => Result}
+        Response = case Result of
+            {ok, Data} -> (snapshot())#{<<"error">> => null, <<"result">> => Data};
+            _ -> (snapshot())#{<<"error">> => Result}
+        end,
+        maps:merge(Response, maps:with([<<"request_id">>], Request))
     catch
         _:_ -> (snapshot())#{<<"error">> => <<"Invalid request or unavailable worker. Try again.">>}
     end,
     iolist_to_binary(json:encode(Reply)).
 
 command(#{<<"method">> := <<"snapshot">>}) -> null;
+command(#{<<"method">> := <<"create_swarm">>} = Request) ->
+    swarm_result(parvi_swarms:create(maps:get(<<"name">>, Request, <<>>)));
+command(#{<<"method">> := <<"join_swarm">>, <<"invitation">> := Invitation}) ->
+    case parvi_invitation:parse(Invitation) of
+        {ok, #{node := Name, cookie := Cookie, swarm := Id, token := Token}} ->
+            case command(#{<<"method">> => <<"connect">>, <<"node">> => Name, <<"cookie">> => Cookie}) of
+                null -> swarm_result(parvi_swarms:join(binary_to_existing_atom(Name), Id, Token));
+                Error -> Error
+            end;
+        _ -> <<"Invalid swarm invitation. Copy a fresh invitation from a swarm member.">>
+    end;
+command(#{<<"method">> := <<"send_swarm">>, <<"swarm_id">> := Id, <<"text">> := Text}) ->
+    swarm_result(parvi_swarms:send(Id, Text));
+command(#{<<"method">> := <<"leave_swarm">>, <<"swarm_id">> := Id}) ->
+    swarm_result(parvi_swarms:leave(Id));
+command(#{<<"method">> := <<"remove_both">>, <<"swarm_id">> := Id, <<"target">> := Target}) ->
+    swarm_result(parvi_swarms:remove_both(Id, Target));
 command(#{<<"method">> := <<"discover">>, <<"url">> := URL}) ->
     case parvi_discovery:discover(URL) of
         ok -> null;
@@ -65,11 +86,21 @@ command(_) -> <<"Unsupported request.">>.
 snapshot() ->
     Status = parvi:status(),
     #{<<"node">> => atom_to_binary(node()),
+      <<"connection_string">> => case node() of
+          nonode@nohost -> null;
+          _ -> parvi_connection:local()
+      end,
+      <<"network">> => parvi_network:snapshot(),
+      <<"swarms">> => parvi_swarms:snapshot(),
       <<"runtime_info">> => iolist_to_binary(io_lib:format("OTP ~s / ERTS ~s / worker ~p",
           [erlang:system_info(otp_release), erlang:system_info(version), whereis(parvi_chat)])),
       <<"known_nodes">> => parvi_discovery:nodes(),
       <<"peers">> => [atom_to_binary(N) || N <- maps:get(chat_nodes, Status), N =/= node()],
       <<"messages">> => [message(M) || M <- parvi:history()]}.
+
+swarm_result({ok, Id}) -> {ok, #{swarm_id => Id}};
+swarm_result(ok) -> null;
+swarm_result({error, Error}) -> Error.
 
 message(#{id := Id, text := Text, sender := Sender, sent_at_ms := Time}) ->
     #{<<"id">> => list_to_binary(erlang:ref_to_list(Id)), <<"text">> => Text,

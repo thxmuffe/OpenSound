@@ -8,6 +8,24 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$ROOT/macos/Parvi/Info.plist" "$APP/Contents/Info.plist"
 # ditto preserves the runtime layout, including versioned OTP directories.
 ditto "$ROOT/control/_build/default/rel/parvi" "$APP/Contents/Resources/runtime"
+# OTP crypto provides secure session/invitation randomness. Bundle its OpenSSL
+# dependency so the app does not depend on the build machine's Homebrew install.
+for crypto_nif in "$APP"/Contents/Resources/runtime/lib/crypto-*/priv/lib/crypto.so; do
+  crypto_library=$(otool -L "$crypto_nif" | awk '$1 ~ /libcrypto.*[.]dylib$/ {print $1; exit}')
+  if [[ "$crypto_library" = /* && "$crypto_library" != /usr/lib/* ]]; then
+    crypto_destination="$(dirname "$crypto_nif")/$(basename "$crypto_library")"
+    if [ -e "$crypto_destination" ]; then chmod u+w "$crypto_destination"; fi
+    cp -L "$crypto_library" "$crypto_destination"
+    chmod u+w "$crypto_destination" "$crypto_nif"
+    install_name_tool -change "$crypto_library" "@loader_path/$(basename "$crypto_library")" "$crypto_nif"
+    install_name_tool -id "@loader_path/$(basename "$crypto_library")" "$crypto_destination"
+    codesign --force --sign - "$crypto_destination"
+    codesign --force --sign - "$crypto_nif"
+    crypto_license="$(dirname "$(dirname "$crypto_library")")/LICENSE.txt"
+    test -f "$crypto_license"
+    cp "$crypto_license" "$APP/Contents/Resources/OPENSSL-LICENSE.txt"
+  fi
+done
 cp "$ROOT/LICENSE" "$APP/Contents/Resources/LICENSE"
 OTP_ROOT=$(erl -noshell -eval 'io:put_chars(code:root_dir()), halt().')
 OTP_LICENSE=""

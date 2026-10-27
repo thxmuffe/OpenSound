@@ -5,5 +5,8 @@ let package = Package(
     name: "ParviKit",
     platforms: [.macOS(.v14), .iOS(.v17)],
     products: [.library(name: "ParviKit", type: .static, targets: ["ParviKit"])],
-    targets: [.target(name: "ParviKit")]
+    targets: [
+        .target(name: "ParviKit"),
+        .testTarget(name: "ParviKitTests", dependencies: ["ParviKit"])
+    ]
 )

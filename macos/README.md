@@ -1,85 +1,107 @@
 # Parvi for macOS
 
-Native SwiftUI chat window backed by a real, bundled Erlang/OTP runtime. This is
-the first local Mac app, before iPhone embedding or LAN onboarding.
+Native SwiftUI interface for one Erlang node participating in multiple independent
+swarms. Each swarm has its own membership, invitations, chat history and graph.
+Audio remains future work.
 
 ## Build and launch
 
-Requirements: Apple Silicon Mac, matching macOS SDK/Swift command-line tools,
-Erlang/OTP 29.1.2 and rebar3 3.27.3. Built and tested on macOS 27.0.1 with Swift
-6.4 command-line tools. Earlier macOS releases and Intel builds are unverified.
-
-From the repository root:
+Requirements: Apple Silicon Mac, macOS SDK/Swift command-line tools, Erlang/OTP
+29.1.2 and rebar3 3.27.3. Built on macOS 27.0.1 with Swift 6.4; deployment target
+macOS 14. Earlier releases and Intel builds remain unverified.
 
 ```sh
 bash macos/build.sh
 open macos/build/Parvi.app
-```
-
-Or double-click `macos/build/Parvi.app` in Finder. The app contains its own ERTS,
-kernel, stdlib and Parvi code: Erlang/Homebrew are needed to build, not to launch
-the resulting bundle. No full Xcode project or paid signing account is required
-for this local Mac build. The script applies an ad hoc signature; the bundle is
-not notarized or prepared for public distribution.
-
-The sidebar shows whether Erlang is running and which chat peers are visible.
-Type in the message box and click the arrow or press Command–Return. The UI
-shows the latest 200 messages. History belongs to the Erlang worker and is lost
-when it restarts or the app quits. Quitting the app stops its runtime. Closing
-the window alone follows normal Mac app behavior; use Parvi → Quit Parvi to end
-the session.
-
-## Connect two app instances
-
-With the [Reception desk](../broker/README.md) running, **Connect → Register / Find
-nodes** registers this app and fetches known names. Register each instance and
-refresh in the first after the second joins. Select a returned name and provide
-that peer's cookie separately. The manual copy/paste route below also works.
-
-Launch a second process:
-
-```sh
+# Optional second instance:
 open -n macos/build/Parvi.app
 ```
 
-In the second instance, click **Connect**, then **Copy node** and **Copy cookie**.
-Paste those values into the first instance's Connect form and click **Connect**.
-Copy/paste one field at a time since the clipboard holds one value. After group
-membership converges, each sidebar lists the other instance. Messages then flow
-both ways. Each launch generates a new cookie and node identity; reconnect after
-relaunching. Cookies grant trusted Erlang access: share them only with your own
-test instance.
+The app bundles ERTS, OTP resources, and the OpenSSL library used by OTP crypto.
+Erlang and Homebrew are build dependencies. Copies of OTP/OpenSSL licenses are
+included, and modified native libraries are signed before the enclosing bundle.
+This local build is ad hoc signed, not notarized for public distribution.
 
-This build binds distribution to loopback and accepts only other native Parvi
-node names on this Mac. It does not yet connect to another computer, an iPhone,
-or a browser. The optional broker supplies discovery names; automatic QR
-enrollment, persistent identity and public networking remain unimplemented.
-EPMD, Erlang's local name service, may remain running after quit.
-If EPMD was already running, its existing interface configuration is unchanged.
+## Swarms
+
+Each runtime starts with a fresh node identity and a new swarm of one. The swarm
+list shows every current membership. **New swarm** creates another independent
+swarm; pasting an invitation and clicking **Add swarm** joins another without
+leaving existing memberships. Re-adding a current swarm selects it.
+
+Select a swarm to see its read-only invitation string and **Copy** button.
+That invitation belongs to the selected swarm, rather than to the whole node.
+The two tabs show that swarm's **Chat** and **Graph**. Wide windows keep the swarm
+list beside the selected swarm; narrow windows navigate between list and detail.
+The shared iPhone layout supports horizontal page swipes between Chat and Graph.
+There is no placeholder Settings tab.
+
+Chat drafts are separate for each swarm. A reply for one swarm cannot clear a
+draft in another. Rejected sends retain their text; successful sends clear only
+the submitted draft. Send with the arrow, Return or Command–Return. Each local
+swarm history retains up to 200 messages in arrival order. New participants do
+not download earlier history. There is no durable storage or delivery guarantee.
+
+The graph contains only that swarm's members and observed links between them.
+It is not an audio-routing graph. Node health checks the shared swarm worker;
+green means responsive, yellow not responding, red disconnected and grey checking.
+A disconnected member is not proof of a dead VM. The list alternative and node
+details expose the same state. Dragging adjusts the local display only.
+
+**Leave swarm** ends just this membership. Selecting another device in the Graph
+and choosing **Remove both of us** asks for confirmation, then ends both memberships
+in this swarm and revokes their admission invitations. Other memberships and
+existing members admitted through those invitations remain intact. An active
+issuer automatically gets a new link when its old invitation is revoked.
+A returning participant needs a fresh valid invitation. Invitations issued by a
+member who leaves/removes itself also stop admitting new nodes. Remaining members
+can invite others even after the original creator has left.
+
+## Current transport and membership limits
+
+This is a **trusted, same-computer prototype**. The new format is
+`parvi://swarm/v1?node=...&cookie=...&swarm=...&token=...`. Links contain private
+Erlang distribution credentials and a swarm-specific admission token. They work
+only with the new swarm-aware interface; the older Windows UI still uses the
+legacy single chat group and connection-string format.
+
+Admission checks the issuing member's current local state. Membership changes
+are propagated to connected participants. Temporary session-removal and revoked
+invitation records prevent reuse during this runtime; there is no permanent
+person/device blacklist. Voluntary leave does not revoke the invitation used to
+admit that member. Membership records may retain disconnected peers for diagnosis.
+
+This is not a hardened security boundary: Erlang distribution still grants broad
+runtime trust, and a modified trusted peer can bypass application-level checks.
+Partition reconciliation, reliable revocation during network splits, simultaneous
+removal arbitration, configured invitation expiry, internet relays, LAN access,
+large-swarm scaling and persistent reconnection remain future protocol work.
+The prototype exchanges local peer credentials to establish distribution links;
+it does not define the eventual internet topology. Do not expose it publicly.
+
+Quitting stops the node and all its memberships. Closing a window follows normal
+Mac app behavior. EPMD may remain running. SwiftUI hot reload is not implemented.
 
 ## Validation
 
 ```sh
-cd control
-rebar3 eunit
-cd ..
+(cd control && rebar3 eunit)
+bash macos/build.sh
 python3 macos/tools/smoke.py
+python3 macos/tools/swarm-smoke.py
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+  xcrun swift test --package-path shared/ParviKit
 ```
 
-The smoke test launches the **bundled** runtime twice, tests the line-delimited
-JSON bridge used by SwiftUI, UTF-8, rejected empty messages, two-way group chat
-and peer departure. Its sockets require local network permission in sandboxed
-development environments.
+The three-node integration test uses bundled runtimes and verifies overlapping
+swarms, isolated chat, member-only sending, scoped mutual removal, invitation
+revocation/replacement, fresh re-admission, and operation after the creator leaves.
+The legacy two-node bridge test also remains available. Integration tests need
+permission to open localhost sockets. Swift model tests cover per-swarm drafts,
+scoped graphs/invitations, delayed acknowledgements and failure handling.
 
-## Implementation
-
-SwiftUI owns presentation; `ChatModel` receives runtime snapshots through
-`ChatRuntime`. The UI and model now live in the shared
-`ParviKit` package; `MacErlangRuntime` owns the subprocess and its private
-stdin/stdout pipes. `parvi_bridge` adapts requests to the OTP actor API. Chat
-state and peer membership remain in Erlang. The iPhone project reuses ParviKit
-but still needs an embedded runtime; the Mac launcher does not establish iOS
-embedding feasibility.
-
-The bundle copies the repository Apache-2.0 license. OTP components retain their
-own licensing and bundled notices. No third-party UI packages are used.
+SwiftUI and its model live in `shared/ParviKit`. `MacErlangRuntime` owns BEAM and
+private JSON pipes. `parvi_swarms` owns memberships and histories; `parvi_network`
+observes runtime health and topology. The old `parvi_chat` API remains for Windows
+and existing tests. Rebuild iOS resources after changing Erlang sources; crypto
+resources are now included for its statically linked crypto NIF.

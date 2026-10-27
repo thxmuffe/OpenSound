@@ -36,6 +36,8 @@ probe() ->
     After = await_worker(Before, 100),
     [] = parvi:history(),
     {ok, _} = parvi:send(<<"On-device Erlang self-test passed.">>),
+    [#{id := SwarmId} | _] = parvi_swarms:snapshot(),
+    ok = parvi_swarms:send(SwarmId, <<"On-device Erlang self-test passed.">>),
     #{status => <<"passed">>, otp => list_to_binary(erlang:system_info(otp_release)),
       erts => list_to_binary(erlang:system_info(version)),
       os_pid => list_to_binary(os:getpid()),
@@ -45,7 +47,7 @@ probe() ->
 
 await_worker(_Before, 0) -> error(worker_restart_timeout);
 await_worker(Before, Attempts) ->
-    case {whereis(parvi_chat), whereis(parvi_discovery)} of
-        {Pid, Discovery} when is_pid(Pid), is_pid(Discovery), Pid =/= Before -> Pid;
+    case {whereis(parvi_chat), whereis(parvi_discovery), whereis(parvi_swarms)} of
+        {Pid, Discovery, Swarms} when is_pid(Pid), is_pid(Discovery), is_pid(Swarms), Pid =/= Before -> Pid;
         _ -> timer:sleep(20), await_worker(Before, Attempts - 1)
     end.

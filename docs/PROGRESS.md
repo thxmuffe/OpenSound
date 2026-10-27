@@ -1,5 +1,66 @@
 # Progress
 
+## 2026-10-27 — Multiple swarms per node
+
+Replaced the single-swarm Mac layout with a swarm list. Add swarm accepts an
+invitation without replacing other memberships; New swarm creates an independent
+group. The selected swarm owns its invitation/Copy action and Chat/Graph tabs.
+Narrow windows navigate list/detail; iPhone uses swipeable pages. Drafts and
+operation acknowledgements are scoped by swarm ID, and the graph filters the
+shared observations to the selected membership.
+
+Added the supervised `parvi_swarms` worker and `parvi_invitation` format. Each
+swarm has a roster, bounded history, local admission token and temporary removal/
+revocation state. Leave affects one membership. Remove both revokes the two
+memberships and their admission invitations, leaving other memberships and other
+admitted participants intact. Active invitation issuers rotate revoked links.
+Remaining members can invite after the creator leaves. The legacy chat/Windows
+interface is preserved separately; it does not yet expose the new swarm model.
+
+Secure randomness uses OTP crypto. Mac packaging now includes its OpenSSL dylib,
+rewrites the local load path, signs both native libraries and includes its license.
+iOS preparation includes the crypto resources for its already-linked static NIF;
+the on-device startup proof now also appears in the scoped swarm chat.
+
+Nine Erlang tests and seven Swift model tests pass. The three-node bundled-runtime
+test passes overlapping swarms, isolated messaging, mutual removal, invitation
+revocation, fresh re-admission and creator-independent continuation. The iPhone
+interface compiles unsigned. Native Mac layout is checked separately.
+
+This remains loopback-only trusted Erlang distribution, not an internet security
+boundary. Partition reconciliation, simultaneous-removal arbitration, calendar
+expiry and large-swarm transport remain open. See the Mac guide for limitations.
+
+
+## 2026-10-27 — Adaptive Mac invitation interface
+
+Replaced the Mac Connect sheet and directory-based onboarding with a permanent
+two-row invitation grid: selectable read-only local link plus Copy, and a paste
+field plus Join swarm. The strings come from the shared BEAM formatter; this is
+still a trusted same-computer connection preview, not the proposed revocable
+invitation/membership protocol. Expiry controls, leave, mutual removal and LAN/
+internet transport are not implemented. Each Mac runtime start now creates a new
+session name and cookie, including restart within the same app process.
+
+Shared SwiftUI now adapts between a desktop sidebar and compact Chat/Swarm
+navigation. Swarm has a draggable native graph, node details and an accessible
+list. A portable supervised `parvi_network` observer gathers bounded worker
+health checks and peer adjacency reports without drawing invented mesh links.
+Existing Windows status/graph workers remain unchanged. No SwiftUI hot reload
+was added.
+
+Bridge responses echo request IDs. The Apple model waits for acknowledgement,
+retains rejected drafts/invitations and preserves newer draft edits. The old
+separate node/cookie fields and Reception desk controls are removed from this UI.
+The shared iPhone interface compiles with networking still disabled there.
+
+Validation: seven Erlang tests and four Swift model tests pass. The rebuilt
+bundled-runtime integration test passes invitation joins, correlated errors,
+network status/edges, bidirectional UTF-8 chat and disconnect retention. Native
+Mac checks cover wide/narrow layout, invalid invitations, chat composition and
+network navigation. The unsigned physical-iPhone target compiles; this does not
+establish on-device execution or inter-device networking.
+
 ## 2026-10-27 — Live native node-network graph
 
 Added Chat/Network tabs and a lightly adapted, attributed OTP Reltool graph view.

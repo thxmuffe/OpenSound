@@ -1,9 +1,9 @@
 {application, parvi, [
     {description, "Parvi Audio experimental chat actors"},
     {vsn, "0.1.0"},
-    {registered, [parvi_sup, parvi_pg, parvi_chat, parvi_discovery]},
+    {registered, [parvi_sup, parvi_pg, parvi_chat, parvi_discovery, parvi_network, parvi_swarms]},
     {mod, {parvi_app, []}},
-    {applications, [kernel, stdlib, inets]},
+    {applications, [kernel, stdlib, inets, crypto]},
     {env, []},
     {licenses, ["Apache-2.0"]}
 ]}.
