@@ -37,15 +37,17 @@ the connection string is generated inside BEAM, separate from the launch-time co
 
 ## Connect two instances
 
-Launch `Parvi.exe` twice. Open **Connect** in each instance. In the first, click
-**Copy connection string**. In the second, click **Paste connection string**,
-then **Connect**. Wait for both device
+Launch `Parvi.exe` twice. Open **Connect** in each instance. In the first, select
+**This instance's connection string** and copy with Ctrl+A, Ctrl+C (or the native
+context menu). Paste into **Other instance's connection string** in the second
+instance with Ctrl+V, then click **Connect**. The first field is read-only; the
+second is editable. Wait for both device
 lists to show two participants, then send messages in either direction. Enter
 or **Send** submits a message; invalid messages leave the draft intact.
 
 The versioned format is `parvi://connect/v1?node=...&cookie=...`, with URI-encoded
 values. The string contains private credentials; it is not encryption or a public
-web link. It expires when the originating app closes. The input masks credentials.
+web link. It expires when the originating app closes.
 The shared parser rejects invalid, duplicate, missing, and oversized fields;
 the existing bridge still enforces loopback-only peer names. The Mac app's legacy
 two-field request remains supported internally.

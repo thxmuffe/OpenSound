@@ -1,5 +1,12 @@
 # Progress
 
+## 2026-10-27 — Standard text fields for connection strings
+
+Simplified the Windows dialog to a selectable read-only local connection string
+and an editable peer connection string. Removed custom clipboard buttons and
+handlers; copying and pasting use the operating system's text-field shortcuts
+and context menus. Recompiled the Windows module with warnings treated as errors.
+
 ## 2026-10-27 — Single connection string on Windows
 
 Replaced the Windows node/cookie copy buttons and inputs with **Copy connection

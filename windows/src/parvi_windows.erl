@@ -89,23 +89,6 @@ handle_event(#wx{event = #wxSize{}}, S) ->
     {noreply, S};
 handle_event(#wx{userData = connect}, S) -> {noreply, open_dialog(S)};
 handle_event(#wx{userData = cancel}, S) -> {noreply, close_dialog(S)};
-handle_event(#wx{userData = copy_connection}, S) ->
-    copy(parvi_connection:format(atom_to_binary(node()), atom_to_binary(erlang:get_cookie()))),
-    {noreply, S};
-handle_event(#wx{userData = paste_connection}, S) ->
-    Clipboard = wxClipboard:get(),
-    case wxClipboard:open(Clipboard) of
-        true ->
-            Data = wxTextDataObject:new(),
-            try
-                case wxClipboard:getData(Clipboard, Data) of
-                    true -> wxTextCtrl:changeValue(maps:get(connection_string, S), wxTextDataObject:getText(Data));
-                    false -> show_error("Clipboard does not contain text.", S)
-                end
-            after wxTextDataObject:destroy(Data), wxClipboard:close(Clipboard) end;
-        false -> show_error("Clipboard is unavailable. Try pasting with Ctrl+V.", S)
-    end,
-    {noreply, S};
 handle_event(#wx{userData = send}, S) ->
     Text = unicode:characters_to_binary(wxTextCtrl:getValue(maps:get(draft, S))),
     case string:trim(Text) of
@@ -222,9 +205,9 @@ open_dialog(S) ->
     Column = wxBoxSizer:new(?wxVERTICAL),
     add(Column, wxStaticText:new(D, ?wxID_ANY,
         "Copy a connection string here and paste it into the other instance."), 0, 12),
-    add(Column, button(D, "Copy connection string", copy_connection), 0, 12),
-    Connection = field(D, Column, "Other instance's connection string", "", ?wxTE_PASSWORD),
-    add(Column, button(D, "Paste connection string", paste_connection), 0, 8),
+    OwnConnection = parvi_connection:format(atom_to_binary(node()), atom_to_binary(erlang:get_cookie())),
+    field(D, Column, "This instance's connection string", OwnConnection, ?wxTE_READONLY),
+    Connection = field(D, Column, "Other instance's connection string", "", 0),
     add(Column, wxStaticText:new(D, ?wxID_ANY,
         "The string includes the address and private session credentials.\nThis build connects instances on this Windows PC only."), 0, 12),
     DialogError = wxStaticText:new(D, ?wxID_ANY, ""),
@@ -285,14 +268,6 @@ title(Parent, Text, Size) ->
     wxStaticText:setFont(T, Font), wxFont:destroy(Font), T.
 add(Sizer, Item, Proportion, Border) ->
     wxSizer:add(Sizer, Item, [{proportion, Proportion}, {flag, ?wxEXPAND bor ?wxALL}, {border, Border}]).
-copy(Text) ->
-    Clipboard = wxClipboard:get(),
-    case wxClipboard:open(Clipboard) of
-        true ->
-            Data = wxTextDataObject:new([{text, Text}]),
-            wxClipboard:setData(Clipboard, Data), wxClipboard:close(Clipboard);
-        false -> ok
-    end.
 handle_call(_, _, S) -> {reply, {error, unsupported}, S}.
 handle_cast(_, S) -> {noreply, S}.
 terminate(_, S) -> wxFrame:destroy(maps:get(frame, S)), wx:destroy(), ok.
