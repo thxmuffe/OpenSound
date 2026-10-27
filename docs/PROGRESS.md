@@ -1,5 +1,14 @@
 # Progress
 
+## 2026-10-27 — Investigated native topology graph reuse
+
+Inspected the installed OTP Reltool sources and ran an isolated native Windows
+probe of its force graph. Embedding, live graph updates, four status colours and
+shutdown cleanup pass. Identified private-API, fixed-controls, callback, event
+handling and continuous-redraw constraints. No production UI was changed.
+See [investigation](NODE_GRAPH_INVESTIGATION.md) and
+`windows/test/parvi_graph_probe.erl` for the result and reproducible probe.
+
 ## 2026-10-27 — OTP node-status lights, applied through live UI reload
 
 Replaced the plain sidebar list with native status icons and text, using the

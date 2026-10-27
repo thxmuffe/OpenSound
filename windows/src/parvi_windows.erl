@@ -32,7 +32,6 @@ build_window(Saved) ->
     wxPanel:setBackgroundColour(Sidebar, {241, 245, 245}),
     Side = wxBoxSizer:new(?wxVERTICAL),
     add(Side, title(Sidebar, "Parvi", 24), 0, 20),
-    add(Side, wxStaticText:new(Sidebar, ?wxID_ANY, "Erlang running"), 0, 12),
     add(Side, wxStaticText:new(Sidebar, ?wxID_ANY, "NODES"), 0, 12),
     Peers = wxListCtrl:new(Sidebar, [{style, ?wxLC_REPORT bor ?wxLC_SINGLE_SEL}]),
     wxListCtrl:insertColumn(Peers, 0, "Status", [{width, 125}]),
