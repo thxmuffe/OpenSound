@@ -13,6 +13,9 @@ From the repository root:
 bash broker/run.sh
 ```
 
+On Windows, after [setting up the private OTP runtime](../windows/README.md), run
+`.\broker\run.ps1` from the repository root. It compiles and runs the same service.
+
 Open [http://127.0.0.1:8765/](http://127.0.0.1:8765/). Stop the terminal process
 with Ctrl+C, then `a` at the Erlang break prompt. Restarting clears the directory.
 No database, cloud account or distribution ports are required.

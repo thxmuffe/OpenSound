@@ -44,7 +44,7 @@ command(#{<<"method">> := <<"connect">>, <<"node">> := Name, <<"cookie">> := Coo
         when is_binary(Name), byte_size(Name) > 0, byte_size(Name) =< 128,
              is_binary(Cookie), byte_size(Cookie) > 0, byte_size(Cookie) =< 128 ->
     %% Developer-only loopback prototype. Bound the names accepted by the UI.
-    case re:run(Name, <<"^parvi_mac_[0-9]+@127\\.0\\.0\\.1$">>, [{capture, none}]) of
+    case re:run(Name, <<"^parvi_(mac|windows)_[0-9]+@127\\.0\\.0\\.1$">>, [{capture, none}]) of
         match ->
             Node = binary_to_atom(Name, utf8),
             erlang:set_cookie(Node, binary_to_atom(Cookie, utf8)),
@@ -52,7 +52,7 @@ command(#{<<"method">> := <<"connect">>, <<"node">> := Name, <<"cookie">> := Coo
                 ok -> null;
                 _ -> <<"Could not connect. Check the node name and shared cookie.">>
             end;
-        _ -> <<"This build connects to Parvi app instances on this Mac only.">>
+        _ -> <<"This build connects to Parvi app instances on this computer only.">>
     end;
 command(_) -> <<"Unsupported request.">>.
 

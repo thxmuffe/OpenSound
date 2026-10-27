@@ -1,5 +1,25 @@
 # Progress
 
+## 2026-10-27 — Windows wxErlang exercise
+
+Added `windows/`: native wxErlang chat UI, Win32 C launcher, private pinned OTP
+29.1.2 runtime setup, PowerShell build/diagnostic scripts, and a loopback smoke
+test. Reuses the existing `parvi` workers and shared request/snapshot contract.
+The shared bridge accepts Windows app node names alongside Mac names while
+preserving the loopback restriction. Added `broker/run.ps1` for the unchanged
+Reception desk service. No audio or mobile/LAN transport was added.
+
+Validation on Windows x64: warnings-as-errors Erlang compilation; all four core
+EUnit tests pass; the native app launches and sends through the wx composer;
+the connection dialog renders. The integration test passes with two real Windows
+nodes, directory discovery, cookie-authenticated connection, bidirectional UTF-8
+chat, oversized-message rejection, and peer departure. The sandbox blocked OTP's
+native DNS helper, so the passing integration run used normal desktop permissions.
+
+Build and run: [Windows guide](../windows/README.md). The package is unsigned and
+retains the full OTP libraries; installer, size reduction, and cross-device
+transport remain future work.
+
 ## 2026-10-26 — Embedded iOS BEAM runtime test build
 
 Replaced the unavailable iOS adapter with a real in-process OTP host using the
