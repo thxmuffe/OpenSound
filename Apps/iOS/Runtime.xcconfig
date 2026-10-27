@@ -1,0 +1,13 @@
+// Pinned OTP runtime; prepare-runtime.py populates these ignored folders.
+PARVI_OTP_ROOT = $(SRCROOT)/../../builds/intermediates/iOS/otp-device
+PARVI_OTP_ROOT[sdk=iphonesimulator*] = $(SRCROOT)/../../builds/intermediates/iOS/otp-sim
+PARVI_RUNTIME_RESOURCES = $(SRCROOT)/../../builds/intermediates/iOS/Resources-device
+PARVI_RUNTIME_RESOURCES[sdk=iphonesimulator*] = $(SRCROOT)/../../builds/intermediates/iOS/Resources-sim
+PARVI_ERTS_LIB = $(PARVI_OTP_ROOT)/erts-17.1.1/lib
+OTHER_LDFLAGS = $(inherited) "$(PARVI_ERTS_LIB)/libbeam.a" "$(PARVI_ERTS_LIB)/internal/liberts_internal_r.a" "$(PARVI_ERTS_LIB)/internal/libethread.a" "$(PARVI_ERTS_LIB)/libzstd.a" "$(PARVI_ERTS_LIB)/libepcre.a" "$(PARVI_ERTS_LIB)/libryu.a" "$(PARVI_ERTS_LIB)/asn1rt_nif.a" "$(PARVI_ERTS_LIB)/crypto.a" "$(PARVI_ERTS_LIB)/libcrypto.a" -lz -lc++ -lpthread
+SWIFT_OBJC_BRIDGING_HEADER = Parvi/Parvi-Bridging-Header.h
+ENABLE_USER_SCRIPT_SANDBOXING = NO
+ARCHS = arm64
+
+// Build products and compiler output stay outside the app sources.
+CONFIGURATION_BUILD_DIR = $(SRCROOT)/../../builds/iOS/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)

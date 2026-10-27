@@ -17,8 +17,7 @@ _build/
 deps/
 erl_crash.dump
 target/
-macos/build/
-ios/build/
+/builds/
 .build/
 DerivedData/
 xcuserdata/

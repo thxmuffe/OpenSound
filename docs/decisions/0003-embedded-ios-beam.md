@@ -7,7 +7,7 @@ Use the existing prebuilt Mob runtime rather than adopting Mob's Elixir/UI stack
 or writing an OTP port. Pin OTP 29.1.2 artifacts and their published SHA-256
 digests. This matches the Mac's compiler and includes OTP's JSON module. Native
 libraries remain ignored build dependencies with a preparation script, not large
-checked-in binaries. See `ios/THIRD_PARTY.md` for exact source references.
+checked-in binaries. See `Apps/iOS/THIRD_PARTY.md` for exact source references.
 
 The iOS host statically links interpreted BEAM and starts it on a background
 thread. It starts the same Parvi OTP app, then connects to an ephemeral loopback

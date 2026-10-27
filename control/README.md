@@ -7,6 +7,11 @@ OTP versions have not been validated.
 
 ## Build and test
 
+Compiler output is under `builds/intermediates/control/` at the repository root.
+The local `rebar.config` selects this location automatically. Root-level
+`rebar3 eunit` checks both this application and `Apps/Web/`, with its own shared
+workspace cache under `builds/intermediates/erlang/`.
+
 ```sh
 brew install erlang rebar3
 cd control

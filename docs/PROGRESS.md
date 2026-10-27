@@ -1,5 +1,35 @@
 # Progress
 
+## 2026-10-27 — Shared app code belongs with the apps
+
+Moved `ParviKit` to `Apps/Shared/ParviKit`. Updated Mac build/test scripts, the
+iOS local-package reference and documentation. `control/` remains the top-level
+Erlang layer; build outputs remain under `builds/`. The Mac build and seven
+Swift model tests pass; the iPhone project is checked through an unsigned build.
+
+## 2026-10-27 — Platform sources and generated builds separated
+
+Moved app sources to `Apps/macOS`, `Apps/iOS`, `Apps/Windows` and `Apps/Web`.
+Shared app code is in `Apps/Shared/`; shared Erlang code remains in `control/`. Existing local
+artifacts were moved under the Git-ignored `builds/` directory; platform products
+and compiler/runtime caches are separated into platform folders and
+`builds/intermediates/`. Absolute-path Apple caches were regenerated in place of
+reusing relocated precompiled modules.
+
+Updated shell/PowerShell launchers, Python tests, Erlang build directories,
+the Xcode local-package reference, runtime preparation and documentation links.
+Added unsigned iOS and web build helpers, a shared Apple test helper, and a root
+Erlang workspace configuration so supported commands also keep their output under
+`builds/`. Plan/handover links follow their current locations under `docs/`.
+
+Validation: ten Erlang tests and seven Swift model tests pass. The relocated
+Mac bundle passes signature verification, two-node and three-node smoke tests,
+and native launch. The web HTTP/discovery smoke test passes using staged assets.
+The moved iOS project compiles unsigned into `builds/iOS/Debug-iphoneos/Parvi.app`.
+Windows build/setup/test paths were updated and inspected; native Windows builds
+cannot be executed on this Mac. Existing ignored Windows caches on other machines
+can be reused through `PARVI_OTP_ROOT` or moved to the documented cache location.
+
 ## 2026-10-27 — Multiple swarms per node
 
 Replaced the single-swarm Mac layout with a swarm list. Add swarm accepts an
@@ -72,7 +102,7 @@ The graph and ticker are disposed with the old window during UI reload.
 A separately supervised topology worker gathers real peer adjacency reports
 without assuming a fully connected mesh. Reports are sampled and uncertain or
 indirectly known nodes remain distinguishable. This is connectivity, not audio
-routing. Source provenance is in `windows/THIRD_PARTY.md`.
+routing. Source provenance is in `Apps/Windows/THIRD_PARTY.md`.
 
 The live Windows instances successfully reloaded and kept their original nodes,
 worker PIDs and chat history. An initial wrong notebook constructor made the UI
@@ -87,7 +117,7 @@ probe of its force graph. Embedding, live graph updates, four status colours and
 shutdown cleanup pass. Identified private-API, fixed-controls, callback, event
 handling and continuous-redraw constraints. No production UI was changed.
 See [investigation](NODE_GRAPH_INVESTIGATION.md) and
-`windows/test/parvi_graph_probe.erl` for the result and reproducible probe.
+`Apps/Windows/test/parvi_graph_probe.erl` for the result and reproducible probe.
 
 ## 2026-10-27 — OTP node-status lights, applied through live UI reload
 
@@ -141,7 +171,7 @@ test pass. The test proves repeated automatic replacements, retained UI fields,
 unchanged node/cookie/chat and pg workers, peer connectivity and message delivery
 across reloads, invalid-file rejection, failed-build rollback, corrected-build
 recovery, and normal shutdown. The deliberate broken-build crash report is
-expected. See `windows/reload-smoke.py`.
+expected. See `Apps/Windows/reload-smoke.py`.
 
 ## 2026-10-27 — Click a node to copy its connection string
 
@@ -177,11 +207,11 @@ passes using the combined string for connection and bidirectional chat.
 
 ## 2026-10-27 — Windows wxErlang exercise
 
-Added `windows/`: native wxErlang chat UI, Win32 C launcher, private pinned OTP
+Added `Apps/Windows/`: native wxErlang chat UI, Win32 C launcher, private pinned OTP
 29.1.2 runtime setup, PowerShell build/diagnostic scripts, and a loopback smoke
 test. Reuses the existing `parvi` workers and shared request/snapshot contract.
 The shared bridge accepts Windows app node names alongside Mac names while
-preserving the loopback restriction. Added `broker/run.ps1` for the unchanged
+preserving the loopback restriction. Added `Apps/Web/run.ps1` for the unchanged
 Reception desk service. No audio or mobile/LAN transport was added.
 
 Validation on Windows x64: warnings-as-errors Erlang compilation; all four core
@@ -191,7 +221,7 @@ nodes, directory discovery, cookie-authenticated connection, bidirectional UTF-8
 chat, oversized-message rejection, and peer departure. The sandbox blocked OTP's
 native DNS helper, so the passing integration run used normal desktop permissions.
 
-Build and run: [Windows guide](../windows/README.md). The package is unsigned and
+Build and run: [Windows guide](../Apps/Windows/README.md). The package is unsigned and
 retains the full OTP libraries; installer, size reduction, and cross-device
 transport remain future work.
 
@@ -201,7 +231,7 @@ Replaced the unavailable iOS adapter with a real in-process OTP host using the
 pinned Mob iOS runtime artifacts for OTP 29.1.2 / ERTS 17.1.1. SHA-256 checks
 match the upstream release digests. Native startup and static-driver glue are
 small platform-specific files; the UI, chat state, JSON contract and supervision
-remain shared. Runtime provenance is in `ios/THIRD_PARTY.md`.
+remain shared. Runtime provenance is in `Apps/iOS/THIRD_PARTY.md`.
 
 Validation:
 
@@ -229,7 +259,7 @@ signed physical-phone test, then private-LAN transport.
 
 ## 2026-10-26 — Reception desk (local discovery)
 
-Added `broker/`: supervised in-memory directory, OTP HTTP server on
+Added `Apps/Web/`: supervised in-memory directory, OTP HTTP server on
 127.0.0.1:8765, JSON list/register API, join form and local QR generation. Duplicate
 names are deduplicated and all names are forgotten on restart. The directory
 stores names as binaries, caps resource usage and makes no liveness claims.
@@ -245,14 +275,14 @@ Broker EUnit and control EUnit checks pass. Both Mac and unsigned iPhone UI
 builds succeed. End-to-end testing passed for real app registration, returned
 peer names, authenticated Erlang connection, two-way chat and broker reset.
 Native registration and idempotent web registration were also verified in the
-UI; the page renders its local QR code. See [broker guide and API](../broker/README.md)
+UI; the page renders its local QR code. See [broker guide and API](../Apps/Web/README.md)
 for usage, limits, QR behavior and the integration-test command.
 
 ## 2026-10-26 — Shared native code and iPhone project
 
-Extracted the existing Mac UI and model into the local `shared/ParviKit` Swift
+Extracted the existing Mac UI and model into the local `Apps/Shared/ParviKit` Swift
 package. Mac retains a small app entry point and its Erlang process adapter.
-Created `ios/Parvi.xcodeproj` using that same package, with an explicit unavailable
+Created `Apps/iOS/Parvi.xcodeproj` using that same package, with an explicit unavailable
 embedded-runtime adapter. There is no fake iPhone chat or remote-execution proxy.
 Extracted the transport-independent Erlang JSON entry point `parvi_bridge:request/1`.
 
@@ -264,13 +294,13 @@ shared SwiftUI view was verified in the native Mac window.
 
 Next: pin and integrate an actual in-process iOS BEAM runtime, then prove shared
 Erlang worker execution on a signed physical device. Building the UI shell does
-not satisfy that gate. See [iPhone project](../ios/README.md),
-[shared package](../shared/ParviKit/README.md) and
+not satisfy that gate. See [iPhone project](../Apps/iOS/README.md),
+[shared package](../Apps/Shared/ParviKit/README.md) and
 [decision 0002](decisions/0002-shared-native-app-code.md).
 
 ## 2026-10-26 — Native Mac application
 
-Added a SwiftUI application in `macos/` with chat bubbles, composition, runtime
+Added a SwiftUI application in `Apps/macOS/` with chat bubbles, composition, runtime
 status, visible chat peers and a manual connection sheet. The `.app` bundles an
 OTP release and starts Erlang as a child process. A private JSON pipe bridge
 keeps chat and membership logic in Erlang. No terminal is needed to launch it.
@@ -283,7 +313,7 @@ The bundled-runtime smoke test passed for startup, UTF-8, validation, two-way
 chat and peer departure. The native app was launched and visually checked;
 sending through the SwiftUI composer displayed the message in history. Existing
 EUnit checks still pass (3 tests). The app's ad hoc signature verifies. See
-[Mac build and usage](../macos/README.md).
+[Mac build and usage](../Apps/macOS/README.md).
 
 ## 2026-10-26 — Mac chat baseline
 

@@ -4,23 +4,23 @@ An open platform for synchronized, distributed audio playback and processing.
 
 **Status: first Erlang/OTP chat prototype; audio remains in early design.**
 
-A native Mac app is now available: [build and launch Parvi](macos/README.md).
+A native Mac app is now available: [build and launch Parvi](Apps/macOS/README.md).
 It bundles Erlang and supports chat between app instances on the same Mac.
 
-A native [Windows wxErlang exercise](windows/README.md) reuses the same Erlang
+A native [Windows wxErlang exercise](Apps/Windows/README.md) reuses the same Erlang
 chat and discovery workers, with a bundled runtime and `Parvi.exe` launcher.
-The Reception desk also has a Windows launcher: `broker/run.ps1`.
+The Reception desk also has a Windows launcher: `Apps/Web/run.ps1`.
 
-The Mac app and [iPhone project](ios/README.md) reuse the local
-[ParviKit package](shared/ParviKit/README.md). The iPhone app now embeds real
+The Mac app and [iPhone project](Apps/iOS/README.md) reuse the local
+[ParviKit package](Apps/Shared/ParviKit/README.md). The iPhone app now embeds real
 Erlang/OTP, with startup and UI messaging verified in the simulator. A signed
 physical-iPhone run is still required; Mac–iPhone networking follows that test.
 
-A minimal [Reception desk](broker/README.md) now runs in Erlang and
+A minimal [Reception desk](Apps/Web/README.md) now runs in Erlang and
 serves a node-name API and QR join page. The Mac connection sheet can register
 and fetch known names; authentication and peer connections remain separate.
 
-The newer [Parvi Audio handover](notes%2020261026.md) sets the immediate goal:
+The newer [Parvi Audio handover](docs/notes%2020261026.md) sets the immediate goal:
 real Erlang chat on Mac and iPhone, before audio. The first Mac step is implemented
 in [control/](control/README.md), with supervised chat actors and a two-node local
 smoke test. iPhone runtime execution is still unverified; see the
@@ -30,6 +30,50 @@ smoke test. iPhone runtime execution is still unverified; see the
 OpenSound explores a simple idea: publish audio onto a network with a shared playback timeline, then let intelligent speakers subscribe to the streams they need and process them locally. Sources and outputs should be able to join a running system without rebuilding a fixed audio installation.
 
 The ambition is an openly specified, independently implementable standard for networked sound. Becoming a standard will require community participation, multiple implementations, measured interoperability, and sustained maintenance. This repository is a starting point, not a standards body's specification. The name is provisional; name and trademark availability have not been checked.
+
+## Repository layout and builds
+
+Platform app sources live under `Apps/`; generated products and caches live under
+the Git-ignored `builds/` directory. Shared app code lives in `Apps/Shared/`;
+the Erlang layer remains in `control/`.
+
+```text
+Apps/
+  macOS/                 SwiftUI desktop app
+  iOS/                   embedded-runtime iPhone app
+  Windows/               wxErlang desktop app
+  Web/                   Reception desk web app and HTTP server
+  Shared/ParviKit/        shared Apple UI/model
+control/                 shared Erlang runtime and swarm logic
+docs/
+builds/
+  macOS/Parvi.app/
+  iOS/Debug-iphoneos/Parvi.app/
+  Windows/Parvi/          executable, runtime and companion files
+  Web/ReceptionDesk/      compiled web application and assets
+  intermediates/         compilers, downloaded runtimes and caches
+```
+
+From the repository root:
+
+| Task | Command |
+| --- | --- |
+| Build Mac app | `bash Apps/macOS/build.sh` |
+| Launch Mac app | `open builds/macOS/Parvi.app` |
+| Check Apple UI/model | `bash Apps/macOS/test.sh` |
+| Build unsigned iPhone app | `bash Apps/iOS/build.sh device` |
+| Build unsigned iPhone simulator app | `bash Apps/iOS/build.sh sim` |
+| Build web app | `bash Apps/Web/build.sh` |
+| Run web app | `bash Apps/Web/run.sh` |
+| Prepare and build Windows app | `.\Apps\Windows\setup.ps1`, then `.\Apps\Windows\build.ps1 -Test` |
+| Check both Erlang applications | `rebar3 eunit` |
+
+Windows builds require Windows and Visual Studio. iOS builds require Xcode;
+the helper builds unsigned and does not install or export an `.ipa`. Open
+`Apps/iOS/Parvi.xcodeproj` for signing and device installation. An Android source
+folder will be added when that app exists. Runnable app bundles and Windows
+runtime folders contain multiple files; installers and release archives can be
+added later without mixing them with source.
 
 ## What we want to enable
 
@@ -103,7 +147,7 @@ OpenSound is not currently compatible with any of these systems. Prefer reuse an
 
 ## Roadmap and participation
 
-See [PLAN.md](PLAN.md) for the longer-term audio milestones, experiments, acceptance criteria, and unresolved decisions. Start with [the chat prototype guide](control/README.md) to build and run the current implementation.
+See [PLAN.md](docs/PLAN.md) for the longer-term audio milestones, experiments, acceptance criteria, and unresolved decisions. Start with [the chat prototype guide](control/README.md) to build and run the current implementation.
 
 Early contributions are especially welcome in clock synchronization, audio drivers, DSP, network protocols, measurements, and accessibility. Propose substantial changes through an issue or pull request with the problem, alternatives, and a reproducible validation plan.
 

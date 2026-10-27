@@ -4,7 +4,8 @@
 
 main([]) ->
     %% Run from control/ after rebar3 compile. All sockets stay on loopback.
-    Ebin = filename:absname("_build/default/lib/parvi/ebin"),
+    Control = filename:dirname(filename:dirname(filename:absname(escript:script_name()))),
+    Ebin = filename:join(Control, "../builds/intermediates/control/default/lib/parvi/ebin"),
     true = code:add_patha(Ebin),
     Suffix = integer_to_list(erlang:unique_integer([positive])),
     Name = list_to_atom("parvi_smoke_" ++ Suffix ++ "@127.0.0.1"),
