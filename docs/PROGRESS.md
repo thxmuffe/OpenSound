@@ -1,5 +1,23 @@
 # Progress
 
+## 2026-10-27 — OTP node-status lights, applied through live UI reload
+
+Replaced the plain sidebar list with native status icons and text, using the
+RabbitMQ Management v3.13.7 palette. A supervised Windows status worker combines
+OTP nodeup/nodedown notifications with bounded asynchronous chat-worker calls.
+Green means responsive, yellow unresponsive, red disconnected, grey checking.
+Disconnected peers stay listed; no state claims that an unreachable VM is dead.
+Status rows survive UI replacement through the existing live model.
+
+The worker is added dynamically after wx startup, allowing this feature to reach
+already-running apps through the UI watcher without a backend restart. Verified
+in the user's running app: both original nodes remain connected, the worker PID
+and history are unchanged, and both status lights are green.
+
+The isolated native integration test passes worker suspend/resume (yellow/green),
+disconnect/reconnect (red/green), retention of red across reload, and the existing
+supervision/reload checks. Source/style references are in the Windows guide.
+
 ## 2026-10-27 — Supervised disposable UI; no rollback
 
 Replaced reload-time state capture and old-code rollback with a Windows OTP

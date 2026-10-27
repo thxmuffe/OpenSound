@@ -26,6 +26,13 @@ exercise() ->
     {Host, Monitor} = spawn_monitor(fun() -> parvi_windows_host:run(Seed) end),
     await(fun() -> whereis(parvi_windows_host) =/= undefined end),
     #{pid := First} = parvi_windows_host:status(),
+    await(fun() -> node_state(Peer) =:= running end),
+    ok = erpc:call(Peer, sys, suspend, [parvi_chat]),
+    try
+        await(fun() -> node_state(Peer) =:= unresponsive end),
+        true = lists:member(Peer, nodes())
+    after erpc:call(Peer, sys, resume, [parvi_chat]) end,
+    await(fun() -> node_state(Peer) =:= running end),
     timer:sleep(200),
     Baseline = parvi_windows_model:get(),
     true = maps:get(draft, Baseline) =:= maps:get(draft, Seed),
@@ -82,7 +89,16 @@ exercise() ->
     _ = await_generation(5),
     "" = maps:get(draft, parvi_windows_model:get()),
     #{pid := Last} = parvi_windows_host:status(),
-    ok = wx_object:stop(Last, normal, 5000),
+    true = erlang:disconnect_node(Peer),
+    await(fun() -> node_state(Peer) =:= down end),
+    parvi_windows_host:reload(),
+    _ = await_generation(6),
+    down = node_state(Peer),
+    ok = parvi:connect(Peer),
+    await(fun() -> node_state(Peer) =:= running end),
+    false = is_process_alive(Last),
+    #{pid := Closing} = parvi_windows_host:status(),
+    ok = wx_object:stop(Closing, normal, 5000),
     receive {'DOWN', Monitor, process, Host, normal} -> ok after 5000 -> error(host_did_not_stop) end.
 
 build(Source, BeamPath) ->
@@ -106,6 +122,11 @@ await(_, 0) -> error(test_timeout);
 await(Fun, N) ->
     case Fun() of true -> ok; false -> timer:sleep(50), await(Fun, N-1) end.
 has_text(Messages, Text) -> lists:any(fun(M) -> maps:get(text, M) =:= Text end, Messages).
+node_state(Node) ->
+    case lists:keyfind(atom_to_binary(Node), 1, parvi_node_status:rows()) of
+        {_, State, _} -> State;
+        false -> unknown
+    end.
 safe_reason(Reason) when is_atom(Reason) -> Reason;
 safe_reason(_) -> assertion_failed.
 locations(Stack) -> [{M,F,proplists:get_value(line, Info)} || {M,F,_,Info} <- Stack].

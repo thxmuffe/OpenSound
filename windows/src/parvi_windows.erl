@@ -22,20 +22,24 @@ init([]) ->
     catch Class:Reason:Stack -> wx:destroy(), erlang:raise(Class, Reason, Stack) end.
 
 build_window(Saved) ->
+    parvi_node_status:ensure_started(),
     Frame = wxFrame:new(wx:null(), ?wxID_ANY, "Parvi",
         [{size, maps:get(size, Saved, {1020, 740})}]),
     wxFrame:setMinSize(Frame, {760, 560}),
     Root = wxPanel:new(Frame),
     Row = wxBoxSizer:new(?wxHORIZONTAL),
-    Sidebar = wxPanel:new(Root, [{size, {230, -1}}]),
+    Sidebar = wxPanel:new(Root, [{size, {330, -1}}]),
     wxPanel:setBackgroundColour(Sidebar, {241, 245, 245}),
     Side = wxBoxSizer:new(?wxVERTICAL),
     add(Side, title(Sidebar, "Parvi", 24), 0, 20),
     add(Side, wxStaticText:new(Sidebar, ?wxID_ANY, "Erlang running"), 0, 12),
     add(Side, wxStaticText:new(Sidebar, ?wxID_ANY, "NODES"), 0, 12),
-    Peers = wxListBox:new(Sidebar, ?wxID_ANY),
-    wxListBox:connect(Peers, command_listbox_selected, [{userData, copy_node_connection}]),
-    wxListBox:setToolTip(Peers, "Click a node to copy its connection string"),
+    Peers = wxListCtrl:new(Sidebar, [{style, ?wxLC_REPORT bor ?wxLC_SINGLE_SEL}]),
+    wxListCtrl:insertColumn(Peers, 0, "Status", [{width, 125}]),
+    wxListCtrl:insertColumn(Peers, 1, "Node", [{width, 270}]),
+    wxListCtrl:assignImageList(Peers, status_lights(), ?wxIMAGE_LIST_SMALL),
+    wxListCtrl:connect(Peers, command_list_item_selected, [{userData, copy_node_connection}]),
+    wxListCtrl:setToolTip(Peers, "Click a connected node to copy its connection string. Disconnected does not mean dead."),
     add(Side, Peers, 1, 12),
     add(Side, wxStaticText:new(Sidebar, ?wxID_ANY,
         "PARVI PROTOTYPE\nChat runs in Erlang/OTP.\nHistory lasts for this session."), 0, 16),
@@ -90,7 +94,7 @@ build_window(Saved) ->
     State = #{frame => Frame, peers => Peers, summary => Summary,
               conversation => Conversation, messages => Messages, draft => Draft,
               error => Error, send => Send, connect => Connect, dialog => undefined,
-              history => undefined, busy => false, node_names => []},
+              history => undefined, busy => false, node_names => [], node_rows => []},
     Restored = case maps:get(dialog, Saved, false) of
         false -> State;
         true -> open_dialog(State)
@@ -111,13 +115,13 @@ handle_event(#wx{userData = {edit, Key}, obj = Ctrl}, S) ->
     parvi_windows_model:put(#{Key => wxTextCtrl:getValue(Ctrl)}), {noreply, S};
 handle_event(#wx{userData = connect}, S) -> {noreply, open_dialog(S)};
 handle_event(#wx{userData = cancel}, S) -> {noreply, close_dialog(S)};
-handle_event(#wx{userData = copy_node_connection, event = #wxCommand{cmdString = Label}}, S) ->
-    Selected = unicode:characters_to_binary(Label),
-    LocalLabel = <<(atom_to_binary(node()))/binary, " (this node)">>,
-    Name = case Selected of LocalLabel -> atom_to_binary(node()); _ -> Selected end,
-    case lists:member(Name, maps:get(node_names, S)) of
-        false -> {noreply, S};
-        true ->
+handle_event(#wx{userData = copy_node_connection, event = #wxList{itemIndex = Index}}, S)
+        when Index >= 0 ->
+    case lists:nth(Index + 1, maps:get(node_rows, S)) of
+        {_, down, _} ->
+            show_error("This node is disconnected; its connection string is currently unavailable.", S),
+            {noreply, S};
+        {Name, _, _} ->
             Ref = make_ref(), Parent = self(),
             spawn(fun() ->
                 Result = try
@@ -185,12 +189,7 @@ handle_info({reply, Ref, Kind, Result}, #{busy := Ref} = S0) ->
     S = busy(false, S0),
     case Result of
         #{<<"messages">> := History, <<"peers">> := Peers, <<"error">> := Error} ->
-            Names = [atom_to_binary(node()) | Peers],
-            case Names =:= maps:get(node_names, S) of
-                true -> ok;
-                false -> wxListBox:set(maps:get(peers, S), [[atom_to_list(node()), " (this node)"] | Peers])
-            end,
-            WithNodes = S#{node_names := Names},
+            WithNodes = update_node_rows(parvi_node_status:rows(), S),
             wxStaticText:setLabel(maps:get(summary, S),
                 case length(Peers) of
                     0 -> "1 node";
@@ -221,6 +220,41 @@ handle_info({reply, Ref, Kind, Result}, #{busy := Ref} = S0) ->
             {noreply, S}
     end;
 handle_info(_, S) -> {noreply, S}.
+
+%% RabbitMQ Management v3.13.7's existing status palette (green/yellow/red/grey).
+status_lights() ->
+    Images = wxImageList:new(16, 16),
+    [begin
+        Bitmap = wxBitmap:new(16, 16), DC = wxMemoryDC:new(Bitmap),
+        Background = wxBrush:new({255,255,255}),
+        Brush = wxBrush:new(Colour), Pen = wxPen:new({100,100,100}),
+        wxDC:setBackground(DC, Background), wxDC:clear(DC),
+        wxDC:setBrush(DC, Brush), wxDC:setPen(DC, Pen), wxDC:drawCircle(DC, {8,8}, 5),
+        wxMemoryDC:destroy(DC), wxImageList:add(Images, Bitmap),
+        wxBitmap:destroy(Bitmap), wxBrush:destroy(Background), wxBrush:destroy(Brush), wxPen:destroy(Pen)
+    end || Colour <- [{152,248,152}, {255,255,123}, {255,122,122}, {221,221,221}]],
+    Images.
+
+update_node_rows(Rows, S) ->
+    List = maps:get(peers, S), Names = [N || {N, _, _} <- Rows],
+    case Names =:= maps:get(node_names, S) of
+        true -> ok;
+        false ->
+            wxListCtrl:deleteAllItems(List),
+            [wxListCtrl:insertItem(List, I, "", 3) || I <- lists:seq(0, length(Rows)-1)]
+    end,
+    [begin
+        {Image, Text} = case Status of
+            running -> {0, "Running"}; unresponsive -> {1, "Not responding"};
+            down -> {2, "Disconnected"}; checking -> {3, "Checking"}
+        end,
+        wxListCtrl:setItem(List, I, 0, Text), wxListCtrl:setItemImage(List, I, Image),
+        Label = case Name =:= atom_to_binary(node()) of
+            true -> <<Name/binary, " (this node)">>; false -> Name
+        end,
+        wxListCtrl:setItem(List, I, 1, Label)
+    end || {I, {Name, Status, _}} <- lists:zip(lists:seq(0, length(Rows)-1), Rows)],
+    S#{node_names := Names, node_rows := Rows}.
 
 request(_, snapshot, #{busy := Ref} = S) when Ref =/= false -> S;
 request(Command, Kind, S) ->

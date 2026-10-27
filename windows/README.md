@@ -52,6 +52,31 @@ connection. Both nodes must include the shared connection-string operation.
 Discovery-only names do not contain credentials and cannot be copied
 as complete connection strings.
 
+## Node status lights
+
+The native Nodes list uses RabbitMQ Management v3.13.7's existing
+[green/yellow/red/grey status palette](https://github.com/rabbitmq/rabbitmq-server/blob/v3.13.7/deps/rabbitmq_management/priv/www/css/main.css).
+Every light also has a text label:
+
+| Light | Label | Observation |
+| --- | --- | --- |
+| Green | Running | The node's Parvi chat worker answered its status call. |
+| Yellow | Not responding | Distribution may still be connected, but the worker timed out or is unavailable. |
+| Red | Disconnected | OTP reported `nodedown`; this does not prove the remote VM stopped. |
+| Grey | Checking | A connection is known but its first worker check has not completed. |
+
+`net_kernel:monitor_nodes/2` supplies connection events and disconnect reasons.
+A supervised status worker checks connected chat workers every two seconds with
+a 1.5-second timeout, separately from the UI. It does not declare a remote node
+dead or shorten OTP's distribution heartbeat timeout. Network failure detection
+can therefore take longer than a worker responsiveness check.
+
+Disconnected nodes remain visible for the session and their status survives UI
+reload. Reconnection returns them to Checking/Running. Clicking a disconnected
+row reports that its connection string cannot currently be fetched. The worker
+is installed under the running Windows supervisor during UI reload, so this UI
+update does not require restarting existing apps.
+
 ## Automatic UI reload during development
 
 Restart existing instances once to activate the reload host. After that, compiling
@@ -61,8 +86,8 @@ rebuilds each running window, normally within about a second. Use
 unchanged native launcher. There is no need to reconnect or recopy connection
 strings for a UI edit.
 
-The Windows supervisor owns three children: a model process, a reload watcher,
-and a disposable wx window. The model stores current drafts, window geometry,
+The Windows supervisor owns a model process, a reload watcher, a disposable wx
+window, and a node-status worker. The model stores current drafts, window geometry,
 and connection-dialog fields as edits happen. It also dispatches requests so an
 in-flight send survives destruction of the window. Chat history stays exclusively
 in the existing chat worker; windows read fresh snapshots instead of restoring
