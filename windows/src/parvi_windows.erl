@@ -23,6 +23,7 @@ init([]) ->
 
 build_window(Saved) ->
     parvi_node_status:ensure_started(),
+    parvi_topology:ensure_started(),
     Frame = wxFrame:new(wx:null(), ?wxID_ANY, "Parvi",
         [{size, maps:get(size, Saved, {1020, 740})}]),
     wxFrame:setMinSize(Frame, {760, 560}),
@@ -56,11 +57,23 @@ build_window(Saved) ->
     Connect = button(Content, "Connect", connect),
     wxSizer:add(Header, Connect),
     wxSizer:add(Column, Header, [{flag, ?wxEXPAND bor ?wxALL}, {border, 22}]),
-    Conversation = wxScrolledWindow:new(Content),
+    Notebook = wxNotebook:new(Content, ?wxID_ANY),
+    wxNotebook:setToolTip(Notebook, "Network: drag nodes to arrange them; click a connected node to copy its connection string."),
+    Conversation = wxScrolledWindow:new(Notebook),
     wxScrolledWindow:setScrollRate(Conversation, 0, 16),
     Messages = wxBoxSizer:new(?wxVERTICAL),
     wxScrolledWindow:setSizer(Conversation, Messages),
-    add(Column, Conversation, 1, 12),
+    wxNotebook:addPage(Notebook, Conversation, "Chat"),
+    Network = wxPanel:new(Notebook),
+    true = code:soft_purge(parvi_fgraph_win),
+    {module, parvi_fgraph_win} = code:load_file(parvi_fgraph_win),
+    Graph = parvi_graph_view:new(Network),
+    wxNotebook:addPage(Notebook, Network, "Network"),
+    Tab = maps:get(view, Saved, 1),
+    wxNotebook:setSelection(Notebook, Tab),
+    parvi_graph_view:pause(Graph, Tab =:= 0),
+    wxNotebook:connect(Notebook, command_notebook_page_changed, [{userData, change_view}]),
+    add(Column, Notebook, 1, 12),
     Error = wxStaticText:new(Content, ?wxID_ANY, ""),
     wxStaticText:setForegroundColour(Error, {155,65,25}),
     add(Column, Error, 0, 12),
@@ -90,7 +103,7 @@ build_window(Saved) ->
     wxTextCtrl:changeValue(Draft, maps:get(draft, Saved, "")),
     wxTextCtrl:setFocus(Draft),
     self() ! refresh,
-    State = #{frame => Frame, peers => Peers, summary => Summary,
+    State = #{frame => Frame, peers => Peers, summary => Summary, notebook => Notebook, graph => Graph,
               conversation => Conversation, messages => Messages, draft => Draft,
               error => Error, send => Send, connect => Connect, dialog => undefined,
               history => undefined, busy => false, node_names => [], node_rows => []},
@@ -114,29 +127,21 @@ handle_event(#wx{userData = {edit, Key}, obj = Ctrl}, S) ->
     parvi_windows_model:put(#{Key => wxTextCtrl:getValue(Ctrl)}), {noreply, S};
 handle_event(#wx{userData = connect}, S) -> {noreply, open_dialog(S)};
 handle_event(#wx{userData = cancel}, S) -> {noreply, close_dialog(S)};
+handle_event(#wx{userData = change_view}, S) ->
+    Tab = wxNotebook:getSelection(maps:get(notebook, S)),
+    parvi_windows_model:put(#{view => Tab}),
+    parvi_graph_view:pause(maps:get(graph, S), Tab =:= 0),
+    {noreply, S};
 handle_event(#wx{userData = copy_node_connection, event = #wxList{itemIndex = Index}}, S)
         when Index >= 0 ->
     case lists:nth(Index + 1, maps:get(node_rows, S)) of
         {_, down, _} ->
             show_error("This node is disconnected; its connection string is currently unavailable.", S),
             {noreply, S};
-        {Name, _, _} ->
-            Ref = make_ref(), Parent = self(),
-            spawn(fun() ->
-                Result = try
-                    Node = binary_to_existing_atom(Name),
-                    String = case Node =:= node() of
-                        true -> parvi_connection:local();
-                        false -> erpc:call(Node, parvi_connection, local, [], 2000)
-                    end,
-                    {ok, #{node := Name}} = parvi_connection:parse(String),
-                    {ok, String}
-                catch _:_ -> unavailable end,
-                Parent ! {node_connection, Ref, Result}
-            end),
-            {noreply, S#{copy_ref => Ref}}
+        {Name, _, _} -> copy_node(Name, S)
     end;
 handle_event(#wx{userData = send}, S) ->
+    wxNotebook:setSelection(maps:get(notebook, S), 0),
     Text = unicode:characters_to_binary(wxTextCtrl:getValue(maps:get(draft, S))),
     case string:trim(Text) of
         <<>> -> {noreply, S};
@@ -158,12 +163,21 @@ handle_info(refresh, S) ->
         true -> ok;
         false -> wxTextCtrl:changeValue(Draft, Text)
     end,
+    Graph = parvi_graph_view:update(parvi_topology:snapshot(), maps:get(graph, S)),
+    Updated = S#{graph := Graph},
     Current = case {maps:get(dialog, Model, false), maps:get(dialog, S)} of
-        {false, D} when D =/= undefined -> close_dialog(S);
-        _ -> S
+        {false, D} when D =/= undefined -> close_dialog(Updated);
+        _ -> Updated
     end,
     {noreply, request(#{method => snapshot}, snapshot, Current)};
 handle_info(relayout, S) -> {noreply, render(maps:get(history, S), S)};
+handle_info({graph_node, Node}, S) ->
+    case lists:member(Node, [node() | nodes()]) of
+        true -> copy_node(atom_to_binary(Node), S);
+        false ->
+            show_error("No direct connection to this node; its connection string is unavailable.", S),
+            {noreply, S}
+    end;
 handle_info({node_connection, Ref, Result}, #{copy_ref := Ref} = S) ->
     case Result of
         {ok, String} ->
@@ -219,6 +233,22 @@ handle_info({reply, Ref, Kind, Result}, #{busy := Ref} = S0) ->
             {noreply, S}
     end;
 handle_info(_, S) -> {noreply, S}.
+
+copy_node(Name, S) ->
+    Ref = make_ref(), Parent = self(),
+    spawn(fun() ->
+        Result = try
+            Node = binary_to_existing_atom(Name),
+            String = case Node =:= node() of
+                true -> parvi_connection:local();
+                false -> erpc:call(Node, parvi_connection, local, [], 2000)
+            end,
+            {ok, #{node := Name}} = parvi_connection:parse(String),
+            {ok, String}
+        catch _:_ -> unavailable end,
+        Parent ! {node_connection, Ref, Result}
+    end),
+    {noreply, S#{copy_ref => Ref}}.
 
 %% RabbitMQ Management v3.13.7's existing status palette (green/yellow/red/grey).
 status_lights() ->
@@ -386,5 +416,7 @@ remember_geometry(S) ->
         size => wxFrame:getSize(Frame), maximized => wxFrame:isMaximized(Frame)}).
 handle_call(_, _, S) -> {reply, {error, unsupported}, S}.
 handle_cast(_, S) -> {noreply, S}.
-terminate(_, S) -> wxFrame:destroy(maps:get(frame, S)), wx:destroy(), ok.
+terminate(_, S) ->
+    parvi_graph_view:stop(maps:get(graph, S)),
+    wxFrame:destroy(maps:get(frame, S)), wx:destroy(), ok.
 code_change(_, S, _) -> {ok, S}.

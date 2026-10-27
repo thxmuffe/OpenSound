@@ -77,6 +77,27 @@ row reports that its connection string cannot currently be fetched. The worker
 is installed under the running Windows supervisor during UI reload, so this UI
 update does not require restarting existing apps.
 
+## Network graph
+
+The **Network** tab shows the observed Erlang distribution topology with the same
+status colours as the sidebar. **Chat** retains the conversation. Drag a vertex
+to reposition it, or click a directly connected vertex to copy its connection
+string. Sending a message switches to Chat. The selected tab survives UI reload.
+
+The native view adapts OTP Reltool's force graph; it does not embed a browser or
+introduce a new layout engine. See [source provenance](THIRD_PARTY.md). Reltool's
+release-editing controls are hidden. The layout pauses on the hidden Network tab,
+and its linked graph/ticker processes are stopped with the old window on reload.
+
+A supervised topology worker samples each connected node's `erlang:nodes/0`
+roughly every three seconds, using bounded asynchronous requests. It combines
+those observations with this node's current direct connections and deduplicates
+bidirectional links. It never draws a complete mesh just because nodes are listed.
+An indirectly reported node with no local status is grey. Disconnected known
+nodes remain visible, but a failed reporter's old links are removed. This is an
+eventually updated connectivity view, not a globally synchronized network map or
+an audio routing graph. The force layout has not been validated for large swarms.
+
 ## Automatic UI reload during development
 
 Restart existing instances once to activate the reload host. After that, compiling
@@ -103,6 +124,8 @@ limits. Closing the current window normally still ends the app.
 
 This watches the Windows UI module only. Changes to the host, shared backend,
 native libraries, or runtime still require a deliberate upgrade or restart.
+The graph view module is reloaded alongside the disposable window. New topology
+and status workers can be installed under the existing supervisor by the UI.
 For an explicit rebuild from an Erlang debugging connection, call
 `parvi_windows_host:reload/0`.
 
@@ -144,7 +167,9 @@ restart recovery. A GUI send and the connection dialog were checked separately.
 The native-window reload test uses an isolated copy of the app modules. It checks
 repeated automatic reloads, retained model data, unchanged node/cookie/chat workers,
 continued messaging while UI code is broken, corrected-build recovery, supervised
-window-crash recovery, and sends that survive window replacement.
+window-crash recovery, and sends that survive window replacement. Its graph checks
+use three real nodes, including a peer-reported link, topology updates on
+disconnect/reconnect, and destruction of the old graph process during reload.
 
 ## Current scope
 

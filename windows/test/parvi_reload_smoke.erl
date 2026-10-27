@@ -27,6 +27,13 @@ exercise() ->
     await(fun() -> whereis(parvi_windows_host) =/= undefined end),
     #{pid := First} = parvi_windows_host:status(),
     await(fun() -> node_state(Peer) =:= running end),
+    await(fun() -> topology_edge(Node, Peer) end),
+    Other = list_to_atom(os:getenv("PARVI_TEST_OTHER")),
+    await(fun() -> topology_edge(Peer, Other) end),
+    true = lists:keymember(atom_to_binary(Other), 1, maps:get(nodes, parvi_topology:snapshot())),
+    [_, ViewState, parvi_windows, _] = sys:get_state(First),
+    FirstGraph = maps:get(pid, maps:get(graph, ViewState)),
+    true = is_process_alive(FirstGraph),
     ok = erpc:call(Peer, sys, suspend, [parvi_chat]),
     try
         await(fun() -> node_state(Peer) =:= unresponsive end),
@@ -48,6 +55,7 @@ exercise() ->
     ok = file:write_file(Path, Good),
     Second = await_generation(1),
     true = First =/= Second,
+    false = is_process_alive(FirstGraph),
     check_state(Second, Baseline),
     true = Worker =:= whereis(parvi_chat), true = Pg =:= whereis(parvi_pg),
     true = Cookie =:= erlang:get_cookie(), true = Node =:= node(),
@@ -91,11 +99,13 @@ exercise() ->
     #{pid := Last} = parvi_windows_host:status(),
     true = erlang:disconnect_node(Peer),
     await(fun() -> node_state(Peer) =:= down end),
+    false = topology_edge(Node, Peer),
     parvi_windows_host:reload(),
     _ = await_generation(6),
     down = node_state(Peer),
     ok = parvi:connect(Peer),
     await(fun() -> node_state(Peer) =:= running end),
+    await(fun() -> topology_edge(Node, Peer) end),
     false = is_process_alive(Last),
     #{pid := Closing} = parvi_windows_host:status(),
     ok = wx_object:stop(Closing, normal, 5000),
@@ -127,6 +137,9 @@ node_state(Node) ->
         {_, State, _} -> State;
         false -> unknown
     end.
+topology_edge(A, B) ->
+    [First, Second] = lists:sort([atom_to_binary(A), atom_to_binary(B)]),
+    lists:member({First, Second}, maps:get(edges, parvi_topology:snapshot())).
 safe_reason(Reason) when is_atom(Reason) -> Reason;
 safe_reason(_) -> assertion_failed.
 locations(Stack) -> [{M,F,proplists:get_value(line, Info)} || {M,F,_,Info} <- Stack].

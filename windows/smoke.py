@@ -18,9 +18,9 @@ BROKER = ROOT.parent / 'broker/_build/windows/lib/parvi_broker/ebin'
 
 
 class Node:
-    def __init__(self, suffix):
+    def __init__(self, suffix, cookie=None):
         self.name = f'parvi_windows_{os.getpid()}{suffix}@127.0.0.1'
-        self.cookie = secrets.token_hex(24)
+        self.cookie = cookie or secrets.token_hex(24)
         self.lines = queue.Queue()
         self.process = subprocess.Popen([
             str(ERL), '-noshell', '-name', self.name, '-setcookie', self.cookie,

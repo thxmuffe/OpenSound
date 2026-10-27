@@ -1,5 +1,24 @@
 # Progress
 
+## 2026-10-27 — Live native node-network graph
+
+Added Chat/Network tabs and a lightly adapted, attributed OTP Reltool graph view.
+The existing force-layout engine remains unchanged. Vertices use the established
+status colours; drag moves them and click requests the existing connection-string
+copy operation. Reltool's editor controls are hidden and hidden-tab layout pauses.
+The graph and ticker are disposed with the old window during UI reload.
+
+A separately supervised topology worker gathers real peer adjacency reports
+without assuming a fully connected mesh. Reports are sampled and uncertain or
+indirectly known nodes remain distinguishable. This is connectivity, not audio
+routing. Source provenance is in `windows/THIRD_PARTY.md`.
+
+The live Windows instances successfully reloaded and kept their original nodes,
+worker PIDs and chat history. An initial wrong notebook constructor made the UI
+unavailable briefly; the corrected build recovered automatically without rollback.
+Warnings-as-errors compilation and six core tests pass. The native integration
+test covers repeated graph/window replacement and peer-link updates.
+
 ## 2026-10-27 — Investigated native topology graph reuse
 
 Inspected the installed OTP Reltool sources and ran an isolated native Windows

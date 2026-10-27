@@ -15,6 +15,8 @@ $sources = @('control\src', 'windows\src') | ForEach-Object {
 & $erlc -Werror +debug_info -o $ebin @sources
 if ($LASTEXITCODE) { throw 'Erlang compilation failed.' }
 Copy-Item -LiteralPath (Join-Path $repo 'control\src\parvi.app.src') -Destination (Join-Path $ebin 'parvi.app')
+Copy-Item -LiteralPath (Join-Path $repo 'LICENSE') -Destination (Join-Path $out 'LICENSE')
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'THIRD_PARTY.md') -Destination $out
 # Keep the runtime private to the app. No machine installation or PATH changes.
 $runtime = Join-Path $out 'runtime'
 if (!(Test-Path -LiteralPath (Join-Path $runtime 'bin\erl.exe'))) {
