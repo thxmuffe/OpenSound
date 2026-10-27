@@ -89,12 +89,23 @@ handle_event(#wx{event = #wxSize{}}, S) ->
     {noreply, S};
 handle_event(#wx{userData = connect}, S) -> {noreply, open_dialog(S)};
 handle_event(#wx{userData = cancel}, S) -> {noreply, close_dialog(S)};
-handle_event(#wx{userData = copy_node}, S) ->
-    copy(atom_to_binary(node())), {noreply, S};
-handle_event(#wx{userData = copy_cookie}, S) ->
-    copy(atom_to_binary(erlang:get_cookie())), {noreply, S};
-handle_event(#wx{userData = select_node, event = #wxCommand{cmdString = Name}}, S) ->
-    wxTextCtrl:changeValue(maps:get(peer_name, S), Name), {noreply, S};
+handle_event(#wx{userData = copy_connection}, S) ->
+    copy(parvi_connection:format(atom_to_binary(node()), atom_to_binary(erlang:get_cookie()))),
+    {noreply, S};
+handle_event(#wx{userData = paste_connection}, S) ->
+    Clipboard = wxClipboard:get(),
+    case wxClipboard:open(Clipboard) of
+        true ->
+            Data = wxTextDataObject:new(),
+            try
+                case wxClipboard:getData(Clipboard, Data) of
+                    true -> wxTextCtrl:changeValue(maps:get(connection_string, S), wxTextDataObject:getText(Data));
+                    false -> show_error("Clipboard does not contain text.", S)
+                end
+            after wxTextDataObject:destroy(Data), wxClipboard:close(Clipboard) end;
+        false -> show_error("Clipboard is unavailable. Try pasting with Ctrl+V.", S)
+    end,
+    {noreply, S};
 handle_event(#wx{userData = send}, S) ->
     Text = unicode:characters_to_binary(wxTextCtrl:getValue(maps:get(draft, S))),
     case string:trim(Text) of
@@ -105,8 +116,7 @@ handle_event(#wx{userData = discover}, S) ->
     URL = value(broker_url, S),
     {noreply, request(#{method => discover, url => URL}, discover, S)};
 handle_event(#wx{userData = join}, S) ->
-    {noreply, request(#{method => connect, node => value(peer_name, S),
-                       cookie => value(peer_cookie, S)}, join, S)};
+    {noreply, request(#{method => connect, connection_string => value(connection_string, S)}, join, S)};
 handle_event(_, S) -> {noreply, S}.
 
 handle_info(refresh, S) ->
@@ -127,8 +137,8 @@ handle_info({reply, Ref, Kind, Result}, #{busy := Ref} = S0) ->
                 [atom_to_list(node()), " | ", maps:get(<<"runtime_info">>, Result)]),
             case {Kind, Error} of
                 {snapshot, null} -> ok;
-                {_, null} -> wxStaticText:setLabel(maps:get(error, S), "");
-                _ -> wxStaticText:setLabel(maps:get(error, S), Error)
+                {_, null} -> show_error("", S);
+                _ -> show_error(Error, S)
             end,
             S1 = case {Kind, Error} of
                 {send, null} ->
@@ -144,7 +154,7 @@ handle_info({reply, Ref, Kind, Result}, #{busy := Ref} = S0) ->
             end,
             {noreply, S2};
         _ ->
-            wxStaticText:setLabel(maps:get(error, S), "Erlang worker unavailable. Retrying..."),
+            show_error("Erlang worker unavailable. Retrying...", S),
             {noreply, S}
     end;
 handle_info(_, S) -> {noreply, S}.
@@ -211,23 +221,23 @@ open_dialog(S) ->
         [{size, {610, 610}}, {style, ?wxDEFAULT_DIALOG_STYLE bor ?wxRESIZE_BORDER}]),
     Column = wxBoxSizer:new(?wxVERTICAL),
     add(Column, wxStaticText:new(D, ?wxID_ANY,
-        "Connect instances on this Windows PC. Share the node and cookie separately."), 0, 12),
-    add(Column, wxStaticText:new(D, ?wxID_ANY, atom_to_list(node())), 0, 12),
-    Row = wxBoxSizer:new(?wxHORIZONTAL),
-    wxSizer:add(Row, button(D, "Copy node", copy_node)),
-    wxSizer:add(Row, button(D, "Copy cookie", copy_cookie), [{flag, ?wxLEFT}, {border, 12}]),
-    wxSizer:add(Column, Row, [{flag, ?wxALL}, {border, 12}]),
+        "Copy a connection string here and paste it into the other instance."), 0, 12),
+    add(Column, button(D, "Copy connection string", copy_connection), 0, 12),
+    Connection = field(D, Column, "Other instance's connection string", "", ?wxTE_PASSWORD),
+    add(Column, button(D, "Paste connection string", paste_connection), 0, 8),
+    add(Column, wxStaticText:new(D, ?wxID_ANY,
+        "The string includes the address and private session credentials.\nThis build connects instances on this Windows PC only."), 0, 12),
+    DialogError = wxStaticText:new(D, ?wxID_ANY, ""),
+    wxStaticText:setForegroundColour(DialogError, {155,65,25}),
+    add(Column, DialogError, 0, 8),
     add(Column, title(D, "Reception desk", 14), 0, 12),
     URL = field(D, Column, "Reception desk URL", "http://127.0.0.1:8765", 0),
     Discover = button(D, "Register / Find nodes", discover),
     add(Column, Discover, 0, 12),
     Nodes = wxListBox:new(D, ?wxID_ANY),
-    wxListBox:connect(Nodes, command_listbox_selected, [{userData, select_node}]),
     add(Column, Nodes, 1, 12),
-    Peer = field(D, Column, "Other instance's node name", "", 0),
-    Cookie = field(D, Column, "Other instance's cookie", "", ?wxTE_PASSWORD),
     add(Column, wxStaticText:new(D, ?wxID_ANY,
-        "Discovery introduces names; it does not connect devices.\nLAN and phone connections are not enabled in this build."), 0, 12),
+        "Optional discovery lists names only. To connect, ask the other\ninstance for its connection string."), 0, 12),
     Actions = wxBoxSizer:new(?wxHORIZONTAL),
     Join = button(D, "Connect", join),
     wxSizer:add(Actions, button(D, "Close", cancel)),
@@ -236,8 +246,8 @@ open_dialog(S) ->
     wxDialog:setSizer(D, Column),
     wxDialog:connect(D, close_window),
     wxDialog:show(D),
-    busy(maps:get(busy, S), S#{dialog := D, broker_url => URL, peer_name => Peer,
-        peer_cookie => Cookie, known_nodes => Nodes, discover => Discover, join => Join}).
+    busy(maps:get(busy, S), S#{dialog := D, broker_url => URL, connection_string => Connection,
+        dialog_error => DialogError, known_nodes => Nodes, discover => Discover, join => Join}).
 
 close_dialog(#{dialog := undefined} = S) -> S;
 close_dialog(#{dialog := D} = S) -> wxDialog:destroy(D), S#{dialog := undefined}.
@@ -252,6 +262,16 @@ update_nodes(Reply, #{dialog := D, known_nodes := List}) when D =/= undefined ->
 update_nodes(_, _) -> ok.
 
 value(Key, S) -> string:trim(unicode:characters_to_binary(wxTextCtrl:getValue(maps:get(Key, S)))).
+show_error(Text, S) ->
+    wxStaticText:setLabel(maps:get(error, S), Text),
+    case maps:get(dialog, S) of
+        undefined -> ok;
+        D ->
+            Label = maps:get(dialog_error, S),
+            wxStaticText:setLabel(Label, Text),
+            wxStaticText:wrap(Label, 540),
+            wxDialog:layout(D)
+    end.
 field(D, Sizer, Label, Value, Style) ->
     add(Sizer, wxStaticText:new(D, ?wxID_ANY, Label), 0, 4),
     Ctrl = wxTextCtrl:new(D, ?wxID_ANY, [{value, Value}, {style, Style}]),

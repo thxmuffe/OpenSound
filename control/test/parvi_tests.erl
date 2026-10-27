@@ -1,6 +1,29 @@
 -module(parvi_tests).
 -include_lib("eunit/include/eunit.hrl").
 
+connection_string_roundtrip_test() ->
+    Node = <<"parvi_windows_123@127.0.0.1">>,
+    Cookie = <<"secret+/=&?%">>,
+    String = parvi_connection:format(Node, Cookie),
+    ?assertEqual({ok, #{node => Node, cookie => Cookie}}, parvi_connection:parse(String)),
+    ?assertEqual(parvi_connection:parse(String), parvi_connection:parse(<<" \n", String/binary, "\r\n">>)).
+
+invalid_connection_strings_test() ->
+    Prefix = <<"parvi://connect/v1?">>,
+    Bad = [<<>>, <<"not a connection string">>,
+        <<"https://connect/v1?node=a&cookie=b">>,
+        <<"parvi://connect/v2?node=a&cookie=b">>,
+        <<Prefix/binary, "node=a">>, <<Prefix/binary, "node=a&cookie=">>,
+        <<Prefix/binary, "node=a&cookie=b&cookie=c">>,
+        <<Prefix/binary, "node=a&cookie=b&extra=c">>,
+        <<Prefix/binary, "node=a&cookie=b#fragment">>,
+        <<"parvi://user@connect/v1?node=a&cookie=b">>,
+        <<Prefix/binary, "node=a&cookie=%00">>,
+        <<Prefix/binary, "node=a&cookie=%FF">>,
+        <<Prefix/binary, "node=a&cookie=", (binary:copy(<<"x">>, 129))/binary>>,
+        binary:copy(<<"x">>, 2049), 123],
+    [?assertEqual({error, invalid_connection_string}, parvi_connection:parse(Input)) || Input <- Bad].
+
 chat_test_() ->
     {setup, fun() -> {ok, _} = parvi:start() end,
      fun(_) -> application:stop(parvi) end,
@@ -12,6 +35,10 @@ bridge_request() ->
     ?assertEqual(<<"native host">>, maps:get(<<"text">>, lists:last(maps:get(<<"messages">>, Reply)))),
     Invalid = json:decode(parvi_bridge:request(<<"not json">>)),
     ?assert(is_binary(maps:get(<<"error">>, Invalid))),
+    BadConnection = json:decode(parvi_bridge:request(
+        <<"{\"method\":\"connect\",\"connection_string\":\"invalid\"}">>)),
+    ?assertEqual(<<"Invalid connection string. Copy a fresh one from the other instance.">>,
+        maps:get(<<"error">>, BadConnection)),
     ?assert(is_process_alive(whereis(parvi_chat))).
 
 messaging() ->

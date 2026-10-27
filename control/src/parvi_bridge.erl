@@ -40,6 +40,12 @@ command(#{<<"method">> := <<"send">>, <<"text">> := Text}) ->
         {ok, _} -> null;
         {error, _} -> <<"Use 1–4096 bytes of UTF-8 text.">>
     end;
+command(#{<<"method">> := <<"connect">>, <<"connection_string">> := String}) ->
+    case parvi_connection:parse(String) of
+        {ok, #{node := Name, cookie := Cookie}} ->
+            command(#{<<"method">> => <<"connect">>, <<"node">> => Name, <<"cookie">> => Cookie});
+        {error, _} -> <<"Invalid connection string. Copy a fresh one from the other instance.">>
+    end;
 command(#{<<"method">> := <<"connect">>, <<"node">> := Name, <<"cookie">> := Cookie})
         when is_binary(Name), byte_size(Name) > 0, byte_size(Name) =< 128,
              is_binary(Cookie), byte_size(Cookie) > 0, byte_size(Cookie) =< 128 ->

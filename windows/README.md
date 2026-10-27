@@ -32,15 +32,23 @@ the Microsoft Visual C++ runtime required by the official OTP distribution.
 The build directory is ignored by Git. Close the app before rebuilding.
 
 For terminal diagnostics, run `.\windows\run.ps1`. Each launch creates an
-independent named Erlang node with a fresh session cookie. The cookie shown by
-**Copy cookie** is generated inside BEAM, separate from the launch-time cookie.
+independent named Erlang node with a fresh session cookie. The cookie included in
+the connection string is generated inside BEAM, separate from the launch-time cookie.
 
 ## Connect two instances
 
-Launch `Parvi.exe` twice. Open **Connect** in each instance. Copy one instance's
-node name and cookie into the other instance and connect. Wait for both device
+Launch `Parvi.exe` twice. Open **Connect** in each instance. In the first, click
+**Copy connection string**. In the second, click **Paste connection string**,
+then **Connect**. Wait for both device
 lists to show two participants, then send messages in either direction. Enter
 or **Send** submits a message; invalid messages leave the draft intact.
+
+The versioned format is `parvi://connect/v1?node=...&cookie=...`, with URI-encoded
+values. The string contains private credentials; it is not encryption or a public
+web link. It expires when the originating app closes. The input masks credentials.
+The shared parser rejects invalid, duplicate, missing, and oversized fields;
+the existing bridge still enforces loopback-only peer names. The Mac app's legacy
+two-field request remains supported internally.
 
 Optional discovery:
 
@@ -49,8 +57,8 @@ Optional discovery:
 ```
 
 Open `http://127.0.0.1:8765/` for the existing Reception desk website. Register
-both apps with **Register / Find nodes**, refresh, select a returned name, and
-provide that instance's cookie separately. Discovery does not authenticate or
+both apps with **Register / Find nodes** and refresh to see known names. Ask
+the desired instance for its connection string. Discovery does not authenticate or
 connect nodes and never carries chat traffic. Restarting the desk clears names.
 The PowerShell launcher supports the same `PARVI_BROKER_BIND` and
 `PARVI_BROKER_PORT` environment variables as the existing shell script.

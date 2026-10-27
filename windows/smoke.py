@@ -9,6 +9,7 @@ import subprocess
 import threading
 import time
 import urllib.request
+import urllib.parse
 
 ROOT = Path(__file__).resolve().parent
 ERL = ROOT / '_build/Parvi/runtime/bin/erl.exe'
@@ -90,7 +91,9 @@ def main():
         assert a.name in b.request('discover', url=url)['known_nodes']
         assert b.name in a.request('discover', url=url)['known_nodes']
         assert a.request('connect', node='parvi_windows_1@192.168.1.5', cookie='test')['error']
-        assert a.request('connect', node=b.name, cookie=b.cookie)['error'] is None
+        connection = 'parvi://connect/v1?' + urllib.parse.urlencode({'node': b.name, 'cookie': b.cookie})
+        assert a.request('connect', connection_string='invalid')['error']
+        assert a.request('connect', connection_string=connection)['error'] is None
         await_snapshot(a, lambda r: b.name in r['peers'])
         await_snapshot(b, lambda r: a.name in r['peers'])
         text = 'Hello from Windows: Hei parvi! 🐦 <>&'

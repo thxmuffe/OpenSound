@@ -1,5 +1,17 @@
 # Progress
 
+## 2026-10-27 — Single connection string on Windows
+
+Replaced the Windows node/cookie copy buttons and inputs with **Copy connection
+string**, one masked input, and **Paste connection string**. The versioned
+`parvi://connect/v1?node=...&cookie=...` format is encoded and validated in shared
+Erlang code. The existing loopback policy and Mac request format are preserved.
+The Reception desk continues to list names without publishing credentials.
+
+Validation: six core EUnit tests pass, including escaped-field round trips and
+invalid/duplicate/oversized input. The real Windows two-node integration test
+passes using the combined string for connection and bidirectional chat.
+
 ## 2026-10-27 — Windows wxErlang exercise
 
 Added `windows/`: native wxErlang chat UI, Win32 C launcher, private pinned OTP
