@@ -89,6 +89,12 @@ The helper also prepares the runtime. Build products are written to
 stay in `builds/intermediates/iOS/`. These are unsigned verification builds;
 exporting an `.ipa` requires a separate signed archive/export workflow.
 
+The helper passes the product directory globally so the app and shared Swift
+package compile against the same artifacts. Keep that setting global when using
+custom `xcodebuild` commands; a target-only override can reuse incompatible
+package metadata. Builds launched directly in Xcode use its default product
+directory.
+
 To prepare and compile the Apple Silicon simulator version, use
 `python3 Apps/iOS/prepare-runtime.py --target sim` and select an iPhone simulator in
 Xcode. Runtime selection follows the destination SDK through `Runtime.xcconfig`.

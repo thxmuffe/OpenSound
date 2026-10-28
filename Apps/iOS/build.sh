@@ -16,4 +16,5 @@ python3 "$SOURCE/prepare-runtime.py" --target "$TARGET"
 xcrun xcodebuild -project "$SOURCE/Parvi.xcodeproj" -scheme Parvi \
   -configuration Debug -sdk "$SDK" -destination "$DESTINATION" \
   -derivedDataPath "$ROOT/builds/intermediates/iOS/Xcode-$TARGET" \
+  CONFIGURATION_BUILD_DIR="$ROOT/builds/iOS/Debug-$SDK" \
   CODE_SIGNING_ALLOWED=NO build

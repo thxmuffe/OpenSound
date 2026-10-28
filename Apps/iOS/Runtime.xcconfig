@@ -9,5 +9,5 @@ SWIFT_OBJC_BRIDGING_HEADER = Parvi/Parvi-Bridging-Header.h
 ENABLE_USER_SCRIPT_SANDBOXING = NO
 ARCHS = arm64
 
-// Build products and compiler output stay outside the app sources.
-CONFIGURATION_BUILD_DIR = $(SRCROOT)/../../builds/iOS/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)
+// Product location is supplied globally by build.sh so the app and Swift package
+// use the same directory. A target-only override can load stale package metadata.

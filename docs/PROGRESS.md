@@ -1,5 +1,29 @@
 # Progress
 
+## 2026-10-28 — iPhone interface and deployment
+
+The iPhone now shares the Mac swarm list, swarm-specific invitation area,
+Chat/Graph views, node details and membership actions. Native stack navigation,
+swipeable tabs, larger touch controls, keyboard handling and a runtime information
+sheet adapt that shared interface to the phone. Network invitation controls
+remain disabled until the iOS transport is implemented; local swarms and chat
+use the embedded BEAM.
+
+Both simulator and device builds completed. All seven shared Swift model tests
+pass. The device build was signed with the configured development team, its
+signature verified, and the update installed on the connected iPhone 12 mini.
+After unlocking, a launch crash exposed mismatched shared-package build
+artifacts caused by the target-only product-directory override. A clean rebuild
+with a global product directory fixed startup. The build helper now sets that
+directory for both app and package; native Xcode builds use their default shared
+product directory.
+
+The corrected update is installed and running on the physical phone. Its new
+Erlang receipt matches the live process (9447), reports OTP 29 / ERTS 17.1.1,
+and passes message delivery and supervisor restart checks. Device Hub screen
+sharing requires iOS 27, whereas this phone runs 26.6.1, so interactive visual
+checks on the phone remain manual. Mac–iPhone networking is still disabled.
+
 ## 2026-10-27 — Shared app code belongs with the apps
 
 Moved `ParviKit` to `Apps/Shared/ParviKit`. Updated Mac build/test scripts, the
