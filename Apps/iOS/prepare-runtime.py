@@ -50,7 +50,9 @@ for name in ['gun', 'cowlib']:
 # iOS does not expose the host's certificate-store loading commands to BEAM.
 # Export public trust anchors at build time; never disable TLS verification.
 ca_bundle = subprocess.check_output(['erl', '-noshell', '-eval',
-    "io:put_chars(public_key:pem_encode([{'Certificate', C, not_encrypted} || C <- public_key:cacerts_get()])), halt()."])
+    "Certs = [case C of {cert, DER, _} -> DER; DER when is_binary(DER) -> DER end "
+    "|| C <- public_key:cacerts_get()], "
+    "io:put_chars(public_key:pem_encode([{'Certificate', C, not_encrypted} || C <- Certs])), halt()."])
 (resources / 'cacerts.pem').write_bytes(ca_bundle)
 shutil.copy2(otp / 'releases/29/start_clean.boot', resources / 'start_clean.boot')
 (resources / 'erts-17.1.1/bin').mkdir(parents=True, exist_ok=True)

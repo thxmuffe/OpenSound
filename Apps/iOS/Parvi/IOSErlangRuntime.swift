@@ -8,7 +8,7 @@ import ParviKit
 final class IOSErlangRuntime: ChatRuntime {
     let cookie = ""
     let localDeviceName = "This iPhone"
-    let connectionDescription = "Configure a Reception desk to join internet swarms."
+    let connectionDescription = "The default Reception desk connects automatically. Share a swarm invitation to add another node."
     let connectionHelp = "The iPhone opens an outbound encrypted connection to the Reception desk. Invitations are scoped to a swarm; background operation remains outside this prototype."
     let canConnect = true
     private var started = false
@@ -16,6 +16,7 @@ final class IOSErlangRuntime: ChatRuntime {
     private var timer: Timer?
     private var pending = 0
     private var didReceiveSnapshot = false
+    private var lastConnectionStatus: Data?
     private var onSnapshot: ((Data) -> Void)?
     private var onFailure: ((String) -> Void)?
 
@@ -74,9 +75,10 @@ final class IOSErlangRuntime: ChatRuntime {
                     buffer.removeSubrange(...newline)
                     DispatchQueue.main.async {
                         guard let self = self,
-                              (try? JSONDecoder().decode(ChatSnapshot.self, from: line)) != nil else { return }
+                              let snapshot = try? JSONDecoder().decode(ChatSnapshot.self, from: line) else { return }
                         self.pending = max(0, self.pending - 1)
                         self.didReceiveSnapshot = true
+                        self.recordConnectionStatus(snapshot)
                         self.onSnapshot?(line)
                     }
                 }
@@ -99,6 +101,22 @@ final class IOSErlangRuntime: ChatRuntime {
             try input.write(contentsOf: data + Data([10]))
             pending += 1
         } catch { onFailure?("Could not send the request to the on-device Erlang VM.") }
+    }
+
+    // A small support receipt for physical-device diagnostics; no invitations,
+    // mailbox capabilities, private keys or chat contents are written here.
+    private func recordConnectionStatus(_ snapshot: ChatSnapshot) {
+        guard let relay = snapshot.relay else { return }
+        let status: [String: Any] = ["node": snapshot.node,
+            "os_pid": String(ProcessInfo.processInfo.processIdentifier),
+            "url": relay.url as Any? ?? NSNull(), "connected": relay.connected,
+            "error": relay.error as Any? ?? NSNull()]
+        guard let data = try? JSONSerialization.data(withJSONObject: status, options: [.sortedKeys]),
+              data != lastConnectionStatus else { return }
+        let file = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("parvi_connection_status.json")
+        do { try data.write(to: file, options: .atomic); lastConnectionStatus = data }
+        catch { /* Connection behavior does not depend on writing diagnostics. */ }
     }
 
     func stop() {

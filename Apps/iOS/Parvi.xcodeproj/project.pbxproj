@@ -138,6 +138,7 @@
 /* Begin PBXShellScriptBuildPhase section */
 		A00000000000000000000039 /* Copy prepared OTP resources */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
@@ -146,6 +147,7 @@
 			);
 			name = "Copy prepared OTP resources";
 			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/runtime",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;

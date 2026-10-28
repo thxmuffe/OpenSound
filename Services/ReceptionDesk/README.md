@@ -64,9 +64,12 @@ Free instances can sleep after 15 minutes without inbound HTTP/WebSocket traffic
 the next connection wakes them, which can take about a minute. See
 [Render's free-plan documentation](https://render.com/docs/free).
 Test Windows and a rebuilt iPhone on separate internet connections.
-An already installed older phone build cannot
-use the new transport. Apple UI and packaging sources are updated, but their
-build/device verification requires the Mac/Xcode environment.
+An already installed older phone build cannot use the new transport. The Apple
+targets have now been rebuilt on the Mac: the packaged Mac runtime passes public
+WSS admission/chat/departure checks, and the signed physical iPhone authenticates
+to the default Render desk. A physical Mac–iPhone invitation and bidirectional
+chat exchange also passes, with both nodes shown Running in the Mac graph.
+Separate-access-network testing remains a further check.
 
 Only `wss://` is accepted for public desk addresses. Plain `ws://` is restricted
 to localhost development. Clients verify certificate chains and hostnames.

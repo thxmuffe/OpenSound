@@ -19,7 +19,7 @@ private final class TestRuntime: ChatRuntime {
     }
     func request(_ payload: [String: String]) { requests.append(payload) }
     func stop() {}
-    func respond(id: String? = nil, error: String? = nil, result: String? = nil) {
+    func respond(id: String? = nil, error: String? = nil, result: String? = nil, relay: [String: Any]? = nil) {
         var reply: [String: Any] = ["node": "test@127.0.0.1", "peers": [], "messages": [],
                                    "connection_string": "parvi://connect/v1?node=test&cookie=test",
             "swarms": [
@@ -32,6 +32,7 @@ private final class TestRuntime: ChatRuntime {
                 ["id": "peer-b", "state": "running", "detail": "responsive"]
             ], "edges": [["test@127.0.0.1", "peer-a"], ["test@127.0.0.1", "peer-b"]]]]
         if let result { reply["result"] = ["swarm_id": result] }
+        if let relay { reply["relay"] = relay }
         if let id { reply["request_id"] = id }
         if let error { reply["error"] = error }
         snapshot?(try! JSONSerialization.data(withJSONObject: reply))
@@ -69,6 +70,32 @@ final class ChatModelTests: XCTestCase {
             model.send()
             runtime.respond(id: runtime.requests.last!["request_id"])
             XCTAssertEqual(model.draft, "")
+        }
+    }
+
+    func testRelaySnapshotsSupplyDefaultWithoutOverwritingEditedDeskAndShowFailures() async {
+        await MainActor.run {
+            let runtime = TestRuntime()
+            let model = ChatModel(runtime: runtime)
+            runtime.respond(relay: ["url": "wss://default.example/relay/v1", "connected": true])
+            XCTAssertEqual(model.deskURL, "wss://default.example/relay/v1")
+            XCTAssertTrue(model.relayConnected)
+            model.deskURL = "wss://another.example/relay/v1"
+            runtime.respond(relay: ["url": "wss://default.example/relay/v1", "connected": false,
+                                    "error": "Connection failed"])
+            XCTAssertEqual(model.deskURL, "wss://another.example/relay/v1")
+            XCTAssertFalse(model.relayConnected)
+            XCTAssertEqual(model.relayError, "Connection failed")
+            model.draft = "Keep this if rejected"
+            model.configureDesk()
+            XCTAssertEqual(runtime.requests.last?["method"], "configure_desk")
+            XCTAssertEqual(runtime.requests.last?["url"], "wss://another.example/relay/v1")
+            runtime.respond(id: runtime.requests.last?["request_id"], error: "Invalid desk")
+            XCTAssertEqual(model.draft, "Keep this if rejected")
+            model.configureDesk()
+            runtime.respond(id: runtime.requests.last?["request_id"])
+            XCTAssertEqual(model.draft, "")
+            XCTAssertFalse(model.configuring)
         }
     }
 

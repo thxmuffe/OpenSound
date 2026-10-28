@@ -64,7 +64,12 @@ handle_info(connect, #{conn := undefined, url := URL} = S) when is_binary(URL) -
         Opts = #{protocols => [http], retry => 0, connect_timeout => 5000,
                  domain_lookup_timeout => 5000, tls_handshake_timeout => 5000,
                  transport => case TLS of true -> tls; false -> tcp end},
-        Options = case TLS of true -> Opts#{tls_opts => tls_options()}; false -> Opts end,
+        ResolvedOpts = case application:get_env(parvi, relay_resolver) of
+            undefined -> Opts;
+            {ok, {Module, Function}} ->
+                {ok, Family} = Module:Function(Host), Opts#{tcp_opts => [Family]}
+        end,
+        Options = case TLS of true -> ResolvedOpts#{tls_opts => tls_options()}; false -> ResolvedOpts end,
         {ok, Pid} = gun:open(binary_to_list(Host), Port, Options),
         monitor(process, Pid),
         erlang:send_after(10000, self(), {handshake_timeout, Pid}),

@@ -1,5 +1,37 @@
 # Progress
 
+## 2026-10-28 — Apple apps rebuilt for the public relay
+
+Reviewed the Windows relay/default-configuration changes and rebuilt both Apple
+apps against the shared OTP settings, Gun/Cowlib and v2 invitation protocol.
+The default Render URL remains defined only in `control/src/parvi.app.src`;
+neither Apple adapter nor the new Mac smoke check duplicates it.
+
+Fixed iPhone trust-bundle export for OTP 29's certificate-record representation.
+Physical testing then exposed the unsupported external `inet_gethost` helper.
+iOS now resolves using its in-process `net:getaddrinfo` NIF and refreshes the VM's
+host table before Gun connects. An optional resolver callback keeps this adapter
+out of other platforms. The original hostname is retained for HTTP and TLS
+verification; IPv6-only results select the IPv6 socket family.
+The Xcode resource-copy phase now declares the bundled runtime directory as an
+output and runs each build, so Erlang-only updates also trigger resource sealing.
+Both final app bundles pass strict signature verification.
+
+Shared UI now shows relay errors as well as connected status. A small iPhone
+connection receipt records actual snapshot status and OS PID without invitation
+credentials or chat content. Eight Swift model tests and twelve Erlang tests
+pass. The packaged Mac runtime passes public WSS authentication, admission,
+two-way chat and departure, and its legacy local smoke check still passes.
+
+Installed and launched the signed iPhone build. Its OTP self-test passes and
+the connection receipt reports authenticated WSS to the shared Render default,
+with no error, matching live process 14698. The native Mac UI also shows the
+default desk connected and a v2 invitation. The user joined the Mac swarm from
+the phone and exchanged “Hi” and “it works” in both directions. Native Mac
+inspection confirms both physical nodes in that swarm and both marked Running
+in Graph. Operation across separate access networks remains a further test;
+this exchange used the public Render relay regardless of local network layout.
+
 ## 2026-10-28 - Shared default Reception Desk configuration
 
 The shared OTP settings in `control/src/parvi.app.src` now bundle the public

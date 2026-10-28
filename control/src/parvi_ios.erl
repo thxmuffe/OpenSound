@@ -1,7 +1,11 @@
 %% Runs inside the iPhone BEAM, sharing the actual OTP app and JSON handler.
 -module(parvi_ios).
--export([main/0, probe/0]).
+-export([main/0, probe/0, resolve_host/1]).
 main() ->
+    %% iOS cannot spawn inet_gethost. Resolve through the statically linked
+    %% prim_net NIF, then let Gun look up the original hostname in this VM.
+    ok = inet_db:set_lookup([file]),
+    application:set_env(parvi, relay_resolver, {?MODULE, resolve_host}),
     CA = filename:join(code:root_dir(), "cacerts.pem"),
     case filelib:is_file(CA) of true -> application:set_env(parvi, relay_cacertfile, CA); false -> ok end,
     {ok, _} = application:ensure_all_started(parvi),
@@ -14,6 +18,21 @@ main() ->
     {ok, Socket} = gen_tcp:connect({127,0,0,1}, Port,
                                   [binary, {packet, line}, {packet_size, 8192}, {active, false}], 10000),
     serve(Socket).
+
+resolve_host(Host) ->
+    case net:getaddrinfo(binary_to_list(Host)) of
+        {ok, Addresses} ->
+            IPv4 = lists:usort([IP || #{family := inet, addr := #{addr := IP}} <- Addresses]),
+            IPv6 = lists:usort([IP || #{family := inet6, addr := #{addr := IP}} <- Addresses]),
+            case {IPv4, IPv6} of
+                {[], []} -> {error, nxdomain};
+                _ ->
+                    ok = inet_db:clear_hosts(),
+                    [ok = inet_db:add_host(IP, [binary_to_list(Host)]) || IP <- IPv4 ++ IPv6],
+                    {ok, case IPv4 of [] -> inet6; _ -> inet end}
+            end;
+        Error -> Error
+    end.
 
 serve(Socket) ->
     case gen_tcp:recv(Socket, 0) of

@@ -11,12 +11,16 @@ RUNTIME = Path(__file__).resolve().parents[3] / "builds/macOS/Parvi.app/Contents
 
 
 class Instance:
-    def __init__(self, index):
+    def __init__(self, index, desk=""):
         erts = next(RUNTIME.glob("erts-*"))
         self.node = f"parvi_mac_{os.getpid() * 10 + index}@127.0.0.1"
         self.cookie = uuid.uuid4().hex
         env = dict(os.environ, ROOTDIR=str(RUNTIME), BINDIR=str(erts / "bin"),
                    EMU="beam", PROGNAME="erl", ERL_EPMD_ADDRESS="127.0.0.1", PARVI_RECEPTION_DESK_URL="")
+        if desk is None:
+            env.pop("PARVI_RECEPTION_DESK_URL", None)  # Exercise the bundled default.
+        else:
+            env["PARVI_RECEPTION_DESK_URL"] = desk
         self.process = subprocess.Popen([
             str(erts / "bin/erlexec"), "-boot",
             str(RUNTIME / "releases/0.1.0/start"), "-noshell", "-name", self.node,

@@ -27,9 +27,13 @@ This local build is ad hoc signed, not notarized for public distribution.
 The rebuilt app automatically uses the public desk URL from shared OTP settings
 in `control/src/parvi.app.src`. Share v2 swarm invitations
 between rebuilt apps. The native Erlang adapter opens an outbound WebSocket,
-without Erlang distribution or port forwarding. Shared code/packaging changes
-still require a Mac rebuild and interoperability test; this Windows session did
-not build the Apple targets. See the [desk guide](../../Services/ReceptionDesk/README.md).
+without using Erlang distribution for relay traffic or requiring port forwarding.
+The rebuilt bundle passes public WSS authentication, admission, bidirectional
+chat and departure tests with two independent packaged runtimes. The native
+interface also connects automatically. See the [desk guide](../../Services/ReceptionDesk/README.md).
+
+Run `python3 Apps/macOS/tools/relay-smoke.py` to repeat the public-desk check.
+It uses the bundled default, without copying the URL into the test script.
 
 Set `PARVI_RECEPTION_DESK_URL` to an empty string before startup to select the
 original local developer transport described below. Its loopback limits apply only to that legacy mode.
@@ -69,9 +73,9 @@ A returning participant needs a fresh valid invitation. Invitations issued by a
 member who leaves/removes itself also stop admitting new nodes. Remaining members
 can invite others even after the original creator has left.
 
-## Current transport and membership limits
+## Legacy local transport and membership limits
 
-This is a **trusted, same-computer prototype**. The new format is
+With the relay explicitly disabled, this is a **trusted, same-computer prototype**. Its format is
 `parvi://swarm/v1?node=...&cookie=...&swarm=...&token=...`. Links contain private
 Erlang distribution credentials and a swarm-specific admission token. They work
 with the swarm-aware Mac and Windows interfaces; legacy clients use the
@@ -86,8 +90,9 @@ admit that member. Membership records may retain disconnected peers for diagnosi
 This is not a hardened security boundary: Erlang distribution still grants broad
 runtime trust, and a modified trusted peer can bypass application-level checks.
 Partition reconciliation, reliable revocation during network splits, simultaneous
-removal arbitration, configured invitation expiry, internet relays, LAN access,
-large-swarm scaling and persistent reconnection remain future protocol work.
+removal arbitration, configured invitation expiry, direct LAN access and
+large-swarm scaling remain future protocol work. Relay reconnect behavior and
+limitations are described separately in the Reception Desk guide.
 The prototype exchanges local peer credentials to establish distribution links;
 it does not define the eventual internet topology. Do not expose it publicly.
 

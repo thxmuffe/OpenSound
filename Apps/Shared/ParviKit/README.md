@@ -11,13 +11,16 @@ macOS app -- MacErlangRuntime -- bundled BEAM subprocess
            \                 /
             ParviKit + shared Erlang application
            /                 \
-iPhone app -- IOSErlangRuntime -- embedded BEAM (physical test pending)
+iPhone app -- IOSErlangRuntime -- embedded BEAM
 ```
 
 Both adapters return actual Erlang snapshots to the same model. The iOS adapter
 now starts interpreted BEAM in-process and uses a device-local socket to the
 same shared OTP application. Startup, supervisor recovery and UI messaging have
-been verified in the simulator; the signed physical-device test remains pending.
+been verified on the physical iPhone. The rebuilt Mac and iPhone connect to the
+shared default Reception Desk, and the model displays actual relay status and
+connection errors. Swarm/chat rules stay in Erlang; the Swift layer forwards
+commands and renders snapshots.
 
 Xcode consumes the package directly through a relative local package reference.
 The command-line Mac build compiles the same package sources as a static module.

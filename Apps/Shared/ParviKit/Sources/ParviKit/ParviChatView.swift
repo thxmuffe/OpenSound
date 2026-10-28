@@ -283,6 +283,8 @@ public struct ParviChatView: View {
                         Text("Current transient swarm memberships and chats will be discarded. The new node session connects through this desk.")
                     }
                 if model.relayConnected { Text("Reception desk connected").font(.caption).foregroundStyle(.teal) }
+                else if let error = model.relayError { Text(error).font(.caption).foregroundStyle(.orange) }
+                else { Text("Connecting to Reception desk…").font(.caption).foregroundStyle(.secondary) }
             }.padding(.horizontal, 16).padding(.bottom, 12)
             if let error = model.error, !model.running { errorBanner(error) }
             Divider()
@@ -450,6 +452,8 @@ public struct ParviChatView: View {
             Text(model.localDeviceName).font(.subheadline.weight(.medium))
             Text(model.node).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
             Text(model.runtimeInfo).font(.caption).textSelection(.enabled)
+            Text(model.relayConnected ? "Reception desk connected" : model.relayError ?? "Reception desk not connected")
+                .font(.caption).foregroundStyle(.secondary)
             Text(model.runtime.connectionHelp).font(.callout).foregroundStyle(.secondary)
         }
     }
