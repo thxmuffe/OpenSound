@@ -70,6 +70,27 @@ configuration/packaging sources. See [protocol](RELAY_PROTOCOL.md) for the actua
 wire contract and limits. Public deployment and the Windows-iPhone test across
 separate internet connections remain acceptance work; they are not yet proven.
 
+### Code reuse audit 2026-10-28
+
+First pass covers the shared Erlang core, Mac/iPhone hosts and shared SwiftUI,
+Windows UI and graph, WebApp, Reception Desk, build scripts and smoke helpers.
+Prefer existing OTP/platform facilities before adding dependencies. Count
+vendored third-party source separately from Parvi logic.
+
+| Priority | Location | Opportunity and limits |
+| --- | --- | --- |
+| Done | `control/src/parvi_relay.erl` | Removed manual pong replies and enabled Gun's default ping suppression. Gun 2.7 already replies to pings; our handler sent a second reply. No new dependency. |
+| Next small candidate | `Apps/macOS/Parvi/MacErlangRuntime.swift`, `Apps/iOS/Parvi/IOSErlangRuntime.swift` | Evaluate Foundation `FileHandle.bytes.lines` in place of the two manual byte-buffer/newline loops. Verify pipe/socket EOF, cancellation, Unicode and main-actor delivery before changing both hosts. Existing Codable decoding also happens in the host and again in ChatModel; a typed snapshot boundary could remove that duplication. |
+| Separate easy deletion candidate | `Apps/Windows/src/parvi_node_status.erl`, `parvi_topology.erl` | 128 lines of older monitoring workers have no callers outside these two modules in the checked-in sources. The current Windows model uses shared bridge network snapshots. These are candidates for deletion after Windows build/reload checks, rather than reasons to add a library. |
+| Largest conditional saving | `Apps/Windows/src/parvi_fgraph_win.erl` | 829-line modified OTP Reltool viewer. The force-layout engine is already reused unchanged. Direct upstream reuse could remove the fork, but would lose Parvi node-click events, pause behavior, labels, arrows and styling unless supported upstream. This is an internal OTP module; the existing graph investigation records the missing hooks. No drop-in replacement is established. |
+| Investigate later | `control/src/parvi_relay.erl` | Gun provides retry/retry_fun; our client disables retries and implements backoff. Savings are small, and authentication, mailbox reopening, handshake deadlines and iPhone DNS refresh still belong to Parvi. Do not blindly enable both retry mechanisms. |
+| Keep | `Apps/WebApp/public/qrcode.js` | Already the vendored MIT-licensed qrcode-generator library, not 2,297 lines of custom QR logic. Switching to a CDN would remove local source without reducing the code shipped, and would add availability/privacy dependencies. |
+| Keep | Core wire/invitation/membership logic and `Apps/iOS/Parvi/parvi_beam.c` | URI/JSON/crypto already use OTP libraries. Swarm authorization and mutual-removal rules are product behavior; no library replacement is established. The 79-line iPhone host is specific static-runtime ABI/startup glue based on Mob, not a hand-written runtime. |
+
+Sources: [Gun 2.7 options and automatic pong behavior](https://ninenines.eu/docs/en/gun/2.7/manual/gun/),
+[Foundation asynchronous file reading](https://developer.apple.com/documentation/foundation/filehandle/bytes),
+and [the existing graph investigation](NODE_GRAPH_INVESTIGATION.md).
+
 ### Next steps and acceptance checks
 
 The application's purpose is **binary audio publish/subscribe**, not text chat.

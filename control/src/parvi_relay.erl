@@ -77,13 +77,11 @@ handle_info(connect, #{conn := undefined, url := URL} = S) when is_binary(URL) -
     catch _:_ -> {noreply, retry(S)} end;
 handle_info({gun_up, Pid, http}, #{conn := Pid} = S) ->
     Stream = gun:ws_upgrade(Pid, "/relay/v1", [],
-        #{silence_pings => false, max_frame_size => 131072, compress => false}),
+        #{max_frame_size => 131072, compress => false}),
     {noreply, S#{stream := Stream}};
 handle_info({gun_upgrade, Pid, Stream, [<<"websocket">>], _}, #{conn := Pid, stream := Stream} = S) -> {noreply, S};
 handle_info({gun_ws, Pid, Stream, {text, Text}}, #{conn := Pid, stream := Stream} = S) when byte_size(Text) =< 131072 ->
     try {noreply, incoming(json:decode(Text), S)} catch _:_ -> {noreply, retry(S)} end;
-handle_info({gun_ws, Pid, Stream, {ping, Data}}, #{conn := Pid, stream := Stream} = S) ->
-    gun:ws_send(Pid, Stream, {pong, Data}), {noreply, S};
 handle_info({gun_down, Pid, _, _, _}, #{conn := Pid} = S) -> {noreply, retry(S)};
 handle_info({'DOWN', _, process, Pid, _}, #{conn := Pid} = S) -> {noreply, retry(S)};
 handle_info({handshake_timeout, Pid}, #{conn := Pid, ready := false} = S) -> {noreply, retry(S)};

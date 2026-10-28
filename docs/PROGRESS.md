@@ -1,5 +1,19 @@
 # Progress
 
+## 2026-10-28 — Library reuse audit and automatic WebSocket pongs
+
+Recorded a first codebase-wide reuse pass in [the plan](PLAN.md#code-reuse-audit-2026-10-28),
+separating existing vendored libraries, removable legacy code, and actual
+replacement candidates. Removed Parvi's extra WebSocket pong handler: Gun 2.7
+already sends the reply and normally suppresses ping notifications.
+
+Twelve Erlang tests pass. Three local nodes stayed connected through the relay
+check's 50-second idle period. The first run then hit the helper's five-second
+deadline for Phoenix graceful shutdown; the remaining relay regression passed
+with deliberate crashes of the disposable test desk, covering reconnect,
+admission, chat, overlapping swarms and mutual removal. No public service or
+installed app was changed.
+
 ## 2026-10-28 — Direct connection worker moved to Erlang
 
 Removed `control/transport/lib/peer.ex`. `parvi_peer_connection` is now an Erlang
