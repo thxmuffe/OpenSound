@@ -4,6 +4,6 @@
     {registered, [parvi_sup, parvi_pg, parvi_chat, parvi_discovery, parvi_relay, parvi_network, parvi_swarms]},
     {mod, {parvi_app, []}},
     {applications, [kernel, stdlib, inets, crypto, gun]},
-    {env, []},
+    {env, [{default_reception_desk_url, <<"wss://parvi-reception-desk.onrender.com/relay/v1">>}]},
     {licenses, ["Apache-2.0"]}
 ]}.

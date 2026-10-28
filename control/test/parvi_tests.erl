@@ -25,7 +25,7 @@ invalid_connection_strings_test() ->
     [?assertEqual({error, invalid_connection_string}, parvi_connection:parse(Input)) || Input <- Bad].
 
 chat_test_() ->
-    {setup, fun() -> {ok, _} = parvi:start() end,
+    {setup, fun() -> application:set_env(parvi, reception_desk_url, undefined), {ok, _} = parvi:start() end,
      fun(_) -> application:stop(parvi) end,
      [fun messaging/0, fun validation_and_bounds/0, fun bridge_request/0, fun restart/0]}.
 
@@ -42,7 +42,7 @@ bridge_request() ->
     ?assert(is_process_alive(whereis(parvi_chat))).
 
 correlated_snapshot_test_() ->
-    {setup, fun() -> {ok, _} = parvi:start() end,
+    {setup, fun() -> application:set_env(parvi, reception_desk_url, undefined), {ok, _} = parvi:start() end,
      fun(_) -> application:stop(parvi) end,
      fun() ->
         Reply = json:decode(parvi_bridge:request(

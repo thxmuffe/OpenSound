@@ -29,7 +29,7 @@ def main():
             assert peer.request()['node'] == peer.name
             assert other.request()['node'] == other.name
             assert peer.request('connect', node=other.name, cookie=other.cookie)['error'] is None
-            env = {**os.environ, 'ERL_EPMD_ADDRESS': '127.0.0.1',
+            env = {**os.environ, 'ERL_EPMD_ADDRESS': '127.0.0.1', 'PARVI_RECEPTION_DESK_URL': '',
                    'PARVI_TEST_PEER': peer.name, 'PARVI_TEST_PEER_COOKIE': peer.cookie,
                    'PARVI_TEST_OTHER': other.name,
                    'PARVI_TEST_UI_SOURCE': str(ROOT / 'src/parvi_windows.erl')}

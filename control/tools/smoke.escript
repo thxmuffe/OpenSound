@@ -3,6 +3,7 @@
 -mode(compile).
 
 main([]) ->
+    true = os:putenv("PARVI_RECEPTION_DESK_URL", ""),
     %% Run from control/ after rebar3 compile. All sockets stay on loopback.
     Control = filename:dirname(filename:dirname(filename:absname(escript:script_name()))),
     Ebin = filename:join(Control, "../builds/intermediates/control/default/lib/parvi/ebin"),

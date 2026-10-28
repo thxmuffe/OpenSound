@@ -27,16 +27,18 @@ bash Services/ReceptionDesk/build.sh
 bash Services/ReceptionDesk/run.sh
 ```
 
-In each rebuilt native app, enter the same **Reception desk URL** and select
-**Use desk (new session)**. This explicitly replaces the current transient
-memberships with a fresh relay node session. Select a swarm in one app, copy its
+Rebuilt native apps automatically connect to the public Parvi desk configured in
+`control/src/parvi.app.src` (`default_reception_desk_url`). No URL entry is needed.
+To switch desks, enter another **Reception desk URL** and select **Use desk (new
+session)**, which replaces transient memberships. Select a swarm in one app, copy its
 invitation and paste it into **Add a swarm** in another. Only one admission is
 needed. New and existing memberships stay independent. Changing UI selection
 never joins or leaves a swarm.
 
-For command-line startup, set `PARVI_RECEPTION_DESK_URL` before starting an app.
-Without a desk setting, existing same-computer Distributed Erlang tests still
-work. Restart without that setting to return to local transport. Never use the
+Set `PARVI_RECEPTION_DESK_URL` to override the bundled default before startup.
+Set it to an empty string for local-only development; an unset variable uses the
+public default. An explicit OTP `reception_desk_url` setting (including the UI
+choice) takes priority over both. Restart to apply startup configuration. Never use the
 localhost URL on a different device: localhost always refers to that device.
 
 ## Internet deployment

@@ -22,8 +22,8 @@ installed phone build remains local-only.
 - The information button opens a sheet with local node status, OTP/runtime details
   and networking limits, with a Done button and drag handle.
 - Invitation fields support normal editing, selection, copy and paste, and Copy
-  is always available. Configure a Reception desk with a public `wss://.../relay/v1`
-  URL to obtain and join v2 internet invitations. This starts a fresh node session.
+  is always available. The rebuilt app automatically connects to the public desk
+  configured in `control/src/parvi.app.src` to obtain and join v2 invitations.
   Creating, chatting in, and leaving swarms use the on-device Erlang worker.
   The phone opens an outbound WebSocket; Distributed Erlang is not required.
 
@@ -34,8 +34,8 @@ No people/account assumptions or permanent device identity are added.
 
 Runtime preparation now includes OTP SSL/public_key/ASN.1 plus Gun/Cowlib and
 exports public build-host trust anchors into `cacerts.pem`. TLS verification stays
-enabled. Rebuild/install using the existing steps below, configure the same desk
-as the desktop and test on a different internet connection. The new source has
+enabled. Rebuild/install using the existing steps below and test on a different
+internet connection; the default desk is shared with the desktop apps. The new source has
 not been compiled or exercised on an iPhone from this Windows session. Background
 operation remains outside the prototype.
 

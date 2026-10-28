@@ -14,6 +14,7 @@ membership_filters_graph_test() ->
 
 session_test_() ->
     {setup, fun() ->
+        application:set_env(parvi, reception_desk_url, undefined),
         {ok, _} = parvi:start(),
         {ok, Model} = parvi_windows_model:start_link(#{}), Model
     end, fun(Model) -> gen_server:stop(Model), application:stop(parvi) end,

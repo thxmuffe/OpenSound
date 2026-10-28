@@ -119,8 +119,10 @@ and [progress log](../docs/PROGRESS.md) for the next hardware gate.
 ## Reception Desk transport
 
 `parvi_relay` now provides an outbound Gun WebSocket adapter with authenticated
-binary node identities, scoped mailboxes, verified WSS and reconnect. Configure
-`PARVI_RECEPTION_DESK_URL` at startup, or issue bridge `configure_desk` with `url`
+binary node identities, scoped mailboxes, verified WSS and reconnect. The shared
+OTP settings in `src/parvi.app.src` provide `default_reception_desk_url`, bundled
+with every native app. Override with `PARVI_RECEPTION_DESK_URL` at startup (an
+empty value selects local-only transport), or issue bridge `configure_desk` with `url`
 to explicitly start a fresh session. Swarm v2 invitations route through that desk;
 local v1 invitations remain the separate developer transport.
 

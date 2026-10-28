@@ -22,6 +22,8 @@ WebSocket relay with authenticated node sessions and scoped mailboxes. Native
 nodes retain their swarms/chats and reconnect after desk restart. A test desk is
 deployed at https://parvi-reception-desk.onrender.com; native apps use
 `wss://parvi-reception-desk.onrender.com/relay/v1`.
+Rebuilt apps connect automatically using the shared OTP settings in
+`control/src/parvi.app.src`; `PARVI_RECEPTION_DESK_URL` overrides the default.
 The full browser [WebApp](Apps/WebApp/README.md) remains deferred.
 
 The newer [Parvi Audio handover](docs/notes%2020261026.md) sets the immediate goal:

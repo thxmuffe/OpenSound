@@ -103,7 +103,7 @@ def main():
     nodes = []
     try:
         url = f'ws://127.0.0.1:{port}/relay/v1'
-        a, b, c = Node(None), Node(url), Node(url)
+        a, b, c = Node(''), Node(url), Node(url)
         nodes.extend([a, b, c])
         assert a.request()['node'] == 'nonode@nohost'
         configured = a.request('configure_desk', url=url, request_id='configure-test')

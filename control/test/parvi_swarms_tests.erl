@@ -15,7 +15,7 @@ invitation_validation_test() ->
          binary:copy(<<"x">>, 2049)]].
 
 isolated_swarms_test_() ->
-    {setup, fun() -> {ok, _} = parvi:start() end,
+    {setup, fun() -> application:set_env(parvi, reception_desk_url, undefined), {ok, _} = parvi:start() end,
      fun(_) -> application:stop(parvi) end,
      fun() ->
         {ok, A} = parvi_swarms:create(<<"Music">>),

@@ -12,9 +12,9 @@ spec.loader.exec_module(r)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('url', help='Public wss:// desk URL ending in /relay/v1')
+    parser.add_argument('url', nargs='?', help='Override the bundled default desk URL')
     args = parser.parse_args()
-    if not args.url.startswith('wss://'):
+    if args.url is not None and not args.url.startswith('wss://'):
         parser.error('Public verification requires WSS')
     nodes = []
     try:
@@ -22,9 +22,12 @@ def main():
             nodes.append(r.Node(args.url))
         a, b = nodes
         states = [r.wait(n, lambda s: s['relay']['connected']) for n in nodes]
+        url = args.url or states[0]['relay']['url']
+        assert url.startswith('wss://')
+        assert all(s['relay']['url'] == url for s in states)
         assert states[0]['node'] != states[1]['node']
         swarm = states[0]['swarms'][0]
-        assert args.url in unquote(swarm['invitation'])
+        assert url in unquote(swarm['invitation'])
         assert b.request('join_swarm', invitation=swarm['invitation'])['error'] is None
         for sender, receiver, message in ((a, b, 'Public WSS hello'), (b, a, 'Public WSS reply')):
             assert sender.request('send_swarm', swarm_id=swarm['id'], text=message)['error'] is None

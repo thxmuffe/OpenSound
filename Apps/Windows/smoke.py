@@ -29,7 +29,7 @@ class Node:
             '-kernel', 'inet_dist_use_interface', '{127,0,0,1}',
             '-pa', str(EBIN), '-s', 'parvi_bridge', 'main'],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-            text=True, encoding='utf-8', env={**os.environ, 'ERL_EPMD_ADDRESS': '127.0.0.1'})
+            text=True, encoding='utf-8', env={**os.environ, 'ERL_EPMD_ADDRESS': '127.0.0.1', 'PARVI_RECEPTION_DESK_URL': ''})
         threading.Thread(target=self.read, daemon=True).start()
 
     def read(self):
@@ -109,7 +109,7 @@ def main():
                         '-kernel', 'inet_dist_use_interface', '{127,0,0,1}',
                         '-pa', str(EBIN), '-eval', code], check=True, timeout=10,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       env={**os.environ, 'ERL_EPMD_ADDRESS': '127.0.0.1'})
+                       env={**os.environ, 'ERL_EPMD_ADDRESS': '127.0.0.1', 'PARVI_RECEPTION_DESK_URL': ''})
         text = 'Hello from Windows: Hei parvi! 🐦 <>&'
         assert a.request('send', text=text)['error'] is None
         await_snapshot(b, lambda r: any(m['text'] == text for m in r['messages']))

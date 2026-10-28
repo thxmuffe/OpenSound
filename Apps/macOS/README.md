@@ -24,15 +24,15 @@ This local build is ad hoc signed, not notarized for public distribution.
 
 ## Reception Desk relay
 
-The shared UI now accepts a Reception desk URL and **Use desk (new session)**.
-Use its public `wss://.../relay/v1` endpoint, then share v2 swarm invitations
+The rebuilt app automatically uses the public desk URL from shared OTP settings
+in `control/src/parvi.app.src`. Share v2 swarm invitations
 between rebuilt apps. The native Erlang adapter opens an outbound WebSocket,
 without Erlang distribution or port forwarding. Shared code/packaging changes
 still require a Mac rebuild and interoperability test; this Windows session did
 not build the Apple targets. See the [desk guide](../../Services/ReceptionDesk/README.md).
 
-Without a desk setting the original local developer transport described below
-remains available. Its loopback limits apply only to that legacy mode.
+Set `PARVI_RECEPTION_DESK_URL` to an empty string before startup to select the
+original local developer transport described below. Its loopback limits apply only to that legacy mode.
 
 ## Swarms
 

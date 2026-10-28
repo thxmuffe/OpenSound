@@ -28,24 +28,26 @@ path above. Backend/model changes require restarting older sessions once.
 
 ## Join through a Reception desk
 
-Start the [Reception Desk](../../Services/ReceptionDesk/README.md) with
-`.\Services\ReceptionDesk\run.ps1`. Restart the Windows app after upgrading this
-backend. In each app enter `ws://127.0.0.1:8765/relay/v1` in **Reception desk URL**
-and choose **Use desk (new session)**. This discards the current transient
-memberships and creates a fresh relay session. Copy a selected swarm invitation
-to the other app's Add swarm field. The desk continues forwarding chat and
-membership messages over the open connections.
+Restart the rebuilt Windows app: it automatically connects to
+`wss://parvi-reception-desk.onrender.com/relay/v1`, configured once in the shared
+OTP settings at `control/src/parvi.app.src`. Copy a selected swarm invitation to
+the other app's Add swarm field. No manual URL entry or port forwarding is needed.
+Public WSS invitations and chat have been verified; the updated physical-iPhone
+build still needs verification.
 
-For internet use, deploy the supplied Render service and enter its public
-`wss://.../relay/v1` URL on every device. No port forwarding or direct Erlang
-connection is needed. Public deployment and an updated physical-iPhone build
-still need verification. Relay mode displays connection observations, and does
+For a local desk, run `.\Services\ReceptionDesk\run.ps1` and set
+`PARVI_RECEPTION_DESK_URL=ws://127.0.0.1:8765/relay/v1` before startup, or change
+**Reception desk URL** and select **Use desk (new session)** in the UI. This
+discards the current transient memberships and creates a fresh relay session.
+Relay mode displays connection observations, and does
 not draw fictional direct peer links. See the [protocol](../../docs/RELAY_PROTOCOL.md).
 The full browser client is not required.
 
 ## Join and select swarms (local development mode)
 
-Launch two instances. In the first, select a swarm and copy **Invitation to this
+Set `$env:PARVI_RECEPTION_DESK_URL = ""` before launching from PowerShell to
+select local-only transport instead of the public default. Launch two instances.
+In the first, select a swarm and copy **Invitation to this
 swarm** using Ctrl+A, Ctrl+C or the native context menu. In the second, paste into
 **Add a swarm** and click **Add swarm**. Only one admission is needed. Both nodes
 can then chat in that swarm. Their other memberships remain independent.

@@ -27,7 +27,11 @@ valid_url(_) -> false.
 init([]) ->
     URL = case application:get_env(parvi, reception_desk_url) of
         {ok, U} -> U;
-        undefined -> case os:getenv("PARVI_RECEPTION_DESK_URL") of false -> undefined; V -> list_to_binary(V) end
+        undefined -> case os:getenv("PARVI_RECEPTION_DESK_URL") of
+            false -> application:get_env(parvi, default_reception_desk_url, undefined);
+            "" -> undefined;
+            V -> list_to_binary(V)
+        end
     end,
     {Identity, Private} = case URL of
         undefined -> {node(), undefined};

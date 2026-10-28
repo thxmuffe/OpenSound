@@ -1,5 +1,29 @@
 # Progress
 
+## 2026-10-28 - Shared default Reception Desk configuration
+
+The shared OTP settings in `control/src/parvi.app.src` now bundle the public
+desk URL once for Windows, macOS and iOS. Fresh native sessions connect without
+manual URL entry. `PARVI_RECEPTION_DESK_URL` overrides the default; an empty value
+selects local-only development. Explicit OTP/UI configuration takes precedence.
+Local test fixtures explicitly disable the public default to remain isolated.
+
+Rebuilt Windows and passed all 14 core/model tests. Two unnamed BEAM clients,
+started without any desk environment setting, passed the public WSS invitation,
+bidirectional chat, idle and departure test. The three-client local relay test
+also passed, including environment overrides and fresh-session configuration.
+Apple apps inherit the default when rebuilt; no Apple build was performed here.
+Existing sessions need restarting to use the new startup setting.
+
+## 2026-10-28 - Remove leftover build directories
+
+Moved the obsolete `broker/_build` and Windows build products/caches into
+`builds/intermediates/legacy-layout-20261028`, preserving their contents.
+The private OTP runtime now lives at `builds/intermediates/Windows/otp`, matching
+the current build scripts; its startup was verified after relocation. Stopped
+the approved legacy Erlang process using the old runtime. The current Windows
+app stayed running. Removed the now-empty legacy source directories.
+
 ## 2026-10-28 - Reception Desk deployed to Render
 
 Deployed commit `e5e002b80c3b7885b5f38d14153ff9219ff821e5` as one Docker
