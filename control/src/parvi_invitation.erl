@@ -1,4 +1,4 @@
-%% Swarm-scoped invitations for the trusted, loopback-only prototype.
+%% Versioned invitations: legacy local credentials or scoped relay capabilities.
 -module(parvi_invitation).
 -export([format/2, relay/3, parse/1]).
 

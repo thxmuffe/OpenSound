@@ -8,4 +8,6 @@ else
   String.duplicate("local-reception-desk-development-", 3)
 end
 config :reception_desk, ReceptionDesk.Endpoint,
-  http: [ip: ip, port: port], secret_key_base: secret
+  http: [ip: ip, port: port,
+         transport_options: [socket_opts: [send_timeout: 5_000, send_timeout_close: true]]],
+  secret_key_base: secret

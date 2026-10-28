@@ -20,6 +20,17 @@ The old directory launchers remain explicit legacy-only test paths.
 
 See [relay protocol](RELAY_PROTOCOL.md) and [desk guide](../Services/ReceptionDesk/README.md).
 
+Validation on Windows: 14 core/model EUnit checks, 13 workspace/legacy checks,
+and two Phoenix authorization tests pass. Three independent BEAM clients with
+distribution disabled pass scoped admission/chat, invitation revocation, mutual
+removal, creator-independent continuation, runtime desk configuration, a 50-second
+idle check and desk restart/reconnect. WSS chat passes; untrusted certificates
+and wrong hostnames are rejected. Native relay graph/send/window rebuild and the
+existing local UI reload regression pass. The production release boots with
+runtime configuration and distribution disabled. Docker image execution and
+Render deployment remain unverified because the local engine is stopped; Apple
+build/device verification remains pending. Temporary test processes were stopped.
+
 ## 2026-10-28 — Windows shares the swarm app structure
 
 Replaced the Windows node sidebar and global chat with a swarm list, New/Add

@@ -226,7 +226,10 @@ sync(Model, S0) ->
     end,
     wxStaticText:setLabel(maps:get(heading, S), Name),
     wxStaticText:setLabel(maps:get(summary, S), case Active of
-        true -> [count_label(length(Members), "node"), " in this swarm"];
+        true -> [count_label(length(Members), "node"), " in this swarm",
+            case maps:get(<<"url">>, maps:get(<<"relay">>, Snapshot, #{}), null) of
+                null -> ""; _ -> "\nRelayed through the Reception desk; direct peer links are not shown."
+            end];
         false -> "Create a swarm or add one with an invitation. This node is still running."
     end),
     change_text(maps:get(invitation, S), case Invitation of null -> <<>>; _ -> Invitation end),

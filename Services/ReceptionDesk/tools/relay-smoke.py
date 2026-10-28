@@ -19,11 +19,16 @@ ELIXIR = Path(os.environ.get('PARVI_ELIXIR_ROOT', ROOT / 'builds/intermediates/t
 class Node:
     def __init__(self, desk, extra_env=None):
         self.lines = queue.Queue()
+        env = dict(os.environ)
+        env.pop('PARVI_RECEPTION_DESK_URL', None)
+        if desk is not None:
+            env['PARVI_RECEPTION_DESK_URL'] = desk
+        env.update(extra_env or {})
         # Deliberately no -name/-sname: Distributed Erlang cannot carry any traffic.
         self.process = subprocess.Popen([str(ERL), '-noshell', '-pa', str(APP / 'ebin'),
             '-s', 'parvi_bridge', 'main'], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=None if '--verbose' in sys.argv else subprocess.DEVNULL, text=True, encoding='utf-8',
-            env={**os.environ, 'PARVI_RECEPTION_DESK_URL': desk, **(extra_env or {})})
+            env=env)
         threading.Thread(target=self.read, daemon=True).start()
 
     def read(self):
@@ -97,8 +102,12 @@ def main():
     desk = start_desk(port)
     nodes = []
     try:
-        a, b, c = [Node(f'ws://127.0.0.1:{port}/relay/v1') for _ in range(3)]
+        url = f'ws://127.0.0.1:{port}/relay/v1'
+        a, b, c = Node(None), Node(url), Node(url)
         nodes.extend([a, b, c])
+        assert a.request()['node'] == 'nonode@nohost'
+        configured = a.request('configure_desk', url=url, request_id='configure-test')
+        assert configured['error'] is None and configured['request_id'] == 'configure-test'
         states = [wait(n, lambda s: s['relay']['connected']) for n in nodes]
         assert len(set(s['node'] for s in states)) == 3
         assert all(len(s['node']) == 64 for s in states)

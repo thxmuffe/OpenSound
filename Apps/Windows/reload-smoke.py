@@ -18,6 +18,7 @@ def main():
         assert Path(temp).resolve().is_relative_to(build)
         ebin = Path(temp) / 'ebin'
         shutil.copytree(EBIN, ebin)
+        shutil.copytree(EBIN.parent / 'relay_lib', Path(temp) / 'relay_lib')
         subprocess.run([str(erlc), '-Werror', '-o', str(ebin), str(tests)], check=True)
         gui_cookie = secrets.token_hex(24)
         # One ephemeral cookie for this test cluster keeps UI/reload checks

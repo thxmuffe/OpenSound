@@ -1,4 +1,4 @@
-FROM elixir:1.19.5-otp-28 AS build
+FROM elixir:1.19.5-otp-28@sha256:d170fadffd75b36146ff40b6e8d5cc881c59d136ae5a2c34a1b394ec33b6cffa AS build
 ENV MIX_ENV=prod
 WORKDIR /app/Services/ReceptionDesk
 RUN mix local.hex --force && mix local.rebar --force
@@ -12,10 +12,11 @@ RUN mkdir -p /release/licenses && for dep in /app/builds/intermediates/Reception
     for file in "$dep"/LICENSE*; do if [ -f "$file" ]; then \
     cp "$file" "/release/licenses/$(basename "$dep")-$(basename "$file")"; fi; done; done
 
-FROM elixir:1.19.5-otp-28
+FROM elixir:1.19.5-otp-28@sha256:d170fadffd75b36146ff40b6e8d5cc881c59d136ae5a2c34a1b394ec33b6cffa
 WORKDIR /app
 COPY --from=build --chown=1000:1000 /release ./
+RUN mkdir -p /app/tmp && chown 1000:1000 /app /app/tmp
 USER 1000:1000
-ENV HOME=/app PARVI_BROKER_BIND=0.0.0.0 PORT=10000 RELEASE_DISTRIBUTION=none
+ENV HOME=/app PARVI_BROKER_BIND=0.0.0.0 PORT=10000 RELEASE_DISTRIBUTION=none RELEASE_TMP=/app/tmp
 EXPOSE 10000
 CMD ["/app/bin/reception_desk", "start"]

@@ -67,7 +67,8 @@ handle_info(connect, #{conn := undefined, url := URL} = S) when is_binary(URL) -
         {noreply, S#{conn := Pid}}
     catch _:_ -> {noreply, retry(S)} end;
 handle_info({gun_up, Pid, http}, #{conn := Pid} = S) ->
-    Stream = gun:ws_upgrade(Pid, "/relay/v1", [], #{silence_pings => false}),
+    Stream = gun:ws_upgrade(Pid, "/relay/v1", [],
+        #{silence_pings => false, max_frame_size => 131072, compress => false}),
     {noreply, S#{stream := Stream}};
 handle_info({gun_upgrade, Pid, Stream, [<<"websocket">>], _}, #{conn := Pid, stream := Stream} = S) -> {noreply, S};
 handle_info({gun_ws, Pid, Stream, {text, Text}}, #{conn := Pid, stream := Stream} = S) when byte_size(Text) =< 131072 ->

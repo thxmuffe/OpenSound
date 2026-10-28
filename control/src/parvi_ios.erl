@@ -39,7 +39,10 @@ probe() ->
     [] = parvi:history(),
     {ok, _} = parvi:send(<<"On-device Erlang self-test passed.">>),
     [#{id := SwarmId} | _] = parvi_swarms:snapshot(),
-    ok = parvi_swarms:send(SwarmId, <<"On-device Erlang self-test passed.">>),
+    case parvi_relay:enabled() of
+        false -> ok = parvi_swarms:send(SwarmId, <<"On-device Erlang self-test passed.">>);
+        true -> ok %% Runtime proof must not depend on external desk availability.
+    end,
     #{status => <<"passed">>, otp => list_to_binary(erlang:system_info(otp_release)),
       erts => list_to_binary(erlang:system_info(version)),
       os_pid => list_to_binary(os:getpid()),

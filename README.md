@@ -76,7 +76,8 @@ From the repository root:
 | Build Reception Desk | `bash Services/ReceptionDesk/build.sh` |
 | Run Reception Desk | `bash Services/ReceptionDesk/run.sh` |
 | Prepare and build Windows app | `.\Apps\Windows\setup.ps1`, then `.\Apps\Windows\build.ps1 -Test` |
-| Check both Erlang applications | `rebar3 eunit` |
+| Check Erlang core and legacy directory | `rebar3 eunit` |
+| Check Reception Desk | `cd Services/ReceptionDesk && mix test` |
 
 Windows builds require Windows and Visual Studio. iOS builds require Xcode;
 the helper builds unsigned and does not install or export an `.ipa`. Open
