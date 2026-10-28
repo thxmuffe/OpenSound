@@ -48,9 +48,21 @@ Deploy that Blueprint from this repository, then use
 TLS at its ingress; the container listens on `0.0.0.0:$PORT`. Other hosting can
 use an equivalent HTTPS reverse proxy with WebSocket upgrades enabled.
 
-This change prepares deployment but does not publish a service or create a
-Render account/resource. Test Windows and a rebuilt iPhone on separate internet
-connections after deployment. An already installed older phone build cannot
+The test desk was deployed on 2026-10-28 in Frankfurt on Render's free plan:
+https://parvi-reception-desk.onrender.com. Enter
+`wss://parvi-reception-desk.onrender.com/relay/v1` in each native app.
+The service ID is `srv-dbgvjfui0phs73ablggg`; automatic deploys are disabled.
+Deploy a committed/pushed revision with the authorized Render CLI:
+
+```powershell
+render deploys create srv-dbgvjfui0phs73ablggg --wait
+```
+
+Free instances can sleep after 15 minutes without inbound HTTP/WebSocket traffic;
+the next connection wakes them, which can take about a minute. See
+[Render's free-plan documentation](https://render.com/docs/free).
+Test Windows and a rebuilt iPhone on separate internet connections.
+An already installed older phone build cannot
 use the new transport. Apple UI and packaging sources are updated, but their
 build/device verification requires the Mac/Xcode environment.
 
@@ -96,6 +108,7 @@ mix test
 cd ../..
 python Services/ReceptionDesk/tools/relay-smoke.py --idle
 python Services/ReceptionDesk/tools/tls-smoke.py
+python Services/ReceptionDesk/tools/public-smoke.py wss://parvi-reception-desk.onrender.com/relay/v1
 python Apps/Windows/relay-ui-smoke.py
 ```
 

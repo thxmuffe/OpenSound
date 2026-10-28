@@ -19,8 +19,9 @@ a fresh Apple build and physical-device networking verification.
 
 The [Reception desk](Services/ReceptionDesk/README.md) now hosts a Phoenix/Cowboy
 WebSocket relay with authenticated node sessions and scoped mailboxes. Native
-nodes retain their swarms/chats and reconnect after desk restart. Internet
-deployment is prepared in `render.yaml`; no public service has been deployed.
+nodes retain their swarms/chats and reconnect after desk restart. A test desk is
+deployed at https://parvi-reception-desk.onrender.com; native apps use
+`wss://parvi-reception-desk.onrender.com/relay/v1`.
 The full browser [WebApp](Apps/WebApp/README.md) remains deferred.
 
 The newer [Parvi Audio handover](docs/notes%2020261026.md) sets the immediate goal:
