@@ -1,5 +1,50 @@
 # Progress
 
+## 2026-10-28 — Trusted native cluster admission step 2
+
+The user chose cluster-wide mutual removal: the caller and target lose native
+cluster access across their logical swarms. Implemented the isolated policy in
+Erlang without changing the working apps, Windows, graphs, core relay or public
+service. See [the experiment](../control/transport/experiments/otp_dist/README.md)
+and [the updated plan](PLAN.md#trusted-native-otp-cluster-direction-accepted-2026-10-28).
+
+`parvi_cluster_auth` uses OTP Ed25519, JSON/URI parsing and secure randomness.
+Expiring capability invitations pin an ephemeral inviter key and contain no OTP
+cookie. Challenge/proof/grant exchanges bind both device identities and the
+native name to actual DTLS certificate fingerprints and fresh nonces. Pairwise
+cookies travel inside DTLS; the local Python introducer never supplies them.
+`parvi_cluster_trust` gates native setup, acceptance and activation and monitors
+its controllers so even normal trust-manager shutdown closes native access.
+Unapproved native frames are rejected at the header, before body buffering.
+
+`parvi_cluster_authority` is a serialized, cluster-local OTP actor. Every active
+node may invite. It retains current membership and live invitation hashes, not
+permanent banned-device records. Mutual removal expires capabilities issued by
+either removed node and the capabilities through which either entered, advances
+the epoch and fences their native routes. Surviving links continue. The actor
+and retained capability records move to a survivor when its host is removed.
+Fresh invitations can readmit previously removed nodes. A populated VM trust
+domain cannot silently merge with another; swarms within it share full VM trust.
+
+The four-node step-2 smoke check passes: remote execution, invitations from
+different nodes, wrong/expired capabilities and altered expiry, session/nonce
+replay, forged signatures, node-name impersonation, malformed signed claims,
+unauthorized native frames, cluster-wide revocation, deliberately restored old
+cookies, fresh re-admission, retained survivor invitations after authority
+handover, admission-actor outage and trust-manager termination. The original
+step-1 check also passes native RPC/spawn/PIDs, binary echoes, ordered messages,
+links/monitors, healthy ticks, silent-loss detection and bad-cookie rejection.
+All experimental modules compile with warnings as errors.
+
+This is not production deployment or a claim of Byzantine security. Native
+members retain full VM access; removal cannot undo prior key theft or code
+compromise. Authority crash/partition recovery, cancelled-join cleanup, partial
+publication and reliable revocation receipts remain step-3 work. Admission fails
+closed during authority outage while existing native connections continue.
+
+Run: `python3 control/transport/tools/otp-trust-smoke.py` and
+`python3 control/transport/tools/otp-dist-smoke.py`.
+
 ## 2026-10-28 — Native OTP distribution over WebRTC step 1 passed
 
 Added an isolated carrier proof under

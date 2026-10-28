@@ -83,12 +83,29 @@ secure cluster admission and removal are explicit implementation work.
    ordered messaging, remote links/monitors, idle ticks, silent-loss node-down
    detection and mismatched-cookie rejection. See
    [the experiment](../control/transport/experiments/otp_dist/README.md).
-2. **Trusted admission:** bind invitations to authenticated peer sessions and
-   cluster credentials; define removal/reconnection prevention and the relation
-   between overlapping swarms and cluster trust. Step 1 does not establish this.
+2. **Trusted admission (isolated checks passed 2026-10-28):** expiring invitations
+   pin the inviter's ephemeral public key. Signed challenges/proofs bind the
+   device key and native name to actual DTLS fingerprints and fresh nonces;
+   pairwise OTP cookies travel inside the encrypted channel. An explicit gate
+   denies distribution before authorization and after revocation, independently
+   of cached cookies or OTP's non-removable allow-list entries. A cluster-local
+   OTP admission actor serializes current membership and capability hashes; any
+   member can invite, and the actor moves to a survivor if its host is removed.
+   The user chose **cluster-wide remove both**: both VMs lose cluster access,
+   including access through their other logical swarms. Their issued invitations
+   and the invitations used to enter expire globally; fresh invitations can
+   readmit them, without permanent banned-device identities. Surviving links
+   remain usable. One VM has one native trust domain; unrelated populated domains
+   cannot silently merge. This native policy supersedes the old swarm-scoped
+   removal choice when the apps adopt it; existing app UI/relay behavior is not
+   changed by the isolated implementation. See the experiment README for tested
+   attacks, bounds and the full-VM trust assumption.
 3. **Internet and recovery:** separate access networks, relay-required paths,
    desk outages, network changes, connection arbitration, bounded queues and
    backpressure. Reuse rendezvous/relay facilities rather than rebuilding them.
+   Complete admission-actor crash/partition recovery, cancelled-join cleanup,
+   partial policy publication and revocation receipts before app integration.
+   Step 2 fails closed on authority outage but is not a consensus/recovery design.
 4. **Native Mac/iPhone integration:** package the libraries and carrier, then
    verify real devices, suspension, recovery and failure isolation.
 5. **Distributed DSP proof:** one timestamped binary audio stream, a remote DSP

@@ -1,6 +1,6 @@
 %% Local test harness, not a remotely exposed command service or an app runtime.
 -module(parvi_dist_probe).
--export([main/0, worker/0]).
+-export([main/0, worker/0, exercise/1, authorize/2, activate/2]).
 
 main() ->
     process_flag(trap_exit, true),
@@ -9,6 +9,9 @@ main() ->
     {ok, _} = application:ensure_all_started(parvi_transport),
     Name = list_to_atom(os:getenv("PARVI_PROBE_NAME")),
     Peer = list_to_atom(os:getenv("PARVI_PROBE_PEER")),
+    %% Step 1 explicitly provisions trust locally; step 2 uses the secure default.
+    persistent_term:put({?MODULE, peer}, Peer),
+    application:set_env(parvi_transport, admission_module, ?MODULE),
     {ok, _} = net_kernel:start(Name, #{name_domain => longnames, net_ticktime => 4}),
     true = erlang:set_cookie(list_to_atom(os:getenv("PARVI_PROBE_COOKIE"))),
     ok = net_kernel:allow([Peer]),
@@ -108,3 +111,11 @@ worker() ->
         {sequence, From, N} -> From ! {sequence, self(), N}, worker();
         {stop, Reason} -> exit(Reason)
     end.
+
+authorize(Ctrl, Expected) ->
+    Peer = persistent_term:get({?MODULE, peer}),
+    case maps:get(Peer, persistent_term:get(parvi_webrtc_dist, #{}), undefined) =:= Ctrl
+            andalso is_process_alive(Ctrl) andalso (Expected =:= any orelse Expected =:= Peer) of
+        true -> {ok, Peer}; false -> {error, unauthorized}
+    end.
+activate(Ctrl, Peer) -> authorize(Ctrl, Peer).

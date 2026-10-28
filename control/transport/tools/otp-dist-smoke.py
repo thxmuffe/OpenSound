@@ -32,7 +32,7 @@ assert any(p.parent.name == 'parvi_transport' for p in paths), 'Compile control/
 
 
 class Probe:
-    def __init__(self, label, name, peer, cookie):
+    def __init__(self, label, name, peer, cookie, entry='parvi_dist_probe'):
         self.label, self.peer = label, None
         self.lines, self.replies = queue.Queue(), {}
         self.ready, self.booted, self.serial = False, None, 0
@@ -47,7 +47,7 @@ class Probe:
         self.process = subprocess.Popen([str(ERLEXEC), '-noshell', '-pa', *map(str, paths),
             '-start_epmd', 'false', '-proto_dist', 'parvi_webrtc',
             '-kernel', 'connect_all', 'false', 'dist_auto_connect', 'never',
-            '-s', 'parvi_dist_probe', 'main'], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            '-s', entry, 'main'], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=self.log, text=True, encoding='utf-8', env=env)
         threading.Thread(target=self.read, daemon=True).start()
 
