@@ -69,8 +69,8 @@ public final class ChatModel: ObservableObject {
 
     func start() {
         error = nil
-        runtime.start(onSnapshot: { [weak self] data in
-            guard let self, let snapshot = try? JSONDecoder().decode(ChatSnapshot.self, from: data) else { return }
+        runtime.start(onSnapshot: { [weak self] snapshot in
+            guard let self else { return }
             self.running = true
             self.node = snapshot.node
             self.runtimeInfo = snapshot.runtime_info ?? ""

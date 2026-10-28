@@ -11,11 +11,12 @@ final class MacErlangRuntime: ChatRuntime {
     private var process: Process?
     private var input: FileHandle?
     private var timer: Timer?
+    private var reader: Task<Void, Never>?
     private var pending = 0
-    private var onSnapshot: ((Data) -> Void)?
+    private var onSnapshot: ((ChatSnapshot) -> Void)?
     private var onFailure: ((String) -> Void)?
 
-    func start(onSnapshot: @escaping (Data) -> Void, onFailure: @escaping (String) -> Void) {
+    func start(onSnapshot: @escaping (ChatSnapshot) -> Void, onFailure: @escaping (String) -> Void) {
         self.onSnapshot = onSnapshot
         self.onFailure = onFailure
         guard process == nil else { return }
@@ -56,6 +57,8 @@ final class MacErlangRuntime: ChatRuntime {
                     guard let self = self else { return }
                     self.timer?.invalidate()
                     self.timer = nil
+                    self.reader?.cancel()
+                    self.reader = nil
                     self.process = nil
                     self.input = nil
                     self.pending = 0
@@ -65,26 +68,21 @@ final class MacErlangRuntime: ChatRuntime {
             try task.run()
             process = task
             input = stdin.fileHandleForWriting
-            // Read on a dedicated queue; all observable state stays on the main thread.
-            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                var buffer = Data()
+            reader = Task { [weak self] in
                 let handle = stdout.fileHandleForReading
-                while true {
-                    let chunk = handle.availableData
-                    if chunk.isEmpty { break }
-                    buffer.append(chunk)
-                    while let newline = buffer.firstIndex(of: 10) {
-                        let line = Data(buffer[..<newline])
-                        buffer.removeSubrange(...newline)
-                        DispatchQueue.main.async {
-                            if let self = self, (try? JSONDecoder().decode(ChatSnapshot.self, from: line)) != nil {
-                                self.pending = max(0, self.pending - 1)
-                                self.onSnapshot?(line)
-                            }
-                        }
-                    }
+                defer {
+                    try? handle.close()
+                    stderr.fileHandleForReading.readabilityHandler = nil
                 }
-                stderr.fileHandleForReading.readabilityHandler = nil
+                do {
+                    try await ChatSnapshot.read(from: handle) { [weak self] snapshot in
+                        guard let self else { return }
+                        self.pending = max(0, self.pending - 1)
+                        self.onSnapshot?(snapshot)
+                    }
+                } catch {
+                    if !Task.isCancelled { self?.onFailure?("Could not read from Erlang: \(error.localizedDescription)") }
+                }
             }
             request(["method": "snapshot"])
             timer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { [weak self] _ in
@@ -109,6 +107,7 @@ final class MacErlangRuntime: ChatRuntime {
     func stop() {
         timer?.invalidate()
         timer = nil
+        reader?.cancel()
         try? input?.close()
         if process?.isRunning == true { process?.terminate() }
     }

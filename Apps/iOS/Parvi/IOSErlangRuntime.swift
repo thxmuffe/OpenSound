@@ -14,13 +14,14 @@ final class IOSErlangRuntime: ChatRuntime {
     private var started = false
     private var input: FileHandle?
     private var timer: Timer?
+    private var reader: Task<Void, Never>?
     private var pending = 0
     private var didReceiveSnapshot = false
     private var lastConnectionStatus: Data?
-    private var onSnapshot: ((Data) -> Void)?
+    private var onSnapshot: ((ChatSnapshot) -> Void)?
     private var onFailure: ((String) -> Void)?
 
-    func start(onSnapshot: @escaping (Data) -> Void, onFailure: @escaping (String) -> Void) {
+    func start(onSnapshot: @escaping (ChatSnapshot) -> Void, onFailure: @escaping (String) -> Void) {
         guard !started else {
             onFailure("BEAM starts once per app process. Quit and reopen Parvi to retry.")
             return
@@ -57,6 +58,22 @@ final class IOSErlangRuntime: ChatRuntime {
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.input = handle
+                self.reader = Task { [weak self] in
+                    defer { try? handle.close() }
+                    do {
+                        try await ChatSnapshot.read(from: handle) { [weak self] snapshot in
+                            guard let self else { return }
+                            self.pending = max(0, self.pending - 1)
+                            self.didReceiveSnapshot = true
+                            self.recordConnectionStatus(snapshot)
+                            self.onSnapshot?(snapshot)
+                        }
+                    } catch { /* EOF and read errors share the bridge-closed message below. */ }
+                    guard !Task.isCancelled else { return }
+                    self?.timer?.invalidate()
+                    self?.input = nil
+                    self?.onFailure?("The in-app BEAM connection closed. Relaunch Parvi and inspect the Xcode console.")
+                }
                 self.request(["method": "snapshot"])
                 self.timer = Timer.scheduledTimer(withTimeInterval: 0.6, repeats: true) { [weak self] _ in
                     Task { @MainActor in
@@ -64,29 +81,6 @@ final class IOSErlangRuntime: ChatRuntime {
                         self.request(["method": "snapshot"])
                     }
                 }
-            }
-            var buffer = Data()
-            while true {
-                let chunk = handle.availableData
-                if chunk.isEmpty { break }
-                buffer.append(chunk)
-                while let newline = buffer.firstIndex(of: 10) {
-                    let line = Data(buffer[..<newline])
-                    buffer.removeSubrange(...newline)
-                    DispatchQueue.main.async {
-                        guard let self = self,
-                              let snapshot = try? JSONDecoder().decode(ChatSnapshot.self, from: line) else { return }
-                        self.pending = max(0, self.pending - 1)
-                        self.didReceiveSnapshot = true
-                        self.recordConnectionStatus(snapshot)
-                        self.onSnapshot?(line)
-                    }
-                }
-            }
-            DispatchQueue.main.async {
-                self?.timer?.invalidate()
-                self?.input = nil
-                self?.onFailure?("The in-app BEAM connection closed. Relaunch Parvi and inspect the Xcode console.")
             }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in
@@ -122,6 +116,12 @@ final class IOSErlangRuntime: ChatRuntime {
 
     func stop() {
         timer?.invalidate()
+        reader?.cancel()
+        if let input {
+            shutdown(input.fileDescriptor, SHUT_RDWR)
+            try? input.close()
+        }
+        input = nil
         // BEAM shares the app process. iOS suspends/terminates the whole app;
         // never halt the VM or attempt to restart it in the same process.
     }

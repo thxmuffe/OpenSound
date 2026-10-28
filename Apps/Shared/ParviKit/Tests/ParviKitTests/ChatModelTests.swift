@@ -9,10 +9,10 @@ private final class TestRuntime: ChatRuntime {
     let connectionHelp = "Local test"
     let canConnect = true
     var requests: [[String: String]] = []
-    var snapshot: ((Data) -> Void)?
+    var snapshot: ((ChatSnapshot) -> Void)?
     var failure: ((String) -> Void)?
 
-    func start(onSnapshot: @escaping (Data) -> Void, onFailure: @escaping (String) -> Void) {
+    func start(onSnapshot: @escaping (ChatSnapshot) -> Void, onFailure: @escaping (String) -> Void) {
         snapshot = onSnapshot
         failure = onFailure
         respond()
@@ -35,7 +35,7 @@ private final class TestRuntime: ChatRuntime {
         if let relay { reply["relay"] = relay }
         if let id { reply["request_id"] = id }
         if let error { reply["error"] = error }
-        snapshot?(try! JSONSerialization.data(withJSONObject: reply))
+        snapshot?(try! JSONDecoder().decode(ChatSnapshot.self, from: JSONSerialization.data(withJSONObject: reply)))
     }
 }
 

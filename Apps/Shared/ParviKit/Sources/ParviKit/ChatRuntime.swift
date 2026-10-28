@@ -59,6 +59,20 @@ public struct ChatSnapshot: Decodable {
     public let connection_string: String?
     public let network: NetworkSnapshot?
     public let relay: RelaySnapshot?
+
+    /// Bridge records end at LF, not Unicode line separators inside JSON strings.
+    public static func read(from handle: FileHandle,
+                            onSnapshot: @MainActor (ChatSnapshot) -> Void) async throws {
+        var line = Data()
+        for try await byte in handle.bytes {
+            try Task.checkCancellation()
+            if byte != 10 { line.append(byte); continue }
+            let snapshot = try? JSONDecoder().decode(Self.self, from: line)
+            line.removeAll(keepingCapacity: true)
+            guard let snapshot else { continue }
+            await onSnapshot(snapshot)
+        }
+    }
 }
 
 public struct DirectSnapshot: Decodable {
@@ -74,7 +88,7 @@ public protocol ChatRuntime: AnyObject {
     var connectionDescription: String { get }
     var connectionHelp: String { get }
     var canConnect: Bool { get }
-    func start(onSnapshot: @escaping (Data) -> Void, onFailure: @escaping (String) -> Void)
+    func start(onSnapshot: @escaping (ChatSnapshot) -> Void, onFailure: @escaping (String) -> Void)
     func request(_ payload: [String: String])
     func stop()
 }

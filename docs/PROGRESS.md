@@ -1,5 +1,24 @@
 # Progress
 
+## 2026-10-28 — Shared Apple snapshot reader and single decoding
+
+Mac and iPhone now use Foundation asynchronous byte reading through one shared
+LF-delimited snapshot reader. Hosts pass decoded `ChatSnapshot` values to the
+model, removing the second JSON decode. Reader delivery stays on the main actor;
+shutdown cancels reading, and the iPhone shuts down its local bridge socket
+without halting the embedded VM. Windows and all graph sources are unchanged.
+
+Foundation's `.lines` was tested and rejected: it treats Unicode paragraph
+separators inside valid JSON strings as record boundaries. The shared reader
+keeps LF-only framing, preserves split UTF-8 sequences, skips non-JSON log lines,
+and discards incomplete records at EOF, matching the previous bridge behavior.
+
+Twelve Swift tests pass, including real pipes and sockets, fragmented UTF-8,
+Unicode separators, EOF, cancellation and idle socket shutdown. The Mac bundle
+builds and passes strict signature verification; the unsigned iPhone device
+build succeeds. The updated iPhone build has not been installed or tested on
+the physical device.
+
 ## 2026-10-28 — Library reuse audit and automatic WebSocket pongs
 
 Recorded a first codebase-wide reuse pass in [the plan](PLAN.md#code-reuse-audit-2026-10-28),
