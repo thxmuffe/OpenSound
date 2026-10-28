@@ -1,5 +1,37 @@
 # Progress
 
+## 2026-10-28 — Native OTP distribution over WebRTC step 1 passed
+
+Added an isolated carrier proof under
+`control/transport/experiments/otp_dist`, outside normal compilation and app
+packaging. The three Erlang modules supply carrier callbacks, a WebRTC process
+distribution controller and a local probe harness. OTP `dist_util` handles the
+native handshake, cookie verification, connection supervision and ticks;
+`ex_webrtc`/`ex_sctp` handle WebRTC and binary delivery. No distribution protocol,
+remote-PID encoding, RPC or monitor implementation was recreated.
+
+The smoke runner compiles with warnings as errors and passes on OTP 29.1.2 /
+ERTS 17.1.1. Two independent OS processes register their WebRTC controllers with
+ERTS and exercise native RPC, remote spawn/PIDs, computation and exact 256 KiB
+binary echoes in both directions, 100 messages in receive order, remote normal
+exit monitoring and abnormal linked exits. Native ticks preserve an otherwise
+idle connection for nine seconds with a four-second test tick time. Silent loss
+then produces OTP `net_tick_timeout`, remote monitor/link `noconnection` and
+node-down notifications on both nodes. A separate pair verifies that mismatched
+cookies reject distribution after WebRTC has already connected.
+
+The parent passes only local SDP/ICE introductions and stops forwarding signals
+before the native handshake. There is no TCP distribution listener, EPMD,
+Reception Desk or application message router carrying native traffic. Names and
+cookies are temporary, and each node allows only its locally provisioned peer.
+This is not production invitation authentication or revocation. The accepted
+six-step direction and remaining admission, internet/recovery, mobile and DSP
+work are recorded in [the plan](PLAN.md#trusted-native-otp-cluster-direction-accepted-2026-10-28).
+End-to-end backpressure, reconnection and audio latency remain unverified.
+Working apps, Windows, graph code and public services were not changed.
+
+Run: `python3 control/transport/tools/otp-dist-smoke.py`.
+
 ## 2026-10-28 — Shared Apple snapshot reader and single decoding
 
 Mac and iPhone now use Foundation asynchronous byte reading through one shared

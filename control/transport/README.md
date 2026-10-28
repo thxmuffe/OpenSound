@@ -1,5 +1,9 @@
 # BEAM direct transport prototype
 
+The newer [native OTP carrier experiment](experiments/otp_dist/README.md) tests
+native distribution over WebRTC separately from the existing application
+transport below. It is not automatically included in the working apps.
+
 Parvi reuses **ex_webrtc 0.17.0** and **ex_sctp 0.1.3**, pinned in `mix.lock`.
 These third-party libraries implement WebRTC and SCTP. All Parvi transport
 logic is Erlang: `parvi_direct` owns peer routing and

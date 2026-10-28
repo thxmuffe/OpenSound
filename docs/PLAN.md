@@ -62,6 +62,47 @@ used that runtime for about a month. This is not evidence of mature production
 adoption for the combined stack. Pin compatible versions and verify on the
 actual target browsers before expanding the implementation.
 
+### Trusted native OTP cluster direction accepted 2026-10-28
+
+Aim to carry native Erlang distribution over WebRTC for mutually trusted Parvi
+devices, supporting remote processes and later distributed DSP execution. This
+supersedes the assumption that all native inter-node traffic must remain an
+application-level protocol. Retain the working relay/application transport until
+the carrier and admission model are verified. Cluster trust and logical swarm
+membership are distinct: overlapping swarms must not silently extend VM access.
+The current easy invitation/mutual-removal policy remains the user-facing goal;
+secure cluster admission and removal are explicit implementation work.
+
+1. **Isolated carrier proof (passed 2026-10-28):** two independent desktop BEAM VMs,
+   OTP 29.1.2 / ERTS 17.1.1, using a reliable ordered binary WebRTC DataChannel.
+   Reuse OTP `dist_util` and process distribution-controller APIs. Verify real
+   remote PIDs, messages/binaries, remote execution, links, monitors and
+   disconnection notifications. Use only local test introductions and temporary
+   credentials; do not modify the working apps, Windows or any graph code.
+   The isolated smoke check passes native RPC/spawn, 256 KiB binary round trips,
+   ordered messaging, remote links/monitors, idle ticks, silent-loss node-down
+   detection and mismatched-cookie rejection. See
+   [the experiment](../control/transport/experiments/otp_dist/README.md).
+2. **Trusted admission:** bind invitations to authenticated peer sessions and
+   cluster credentials; define removal/reconnection prevention and the relation
+   between overlapping swarms and cluster trust. Step 1 does not establish this.
+3. **Internet and recovery:** separate access networks, relay-required paths,
+   desk outages, network changes, connection arbitration, bounded queues and
+   backpressure. Reuse rendezvous/relay facilities rather than rebuilding them.
+4. **Native Mac/iPhone integration:** package the libraries and carrier, then
+   verify real devices, suspension, recovery and failure isolation.
+5. **Distributed DSP proof:** one timestamped binary audio stream, a remote DSP
+   worker and returned results; measure latency, jitter, CPU and missed deadlines.
+   Keep final playback/timing local initially. Native distribution does not fix
+   the eventual latency-sensitive audio media path.
+6. **Measured scheduling:** explicit worker placement first; later choose workers
+   using device capacity, network delay and processing deadlines. OTP remote
+   execution is not an automatic DSP load balancer.
+
+The isolated experiment belongs in `control/transport/experiments/otp_dist`,
+outside production compilation and app packaging. A passing step 1 authorizes
+neither automatic cluster admission nor deployment of the prototype.
+
 ### Implementation update: native relay first
 
 The browser BEAM/full WebApp experiment is deferred. The first native relay is
