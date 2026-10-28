@@ -1,9 +1,18 @@
 # BEAM direct transport prototype
 
 Parvi reuses **ex_webrtc 0.17.0** and **ex_sctp 0.1.3**, pinned in `mix.lock`.
-These third-party libraries implement WebRTC and SCTP. `ParviTransport.Peer`
-only adapts their process messages to Parvi signalling and swarm payloads;
-`parvi_direct` owns peer routing inside the Erlang application.
+These third-party libraries implement WebRTC and SCTP. All Parvi transport
+logic is Erlang: `parvi_direct` owns peer routing and
+`control/src/parvi_peer_connection.erl` owns each connection's signalling and
+lifecycle, calling the library's public BEAM API directly. There is no custom
+Elixir peer module or language-interoperability adapter.
+
+Elixir is still needed to build the upstream libraries, and their compiled
+Elixir support modules must be packaged alongside them. `mix.exs` is the build
+manifest for those dependencies; this project contains no Elixir application
+modules. Eliminating that dependency too would require replacing `ex_webrtc`.
+The existing Phoenix Reception Desk is a separate Elixir application and has
+not been rewritten or redeployed as part of this transport change.
 
 All networking, signalling, connection selection and payload handling run in
 BEAM. Swift receives status snapshots and submits user commands. There is no

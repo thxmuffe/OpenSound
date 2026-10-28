@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-28 — Direct connection worker moved to Erlang
+
+Removed `control/transport/lib/peer.ex`. `parvi_peer_connection` is now an Erlang
+`gen_server` calling the existing WebRTC library directly, retaining per-peer
+process isolation, signalling, candidate handling and connection-state events.
+`parvi_direct` starts and communicates with that worker using ordinary Erlang
+calls. No custom Elixir transport modules remain; Mix still builds the upstream
+Elixir dependencies and their support modules remain required at runtime. The
+existing Phoenix Reception Desk was not rewritten or redeployed.
+
+All twelve Erlang tests pass. The integration check again verifies direct chat
+after shutting down a disposable local desk, independent swarms, retention of a
+connection shared by two swarms, and interoperability with a relay-only node.
+Native Mac/iPhone transport packaging remains unfinished; installed apps were
+not changed by this refactor.
+
 ## 2026-10-28 — BEAM-owned direct transport experiment
 
 Added an optional direct-transport worker and authenticated swarm signalling,

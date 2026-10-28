@@ -22,6 +22,13 @@ use Elixir for web components and integration where it reduces work. The priorit
 is BEAM processes, message passing and OTP supervision, rather than a particular
 source language. This is an accepted direction, not an implemented stack.
 
+Update 2026-10-28: prefer Erlang for our own implementation. The direct peer
+worker now calls `ex_webrtc` from Erlang; the custom Elixir peer module was
+removed. Upstream Elixir libraries and the existing Phoenix service remain
+dependencies, so this is not a plan to reimplement WebRTC or rewrite the working
+Reception Desk merely to remove a source language. The browser experiment
+remains deferred.
+
 - `Services/ReceptionDesk`: independent service for rendezvous, permission-checked
   mailboxes and relay mechanisms. Its Erlang workers can run inside the
   Phoenix/Cowboy BEAM application without another server-language runtime.

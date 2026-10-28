@@ -1,4 +1,5 @@
 defmodule ParviTransport.MixProject do
+  # Dependency build only. Parvi's connection workers live in control/src/*.erl.
   use Mix.Project
   def project do
     [app: :parvi_transport, version: "0.1.0", elixir: "~> 1.19",

@@ -12,7 +12,7 @@ snapshot() -> gen_server:call(?MODULE, snapshot).
 peers() -> gen_server:call(?MODULE, peers).
 init([]) ->
     process_flag(trap_exit, true),
-    Enabled = case code:ensure_loaded('Elixir.ParviTransport.Peer') of
+    Enabled = case code:ensure_loaded('Elixir.ExWebRTC.PeerConnection') of
         {module, _} -> case application:ensure_all_started(parvi_transport) of {ok, _} -> true; _ -> false end;
         _ -> false
     end,
@@ -24,7 +24,7 @@ handle_call(snapshot, _, #{enabled := Enabled, ready := Ready} = S) ->
 handle_call({send, Peer, Payload}, _, #{ready := Ready, connections := PCs} = S) ->
     Reply = case {lists:member(Peer, Ready), maps:find(Peer, PCs)} of
         {true, {ok, Pid}} ->
-            try 'Elixir.ParviTransport.Peer':send_packet(Pid, iolist_to_binary(json:encode(Payload)))
+            try parvi_peer_connection:send_packet(Pid, iolist_to_binary(json:encode(Payload)))
             catch exit:_ -> {error, unavailable} end;
         _ -> {error, unavailable}
     end,
@@ -37,7 +37,7 @@ handle_cast({sync, Routes}, #{routes := Old, ready := Ready, connections := PCs}
     {noreply, lists:foldl(fun connect/2, Next, maps:keys(Routes) -- maps:keys(Old))};
 handle_cast({incoming, Peer, Signal}, #{connections := PCs} = S) ->
     case maps:find(Peer, PCs) of
-        {ok, Pid} -> 'Elixir.ParviTransport.Peer':signal(Pid, Signal);
+        {ok, Pid} -> parvi_peer_connection:signal(Pid, Signal);
         error -> ok
     end,
     {noreply, S};
@@ -59,7 +59,7 @@ handle_info(retry, #{enabled := Enabled, routes := Routes, ready := Ready, conne
     {noreply, lists:foldl(fun connect/2, S#{connections := maps:without(Retry, PCs)}, Retry)};
 handle_info(_, S) -> {noreply, S}.
 connect(Peer, #{enabled := true, connections := PCs} = S) ->
-    case 'Elixir.ParviTransport.Peer':start_link(self(), parvi_relay:id() < Peer,
+    case parvi_peer_connection:start_link(self(), parvi_relay:id() < Peer,
             application:get_env(parvi, direct_stun_urls, [])) of
         {ok, Pid} -> S#{connections := PCs#{Peer => Pid}};
         _ -> S
@@ -84,4 +84,4 @@ event(Peer, {packet, Data}, #{ready := Ready} = S) when byte_size(Data) =< 13107
     catch _:_ -> ok end, S;
 event(_, _, S) -> S.
 close(undefined) -> ok;
-close(Pid) -> 'Elixir.ParviTransport.Peer':close(Pid).
+close(Pid) -> parvi_peer_connection:close(Pid).
