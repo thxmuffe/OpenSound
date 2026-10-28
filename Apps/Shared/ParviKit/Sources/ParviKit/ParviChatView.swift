@@ -18,6 +18,7 @@ public struct ParviChatView: View {
     @ViewState<Bool> private var showingList = true
     #if os(iOS)
     @ViewState<[String]> private var phonePath = []
+    @ViewState<String> private var invitationFieldText = ""
     #endif
     @FocusState private var composerFocused: Bool
 
@@ -246,7 +247,6 @@ public struct ParviChatView: View {
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                     .keyboardType(.URL).submitLabel(.join)
                     #endif
-                    .disabled(!model.running || model.joining || !model.runtime.canConnect)
                 Button(action: model.join) {
                     HStack(spacing: 6) {
                         if model.joining { ProgressView().controlSize(.small) }
@@ -282,11 +282,28 @@ public struct ParviChatView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Invitation to this swarm").font(.caption.weight(.medium)).foregroundStyle(.secondary)
             HStack(spacing: 10) {
+                #if os(iOS)
+                TextField("Invitation unavailable", text: $invitationFieldText)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(.callout, design: .monospaced))
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .keyboardType(.URL)
+                    .accessibilityLabel("Selected swarm invitation")
+                    .onChange(of: model.invitation, initial: true) { _, value in invitationFieldText = value }
+                    .onChange(of: model.selectedSwarmID) { _, _ in invitationFieldText = model.invitation }
+                #else
                 InvitationLinkField(value: model.invitation).frame(height: invitationFieldHeight)
                     .accessibilityLabel("Selected swarm invitation").accessibilityValue(model.invitation)
-                Button(action: model.copyInvitation) {
+                #endif
+                Button {
+                    #if os(iOS)
+                    model.copyInvitation(invitationFieldText)
+                    #else
+                    model.copyInvitation()
+                    #endif
+                } label: {
                     Label(model.copiedInvitation ? "Copied" : "Copy", systemImage: model.copiedInvitation ? "checkmark" : "doc.on.doc")
-                }.disabled(!model.canInvite).accessibilityLabel("Copy swarm invitation")
+                }.accessibilityLabel("Copy swarm invitation")
                 #if os(iOS)
                 .buttonStyle(.bordered).controlSize(.large)
                 #endif
@@ -439,19 +456,6 @@ private struct InvitationLinkField: NSViewRepresentable {
     }
     func updateNSView(_ field: NSTextField, context: Context) {
         if field.stringValue != value { field.stringValue = value }
-    }
-}
-#else
-private struct InvitationLinkField: View {
-    let value: String
-    var body: some View {
-        ScrollView(.horizontal) {
-            Text(value.isEmpty ? "Invitation unavailable" : value)
-                .font(.system(.callout, design: .monospaced)).textSelection(.enabled)
-                .padding(.horizontal, 8).padding(.vertical, 7)
-        }
-        .background(Color.parviBackground, in: RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.secondary.opacity(0.2)))
     }
 }
 #endif

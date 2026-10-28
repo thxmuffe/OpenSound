@@ -1,5 +1,15 @@
 # Progress
 
+## 2026-10-28 — Invitation text-field behavior
+
+Replaced the iPhone invitation text/scroll view with a regular editable SwiftUI
+text field. Copy always copies its current text, without runtime/network guards.
+The Add swarm invitation field also stays editable while networking is disabled
+or an operation is pending. Joining still requires working network support;
+editing a displayed invitation does not change swarm credentials.
+The signed build and all seven shared model tests pass. Installed and launched
+on the physical iPhone; its passing runtime receipt matches live process 9635.
+
 ## 2026-10-28 — iPhone interface and deployment
 
 The iPhone now shares the Mac swarm list, swarm-specific invitation area,

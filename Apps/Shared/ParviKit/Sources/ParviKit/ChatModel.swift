@@ -154,16 +154,16 @@ public final class ChatModel: ObservableObject {
         request(["method": "remove_both", "swarm_id": swarmID, "target": target], operation: .remove(swarmID))
     }
 
-    func copyInvitation() {
-        guard canInvite else { return }
+    func copyInvitation(_ text: String? = nil) {
+        let text = text ?? invitation
         #if os(macOS)
         NSPasteboard.general.clearContents()
-        guard NSPasteboard.general.setString(invitation, forType: .string) else {
+        guard NSPasteboard.general.setString(text, forType: .string) else {
             error = "Could not copy the invitation. Select the link and copy it manually."
             return
         }
         #else
-        UIPasteboard.general.string = invitation
+        UIPasteboard.general.string = text
         #endif
         copiedSwarmID = selectedSwarmID
         copyReset?.cancel()

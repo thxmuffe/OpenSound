@@ -19,8 +19,9 @@ is not enabled yet.
   to keep the conversation visible; Done dismisses the keyboard.
 - The information button opens a sheet with local node status, OTP/runtime details
   and networking limits, with a Done button and drag handle.
-- This build's Add swarm and Copy controls remain disabled because distribution
-  is not enabled. A visible local-node explanation accompanies them. Creating,
+- Invitation fields support normal editing, selection, copy and paste, and Copy
+  is always available. Add swarm remains disabled because distribution
+  is not enabled. A visible local-node explanation accompanies it. Creating,
   chatting in, and leaving local swarms work through the on-device Erlang worker.
 
 The interface calls participants **nodes**, including agents and playback devices.
