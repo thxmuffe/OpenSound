@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-28 — BEAM-owned direct transport experiment
+
+Added an optional direct-transport worker and authenticated swarm signalling,
+using third-party `ex_webrtc` and `ex_sctp` through a small Elixir adapter.
+Networking stays in BEAM; the native views only display connection state.
+The initial Swift WebRTC adapter experiment was removed following the user's
+architecture clarification. No WebRTC protocol implementation was written here.
+
+The isolated Mac experiment passes: two independent BEAM VMs establish a direct
+data channel, continue bidirectional chat after their local desk is killed,
+retain independent swarms and a shared connection, then interoperate with a
+relay-only peer after desk recovery. The public Render service is unchanged.
+The transport's native dependency packaging and physical iPhone test remain
+unfinished; installed apps continue using the working relay. See
+[the transport prototype](../control/transport/README.md).
+
 ## 2026-10-28 — Apple apps rebuilt for the public relay
 
 Reviewed the Windows relay/default-configuration changes and rebuilt both Apple

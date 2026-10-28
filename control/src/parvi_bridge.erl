@@ -100,6 +100,7 @@ snapshot() ->
     Status = parvi:status(),
     #{<<"node">> => case parvi_relay:id() of N when is_atom(N) -> atom_to_binary(N); N -> N end,
       <<"relay">> => parvi_relay:status(),
+      <<"direct">> => parvi_direct:snapshot(),
       <<"connection_string">> => case {parvi_relay:enabled(), node()} of
           {true, _} -> null;
           {_, nonode@nohost} -> null;

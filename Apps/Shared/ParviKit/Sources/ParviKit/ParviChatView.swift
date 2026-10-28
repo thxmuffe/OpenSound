@@ -282,7 +282,8 @@ public struct ParviChatView: View {
                     } message: {
                         Text("Current transient swarm memberships and chats will be discarded. The new node session connects through this desk.")
                     }
-                if model.relayConnected { Text("Reception desk connected").font(.caption).foregroundStyle(.teal) }
+                if !model.directPeers.isEmpty { Text("Direct connections · \(model.directPeers.count)").font(.caption).foregroundStyle(.teal) }
+                else if model.relayConnected { Text("Reception desk connected").font(.caption).foregroundStyle(.teal) }
                 else if let error = model.relayError { Text(error).font(.caption).foregroundStyle(.orange) }
                 else { Text("Connecting to Reception desk…").font(.caption).foregroundStyle(.secondary) }
             }.padding(.horizontal, 16).padding(.bottom, 12)
@@ -428,7 +429,8 @@ public struct ParviChatView: View {
 
     private var footer: some View {
         HStack {
-            Text("Chat prototype · history lasts this session").font(.caption2).foregroundStyle(.secondary)
+            Text(model.peers.contains(where: { model.directPeers.contains($0) }) ? "Direct connection · history lasts this session" : "Chat prototype · history lasts this session")
+                .font(.caption2).foregroundStyle(.secondary)
             Spacer()
             diagnosticsButton
         }.padding(.horizontal, 16).padding(.vertical, 9)
@@ -452,6 +454,7 @@ public struct ParviChatView: View {
             Text(model.localDeviceName).font(.subheadline.weight(.medium))
             Text(model.node).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
             Text(model.runtimeInfo).font(.caption).textSelection(.enabled)
+            if !model.directPeers.isEmpty { Text("Direct connections · \(model.directPeers.count)").font(.caption) }
             Text(model.relayConnected ? "Reception desk connected" : model.relayError ?? "Reception desk not connected")
                 .font(.caption).foregroundStyle(.secondary)
             Text(model.runtime.connectionHelp).font(.callout).foregroundStyle(.secondary)

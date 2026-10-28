@@ -1,0 +1,64 @@
+# BEAM direct transport prototype
+
+Parvi reuses **ex_webrtc 0.17.0** and **ex_sctp 0.1.3**, pinned in `mix.lock`.
+These third-party libraries implement WebRTC and SCTP. `ParviTransport.Peer`
+only adapts their process messages to Parvi signalling and swarm payloads;
+`parvi_direct` owns peer routing inside the Erlang application.
+
+All networking, signalling, connection selection and payload handling run in
+BEAM. Swift receives status snapshots and submits user commands. There is no
+Swift WebRTC engine or network-event command interface.
+
+Direct links are preferred. The existing Reception Desk introduces admitted
+nodes and provides relay fallback when direct links are unavailable. SDP and
+ICE candidates travel through authenticated, swarm-scoped mailbox messages.
+The remote DTLS certificate fingerprint comes from that authenticated signalling.
+The desk remains a trusted introducer, as it is in the existing relay design.
+
+## Verified experiment
+
+On 2026-10-28, `tools/smoke.py` passed using two independent BEAM VMs and the
+third-party WebRTC library. After admission and direct-channel establishment,
+the test killed its disposable local Reception Desk. Bidirectional chat,
+independent swarm histories and leaving one of two shared swarms continued over
+the direct channel. It then restarted the desk and admitted a relay-only peer,
+verifying interoperability without forcing that peer to implement WebRTC.
+The public Render service was not stopped or changed.
+
+This proves the BEAM transport on the development Mac, not native iPhone
+compatibility or NAT traversal across separate internet access networks.
+
+## Build and test
+
+Requirements: compatible OTP, Elixir 1.19, Rust, pkg-config and OpenSSL development
+files. Local development here uses the repository's ignored Elixir/Rust caches.
+
+```sh
+cd control/transport
+mix deps.get
+mix compile
+cd ../..
+# Build the isolated Phoenix desk used by the test:
+bash Services/ReceptionDesk/build.sh
+cd control
+rebar3 compile
+cd ..
+python3 control/transport/tools/smoke.py
+```
+
+The current smoke helper is a Mac development check. It starts the native BEAM
+launcher with the compiled transport and Elixir library paths. The upstream
+precompiled SRTP dependency expects OpenSSL 3; the helper supplies its Homebrew
+library search path without changing OS trust or system library locations.
+
+## Packaging gate
+
+The transport is optional: without its runtime libraries, `parvi_direct` stays
+disabled and the existing relay continues to work. It is not yet included in
+the shipping Mac/iPhone bundles. Packaging and iPhone verification are unfinished.
+
+Although most protocol code is Elixir, this is not a 100% pure-language stack:
+DTLS/SRTP use native libraries and SCTP uses a Rust NIF. Those belong inside the
+BEAM runtime boundary, not in the UI. Their iOS cross-build/static registration
+must be verified before updating the working phone app. No native Swift WebRTC
+package is required.

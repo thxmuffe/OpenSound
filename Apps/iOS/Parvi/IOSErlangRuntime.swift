@@ -109,6 +109,7 @@ final class IOSErlangRuntime: ChatRuntime {
         guard let relay = snapshot.relay else { return }
         let status: [String: Any] = ["node": snapshot.node,
             "os_pid": String(ProcessInfo.processInfo.processIdentifier),
+            "direct_peers": snapshot.direct?.peers ?? [],
             "url": relay.url as Any? ?? NSNull(), "connected": relay.connected,
             "error": relay.error as Any? ?? NSNull()]
         guard let data = try? JSONSerialization.data(withJSONObject: status, options: [.sortedKeys]),

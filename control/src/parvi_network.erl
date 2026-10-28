@@ -14,12 +14,13 @@ snapshot() ->
 relay_snapshot() ->
     #{id := Id, connected := Connected, online := Online, watched := Watched} = parvi_relay:status(),
     Swarms = parvi_swarms:snapshot(),
+    Direct = parvi_direct:peers(),
     Members = lists:usort([Id | lists:append([maps:get(members, W) || W <- Swarms])]),
-    #{nodes => [#{id => N, state => case (N =:= Id andalso Connected) orelse lists:member(N, Online) of
+    #{nodes => [#{id => N, state => case (N =:= Id andalso (Connected orelse Direct =/= [])) orelse lists:member(N, Direct) orelse lists:member(N, Online) of
                     true -> <<"running">>;
                     false -> case N =:= Id orelse lists:member(N, Watched) of true -> <<"down">>; false -> <<"checking">> end
-                end, detail => <<"relay_connection">>} || N <- Members],
-      edges => []}.
+                end, detail => case lists:member(N, Direct) of true -> <<"direct_connection">>; false -> <<"relay_connection">> end} || N <- Members],
+      edges => [[Id, N] || N <- Direct, lists:member(N, Members)]}.
 direct_snapshot() ->
     try gen_server:call(?MODULE, snapshot, 250) of
         Snapshot -> Snapshot

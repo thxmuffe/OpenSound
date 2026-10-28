@@ -24,6 +24,7 @@ public final class ChatModel: ObservableObject {
     @Published var configuring = false
     @Published var relayConnected = false
     @Published var relayError: String?
+    @Published var directPeers: [String] = []
     @Published var joinError: String?
     @Published var joinNotice: String?
     @Published var copiedSwarmID: String?
@@ -75,6 +76,7 @@ public final class ChatModel: ObservableObject {
             self.runtimeInfo = snapshot.runtime_info ?? ""
             self.relayConnected = snapshot.relay?.connected ?? false
             self.relayError = snapshot.relay?.error
+            self.directPeers = snapshot.direct?.peers ?? []
             if self.deskURL.isEmpty, let url = snapshot.relay?.url { self.deskURL = url }
             self.observedNetwork = snapshot.network ?? NetworkSnapshot(nodes: [], edges: [])
             self.swarms = snapshot.swarms ?? []
@@ -118,6 +120,7 @@ public final class ChatModel: ObservableObject {
             self.configuring = false
             self.relayConnected = false
             self.relayError = nil
+            self.directPeers = []
             self.sendingSwarms.removeAll()
             self.pending.removeAll()
             self.joinNotice = nil

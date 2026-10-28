@@ -46,6 +46,7 @@ public struct RelaySnapshot: Decodable {
 }
 
 public struct ChatSnapshot: Decodable {
+    public let direct: DirectSnapshot?
     public let swarms: [SwarmSnapshot]?
     public let result: CommandResult?
     public let known_nodes: [String]?
@@ -58,6 +59,11 @@ public struct ChatSnapshot: Decodable {
     public let connection_string: String?
     public let network: NetworkSnapshot?
     public let relay: RelaySnapshot?
+}
+
+public struct DirectSnapshot: Decodable {
+    public let enabled: Bool
+    public let peers: [String]
 }
 
 /// The only boundary between shared app code and a platform's Erlang host.

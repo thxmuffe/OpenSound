@@ -35,6 +35,11 @@ source language. This is an accepted direction, not an implemented stack.
 - Communication: an explicit, versioned WebSocket message protocol usable by
   browser and native nodes. Browser BEAM is not ordinary distributed Erlang;
   browser sockets, filesystem and native extensions have different constraints.
+- Direct connections are preferred; the Reception Desk introduces nodes and
+  relays only when required. For native apps, networking and negotiation belong
+  in BEAM, using third-party `ex_webrtc`/`ex_sctp`, not Swift UI/runtime transport
+  code. An isolated Mac prototype survives desk shutdown; iPhone packaging is
+  still a required gate before this becomes the native app transport.
 - Keep UI behavior direct and simple. Runtime code validates invitations and
   operations; ordinary editing, selection, copy and paste remain available.
 
@@ -59,6 +64,27 @@ wire contract and limits. Public deployment and the Windows-iPhone test across
 separate internet connections remain acceptance work; they are not yet proven.
 
 ### Next steps and acceptance checks
+
+The application's purpose is **binary audio publish/subscribe**, not text chat.
+Any node may publish audio, subscribe to audio from other nodes, or do both.
+One stream may have one or many subscribers in a swarm. Subscriptions describe
+the audio a node wants and the stream capabilities a publisher actually offers;
+they are not limited to selecting a person or joining a chat room.
+
+For example, a subwoofer can request audio below 80 Hz. This can select a
+publisher-provided low-pass/band-limited stream, or a full-band stream processed
+by the receiver's crossover. Merely labelling a broadband audio packet does not
+separate its frequencies. Source-side filtering and receiver-side DSP are design
+choices to measure, not an assumption that a packet contains only one frequency.
+
+Chat and the current reliable data-channel experiment prove connectivity and
+membership only. They do not determine the eventual media transport. Keep
+control/signalling separate from binary media delivery, with explicit sample
+format/codec, channel or object descriptions, sequence/sample timestamps,
+playback timing, buffering and loss behavior. Do not carry audio through JSON
+text/base64 chat messages or assume reliable ordered delivery is appropriate for
+live audio. Evaluate the third-party WebRTC library's RTP/media facilities as
+well as binary data channels against synchronization and DSP requirements.
 
 1. Keep the source separation already completed: WebApp and ReceptionDesk.
 2. Prove browser BEAM startup, a supervised chat worker, message delivery and

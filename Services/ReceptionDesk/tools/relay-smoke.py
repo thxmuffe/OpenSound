@@ -36,7 +36,8 @@ class Node:
             try:
                 self.lines.put(json.loads(line))
             except json.JSONDecodeError:
-                pass
+                if '--verbose' in sys.argv:
+                    print(line.rstrip(), file=sys.stderr)
 
     def request(self, method='snapshot', **fields):
         self.process.stdin.write(json.dumps(dict(method=method, **fields)) + '\n')

@@ -16,7 +16,8 @@ leave(Id) -> connected_call({leave, Id}).
 remove_both(Id, Target) -> connected_call({remove_both, Id, Target}).
 join_relay(Invitation) -> gen_server:call(?MODULE, {join_relay, Invitation}, 8000).
 connected_call(Command) ->
-    case parvi_relay:enabled() andalso not maps:get(connected, parvi_relay:status()) of
+    case parvi_relay:enabled() andalso not maps:get(connected, parvi_relay:status())
+         andalso parvi_direct:peers() =:= [] of
         true -> {error, <<"Reception desk disconnected. Wait for reconnection.">>};
         false -> gen_server:call(?MODULE, Command)
     end.
@@ -196,6 +197,12 @@ handle_info({relay, {delivery, Source, {join_reply, Id, Request, Reply}}}, #{pen
         {ok, #{owner := Source, swarm := Id} = Entry} -> finish_join(Request, Entry, Reply, State);
         _ -> {noreply, State}
     end;
+handle_info({relay, {delivery, Source, {rtc, Id, Sender, Signal}}}, State) ->
+    case source_member(Source, Sender, Id, State) of
+        true -> parvi_direct:incoming(Source, Signal);
+        false -> ok
+    end,
+    {noreply, State};
 handle_info({relay, {delivery, Source, Event}}, State) ->
     case authenticated_event(Source, Event, State) of true -> handle_cast(Event, State); false -> {noreply, State} end;
 handle_info({relay, {error, Request, _}}, #{pending := Pending} = State) ->
@@ -279,13 +286,37 @@ put_swarm(#{id := Id} = Swarm, #{swarms := Swarms, order := Order} = State) ->
             parvi_relay:watch(lists:usort(lists:append([maps:keys(maps:get(members, W)) || W <- maps:values(maps:get(swarms, Next)), active(W)])));
         false -> ok
     end,
-    Next.
+    sync_direct(Next), Next.
+
+sync_direct(#{swarms := Swarms}) ->
+    Routes = lists:foldl(fun(W, Acc) ->
+        case active(W) andalso parvi_relay:enabled() of
+            false -> Acc;
+            true ->
+                Id = maps:get(id, W),
+                lists:foldl(fun({N, M}, A) ->
+                    case N =/= identity() andalso is_binary(N) of
+                        false -> A;
+                        true -> Cap = maps:get(mailbox, M),
+                            maps:update_with(N, fun(R) -> R#{mailboxes := (maps:get(mailboxes, R))#{Id => Cap}} end,
+                                #{swarm => Id, mailbox => Cap, member => own_id(W), mailboxes => #{Id => Cap}}, A)
+                    end
+                end, Acc, maps:to_list(maps:get(members, W)))
+        end
+    end, #{}, maps:values(Swarms)),
+    parvi_direct:sync(Routes).
 
 public(Swarm) -> maps:with([id, name, members, removed, revoked], Swarm).
 broadcast(Swarm, Event) ->
     [case N of
         _ when is_atom(N) -> gen_server:cast({?MODULE, N}, Event);
-        _ -> relay_send(N, maps:get(mailbox, M), maps:get(id, Swarm), Event)
+        _ ->
+            Id = maps:get(id, Swarm), Cap = maps:get(mailbox, M),
+            Payload = parvi_swarm_wire:encode(Id, Event),
+            case parvi_direct:send(N, Cap, Payload) of
+                ok -> ok;
+                _ -> parvi_relay:send(N, Cap, Payload)
+            end
      end || {N, M} <- maps:to_list(maps:get(members, Swarm)), N =/= identity()], ok.
 
 merge(Local, Remote) ->
@@ -310,6 +341,11 @@ depart(Swarm, Removed, Revoked, State) ->
     {reply, ok, put_swarm(Next, State)}.
 
 record(Message, #{history := History, count := Count} = Swarm) ->
+    case lists:any(fun(M) -> maps:get(id, M) =:= maps:get(id, Message) end, queue:to_list(History)) of
+        true -> Swarm;
+        false -> record_new(Message, History, Count, Swarm)
+    end.
+record_new(Message, History, Count, Swarm) ->
     Added = queue:in(Message, History),
     case Count >= 200 of
         true -> Swarm#{history := queue:drop(Added)};

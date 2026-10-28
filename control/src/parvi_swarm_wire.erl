@@ -1,6 +1,8 @@
 %% Explicit JSON schema. Never decode Erlang external terms or allocate atoms.
 -module(parvi_swarm_wire).
--export([encode/2, decode/1, hex/2]).
+-export([encode/2, decode/1, hex/2, valid_signal/1]).
+encode(Id, {rtc, Id, Sender, Signal}) ->
+    #{type => <<"rtc">>, swarm => Id, sender => Sender, signal => Signal};
 encode(Id, {join_request, Request, Token, Member}) ->
     #{type => <<"join">>, swarm => Id, request => Request, token => Token, member => member(Member)};
 encode(Id, {join_reply, Request, {ok, Shared}}) ->
@@ -21,6 +23,8 @@ shared(#{id := Id, name := Name, members := Members, removed := Removed, revoked
 decode(#{<<"swarm">> := Id} = M) ->
     try true = hex(Id, 32), {ok, Id, event(M, Id)} catch _:_ -> {error, invalid_message} end;
 decode(_) -> {error, invalid_message}.
+event(#{<<"type">> := <<"rtc">>, <<"sender">> := Sender, <<"signal">> := Signal}, Id) ->
+    true = hex(Sender, 32) andalso valid_signal(Signal), {rtc, Id, Sender, Signal};
 event(#{<<"type">> := <<"join">>, <<"request">> := R, <<"token">> := T, <<"member">> := M}, Id) ->
     true = hex(R, 32) andalso hex(T, 32), {join_request, Id, R, T, read_member(M)};
 event(#{<<"type">> := <<"joined">>, <<"request">> := R, <<"state">> := S}, Id) ->
@@ -49,6 +53,17 @@ read_shared(#{<<"id">> := Id, <<"name">> := Name, <<"members">> := Rows,
     #{id => Id, name => Name, members => ByNode, removed => Removed, revoked => Revoked}.
 ids(L) when is_list(L), length(L) =< 1024 -> lists:all(fun(I) -> hex(I, 32) end, L);
 ids(_) -> false.
+valid_signal(#{<<"session">> := Session, <<"kind">> := Kind} = S) ->
+    hex(Session, 32) andalso case Kind of
+        <<"offer">> -> text(maps:get(<<"sdp">>, S, <<>>), 32768);
+        <<"answer">> -> text(maps:get(<<"sdp">>, S, <<>>), 32768);
+        <<"candidate">> -> text(maps:get(<<"candidate">>, S, <<>>), 4096) andalso
+            text(maps:get(<<"mid">>, S, <<>>), 256) andalso
+            is_integer(maps:get(<<"index">>, S, null)) andalso
+            maps:get(<<"index">>, S) >= 0 andalso maps:get(<<"index">>, S) < 256;
+        _ -> false
+    end;
+valid_signal(_) -> false.
 hex(B, N) when is_binary(B), byte_size(B) =:= N -> re:run(B, <<"^[0-9A-F]+$">>, [{capture, none}]) =:= match;
 hex(_, _) -> false.
 text(B, N) when is_binary(B), byte_size(B) > 0, byte_size(B) =< N -> unicode:characters_to_binary(B, utf8, utf8) =:= B;

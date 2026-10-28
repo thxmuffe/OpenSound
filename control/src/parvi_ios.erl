@@ -16,7 +16,7 @@ main() ->
     end,
     Port = list_to_integer(os:getenv("PARVI_BRIDGE_PORT")),
     {ok, Socket} = gen_tcp:connect({127,0,0,1}, Port,
-                                  [binary, {packet, line}, {packet_size, 8192}, {active, false}], 10000),
+                                  [binary, {packet, line}, {packet_size, 262144}, {active, false}], 10000),
     serve(Socket).
 
 resolve_host(Host) ->
