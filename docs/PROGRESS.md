@@ -1,5 +1,15 @@
 # Progress
 
+## 2026-10-28 — Browser/server BEAM architecture selected
+
+Recorded the accepted Phoenix/Cowboy + Popcorn 1.0/LocalLiveView direction in
+[the current implementation plan](PLAN.md#current-implementation-plan--accepted-2026-10-28).
+Shared swarm logic remains Erlang/OTP; the browser runs its own actors and uses
+an explicit transport protocol. The plan records the new browser runtime's
+limited operating history, compatibility checks and internet-first Mac–iPhone
+connectivity scope. This entry records a decision; no stack migration or new
+networking functionality has been implemented.
+
 ## 2026-10-28 — WebApp and ReceptionDesk separated
 
 Moved the browser assets and QR license to `Apps/WebApp`, and the Erlang service,

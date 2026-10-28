@@ -4,9 +4,74 @@ Created: 2026-10-23. Status: proposal for discussion and experimentation.
 
 Update 2026-10-26: the newer [Parvi handover](notes%2020261026.md) introduces a
 chat-first feasibility phase before these audio milestones. The Mac OTP chat
-baseline is now implemented; iPhone execution remains pending. Follow
+baseline is now implemented; iPhone execution is verified on the physical phone. Follow
 [the progress log](PROGRESS.md) and [decision 0001](decisions/0001-chat-first-and-ios-feasibility.md)
 for current scope and next steps. The audio targets below remain unvalidated.
+
+## Current implementation plan — accepted 2026-10-28
+
+This section governs the immediate Parvi app and connectivity work. The original
+audio milestones below remain research proposals; their stable-device-identity
+and LAN-first assumptions do not govern the current swarm protocol.
+
+### Architecture decision: BEAM/OTP on server and in browser
+
+Use Phoenix with its Cowboy adapter for the server host, and Popcorn 1.0 with
+LocalLiveView for the browser app. Keep the shared swarm/chat core in Erlang/OTP;
+use Elixir for web components and integration where it reduces work. The priority
+is BEAM processes, message passing and OTP supervision, rather than a particular
+source language. This is an accepted direction, not an implemented stack.
+
+- `Services/ReceptionDesk`: independent service for rendezvous, permission-checked
+  mailboxes and relay mechanisms. Its Erlang workers can run inside the
+  Phoenix/Cowboy BEAM application without another server-language runtime.
+- `Apps/WebApp`: a browser-local node, using Popcorn's WebAssembly BEAM runtime
+  and LocalLiveView for rendering and events. The Reception Desk does not own
+  browser nodes or swarms. Both components may share hosting without merging
+  their responsibilities.
+- `control/`: shared Erlang/OTP swarm and chat logic. Reuse compatible modules
+  in native apps, server and browser; isolate platform/network adapters. Browser
+  compatibility must be demonstrated, not assumed.
+- Communication: an explicit, versioned WebSocket message protocol usable by
+  browser and native nodes. Browser BEAM is not ordinary distributed Erlang;
+  browser sockets, filesystem and native extensions have different constraints.
+- Keep UI behavior direct and simple. Runtime code validates invitations and
+  operations; ordinary editing, selection, copy and paste remain available.
+
+Phoenix/LiveView supplies established components, rendering and connection
+machinery. Popcorn 1.0's move to actual BEAM substantially improves the fit with
+our OTP priority, while LocalLiveView avoids writing a custom browser UI engine.
+Do not add a separate React app, database, accounts or broad scaffolding before
+the current functionality requires them. Retain the existing native apps.
+
+The accepted risk is the youth of the browser port and LocalLiveView. Popcorn's
+BEAM transition was announced on 2026-10-27; examples and the language tour had
+used that runtime for about a month. This is not evidence of mature production
+adoption for the combined stack. Pin compatible versions and verify on the
+actual target browsers before expanding the implementation.
+
+### Next steps and acceptance checks
+
+1. Keep the source separation already completed: WebApp and ReceptionDesk.
+2. Prove browser BEAM startup, a supervised chat worker, message delivery and
+   worker restart. Render a small swarm view through LocalLiveView and verify
+   normal input-field behavior. Check the shared core's actual compatibility.
+3. Prepare the Reception Desk for Render hosting and implement internet
+   invitations and transport. Start with outbound encrypted WebSocket connections
+   from Mac and iPhone; test across separate internet connections first.
+4. Verify admission, scoped chat, node presence, reconnect, leave and mutual
+   removal. A node can belong to multiple swarms and has an ephemeral session
+   identity. Retain the agreed invitation and removal semantics.
+5. Add direct peer paths/NAT traversal and relay fallback as needed. Same-Wi-Fi
+   operation is a subsequent test, not a prerequisite for internet connectivity.
+
+The next implementation order may interleave the browser experiment and native
+internet transport; neither depends on finishing the other. Audio streaming,
+playback synchronization and large-swarm scaling need separate measured work.
+
+Decision evidence: [LiveView history](https://phoenixframework.org/blog/phoenix-liveview-1.0-released),
+[Popcorn's BEAM transition](https://swmansion.com/blog/popcorn-1-0-moving-from-atom-vm-to-otp-beam/),
+[LocalLiveView examples](https://github.com/software-mansion/popcorn/tree/main/local-live-view).
 
 ## Objective
 
