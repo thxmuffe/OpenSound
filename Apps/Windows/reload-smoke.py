@@ -20,9 +20,9 @@ def main():
         shutil.copytree(EBIN, ebin)
         subprocess.run([str(erlc), '-Werror', '-o', str(ebin), str(tests)], check=True)
         gui_cookie = secrets.token_hex(24)
-        peer = Node(8)
-        # A/C share a default cookie; B installs C's cookie explicitly. This
-        # permits OTP's normal full-mesh distribution without changing policy.
+        # One ephemeral cookie for this test cluster keeps UI/reload checks
+        # independent of the prototype's per-peer invitation authentication.
+        peer = Node(8, cookie=gui_cookie)
         other = Node(7, cookie=gui_cookie)
         try:
             assert peer.request()['node'] == peer.name

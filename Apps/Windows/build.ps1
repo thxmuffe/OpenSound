@@ -8,9 +8,19 @@ $OtpRoot = (Resolve-Path -LiteralPath $OtpRoot).Path
 $erlc = Join-Path $OtpRoot 'bin\erlc.exe'
 $erl = Join-Path $OtpRoot 'bin\erl.exe'
 if (!(Test-Path -LiteralPath $erlc)) { throw 'Set PARVI_OTP_ROOT to an extracted Windows OTP 29.1.2 archive.' }
+& (Join-Path $repo 'scripts\erlang-deps.ps1') -OtpRoot $OtpRoot
 $out = Join-Path $repo 'builds\Windows\Parvi'
 $ebin = Join-Path $out 'ebin'
 New-Item -ItemType Directory -Force $ebin | Out-Null
+$relayLib = Join-Path $out 'relay_lib'
+New-Item -ItemType Directory -Force $relayLib | Out-Null
+foreach ($dep in @('gun', 'cowlib')) {
+    $sourceDep = Join-Path $repo "builds\intermediates\control\default\lib\$dep"
+    $targetDep = Join-Path $relayLib $dep
+    New-Item -ItemType Directory -Force $targetDep | Out-Null
+    Copy-Item -LiteralPath (Join-Path $sourceDep 'ebin') -Destination $targetDep -Recurse -Force
+    Get-ChildItem -LiteralPath $sourceDep -Filter 'LICENSE*' | Copy-Item -Destination $targetDep
+}
 $sources = @('control\src', 'Apps\Windows\src') | ForEach-Object {
     Get-ChildItem -LiteralPath (Join-Path $repo $_) -Filter '*.erl' | ForEach-Object FullName
 }
@@ -44,9 +54,10 @@ if (!(Test-Path -LiteralPath $launcher) -or
 }
 if ($Test) {
     $tests = @(Get-ChildItem -LiteralPath (Join-Path $repo 'control\test') -Filter '*.erl' | ForEach-Object FullName)
+    $tests += Join-Path $PSScriptRoot 'test\parvi_windows_model_tests.erl'
     & $erlc -Werror -o $ebin @tests
     if ($LASTEXITCODE) { throw 'Test compilation failed.' }
-    & $erl -noshell -pa $ebin -eval 'case eunit:test(parvi_tests, [verbose]) of ok -> halt(0); _ -> halt(1) end.'
+    & $erl -noshell -pa $ebin -eval 'case eunit:test([parvi_tests, parvi_swarms_tests, parvi_relay_tests, parvi_windows_model_tests], [verbose]) of ok -> halt(0); _ -> halt(1) end.'
     if ($LASTEXITCODE) { throw 'Core tests failed.' }
 }
 Write-Host "Built $out\Parvi.exe"

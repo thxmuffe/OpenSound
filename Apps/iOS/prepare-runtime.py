@@ -35,13 +35,23 @@ assert version == '17.1.1', f'Expected ERTS 17.1.1 compiler, got {version}'
 subprocess.run(['rebar3', 'compile'], cwd=ROOT / 'control', check=True)
 resources = ROOT / f'builds/intermediates/iOS/Resources-{target}/runtime'
 resources.mkdir(parents=True, exist_ok=True)
-for name in ['kernel', 'stdlib', 'inets', 'crypto']:
+for name in ['kernel', 'stdlib', 'inets', 'crypto', 'asn1', 'public_key', 'ssl']:
     matches = list((otp / 'lib').glob(f'{name}-*'))
     assert len(matches) == 1, (name, matches)
     app = matches[0]
     shutil.copytree(app / 'ebin', resources / 'lib' / app.name / 'ebin', dirs_exist_ok=True)
 shutil.copytree(ROOT / 'builds/intermediates/control/default/lib/parvi/ebin',
                 resources / 'lib/parvi-0.1.0/ebin', dirs_exist_ok=True)
+for name in ['gun', 'cowlib']:
+    shutil.copytree(ROOT / f'builds/intermediates/control/default/lib/{name}/ebin',
+                    resources / f'lib/{name}/ebin', dirs_exist_ok=True)
+    for license in (ROOT / f'builds/intermediates/control/default/lib/{name}').glob('LICENSE*'):
+        shutil.copy2(license, resources / f'{name}-{license.name}')
+# iOS does not expose the host's certificate-store loading commands to BEAM.
+# Export public trust anchors at build time; never disable TLS verification.
+ca_bundle = subprocess.check_output(['erl', '-noshell', '-eval',
+    "io:put_chars(public_key:pem_encode([{'Certificate', C, not_encrypted} || C <- public_key:cacerts_get()])), halt()."])
+(resources / 'cacerts.pem').write_bytes(ca_bundle)
 shutil.copy2(otp / 'releases/29/start_clean.boot', resources / 'start_clean.boot')
 (resources / 'erts-17.1.1/bin').mkdir(parents=True, exist_ok=True)
 shutil.copy2(ROOT / 'LICENSE', resources / 'LICENSE')

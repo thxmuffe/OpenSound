@@ -50,6 +50,14 @@ used that runtime for about a month. This is not evidence of mature production
 adoption for the combined stack. Pin compatible versions and verify on the
 actual target browsers before expanding the implementation.
 
+### Implementation update: native relay first
+
+The browser BEAM/full WebApp experiment is deferred. The first native relay is
+implemented in `Services/ReceptionDesk`, with Windows integration and shared Apple
+configuration/packaging sources. See [protocol](RELAY_PROTOCOL.md) for the actual
+wire contract and limits. Public deployment and the Windows-iPhone test across
+separate internet connections remain acceptance work; they are not yet proven.
+
 ### Next steps and acceptance checks
 
 1. Keep the source separation already completed: WebApp and ReceptionDesk.

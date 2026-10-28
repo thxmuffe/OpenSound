@@ -21,7 +21,7 @@ update(#{nodes := Rows, edges := Edges}, #{pid := Pid, nodes := Previous, edges 
     View#{nodes := Current, edges := Edges}.
 pause(#{pid := Pid}, Paused) -> Pid ! {set_paused, Paused}, ok.
 stop(#{pid := Pid}) -> parvi_fgraph_win:stop(Pid, shutdown).
-key(Name) -> binary_to_existing_atom(Name).
+key(Name) -> Name.
 keys({A,B}) -> {key(A), key(B)}.
 colour(running) -> {152,248,152};
 colour(unresponsive) -> {255,255,123};

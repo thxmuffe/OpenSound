@@ -17,3 +17,11 @@ Compilation uses that same pinned runtime's `reltool_fgraph.hrl` header.
 
 The native graph component is an internal OTP implementation, not a public
 stable API. Keep the runtime version pinned when building or changing it.
+
+
+The relay client bundles Gun 2.7.0 and Cowlib at upstream commit
+`4401b858f2229abb3ea115c60924f6c77e5f8aa3` (ISC license), under `relay_lib/`.
+Their license files accompany their compiled modules. These are pure Erlang
+transport libraries, not another UI runtime. Dependency locks record provenance.
+The graph adapter also accepts binary relay identities and shortens long display
+labels; full identities remain visible in node details.

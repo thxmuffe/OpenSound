@@ -1,5 +1,48 @@
 # Progress
 
+## 2026-10-28 - Persistent Reception Desk relay
+
+Implemented a minimal Phoenix/Cowboy service around supervised Erlang routing
+workers, independent of the deferred browser app. Nodes authenticate ephemeral
+Ed25519 identities, register per-swarm capability mailboxes and exchange explicit
+versioned JSON over persistent outbound WebSockets. The service owns no swarm
+memberships or histories. The shared Erlang core now has an asynchronous relay
+admission/transport adapter, v2 invitations without Erlang cookies, reconnect,
+presence observations and membership resynchronization after service restart.
+Local developer distribution remains available separately.
+
+Windows has desk configuration/status and bundles Gun/Cowlib transport code.
+Apple UI and iOS packaging sources have equivalent configuration and TLS trust
+resources; Mac/iPhone builds and device execution require Xcode and are not
+verified on this Windows machine. Existing apps need restarting/rebuilding.
+Deployment is prepared as one Render Docker service; nothing is published.
+The old directory launchers remain explicit legacy-only test paths.
+
+See [relay protocol](RELAY_PROTOCOL.md) and [desk guide](../Services/ReceptionDesk/README.md).
+
+## 2026-10-28 — Windows shares the swarm app structure
+
+Replaced the Windows node sidebar and global chat with a swarm list, New/Add
+swarm actions and selected-swarm Graph/Chat tabs. Invitations, scoped histories,
+admission, leave and mutual removal reuse `parvi_swarms` through the shared bridge.
+Graphs filter `parvi_network` observations by membership. Nodes keep running with
+zero memberships. Drafts, selection, tabs, input and pending operations belong to
+the supervised Windows model and survive disposable-window reloads.
+
+The shared contract is now explicit in [APP_STRUCTURE.md](APP_STRUCTURE.md).
+No change to the transport or previously identified backend membership issues.
+
+Validation: Windows build with warnings as errors and all eleven core/model tests
+pass. The native UI was checked for swarm creation/selection, tabs and sending a
+message through the selected swarm's composer into its scoped history.
+The isolated three-node reload test passes, including scoped membership/graph,
+retained drafts/selection/tab, pending swarm sends, crash recovery, corrected
+builds without rollback and two-node disconnect/reconnect. Its temporary cluster
+uses one shared cookie; per-peer invitation authentication is not covered by that
+reload test. The backend's existing concurrency and authentication limitations
+remain outside this layout update.
+
+
 ## 2026-10-28 — Browser/server BEAM architecture selected
 
 Recorded the accepted Phoenix/Cowboy + Popcorn 1.0/LocalLiveView direction in

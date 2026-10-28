@@ -805,6 +805,9 @@ s(Format, Terms) -> lists:flatten(io_lib:format(Format, Terms)).
 s(Term) when is_float(Term) -> s("~.2f", [Term]);
 s(Term) when is_integer(Term) -> integer_to_list(Term);
 s(Term) when is_atom(Term) -> atom_to_list(Term);
+s(Term) when is_binary(Term), byte_size(Term) > 48 ->
+    binary_to_list(<<(binary:part(Term, 0, 8))/binary, "...", (binary:part(Term, byte_size(Term)-6, 6))/binary>>);
+s(Term) when is_binary(Term) -> unicode:characters_to_list(Term);
 s(Term) -> s("~p", [Term]).
 
 %% Calclulate angle in radians for a line between two points

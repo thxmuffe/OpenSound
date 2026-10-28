@@ -3,8 +3,10 @@
 This project embeds a real, interpreted Erlang/OTP 29.1.2 VM **inside the iOS
 app process**. It runs the shared Parvi OTP application and shared SwiftUI view.
 No chat execution is forwarded to the Mac. It uses the Mac app's shared design,
-with native iPhone navigation and touch/keyboard behavior. Mac–iPhone networking
-is not enabled yet.
+with native iPhone navigation and touch/keyboard behavior. Reception Desk relay
+configuration and packaging are now present in source; this update still needs
+a Mac/Xcode rebuild and physical-device networking verification. The older
+installed phone build remains local-only.
 
 ## Shared app experience
 
@@ -20,12 +22,22 @@ is not enabled yet.
 - The information button opens a sheet with local node status, OTP/runtime details
   and networking limits, with a Done button and drag handle.
 - Invitation fields support normal editing, selection, copy and paste, and Copy
-  is always available. Add swarm remains disabled because distribution
-  is not enabled. A visible local-node explanation accompanies it. Creating,
-  chatting in, and leaving local swarms work through the on-device Erlang worker.
+  is always available. Configure a Reception desk with a public `wss://.../relay/v1`
+  URL to obtain and join v2 internet invitations. This starts a fresh node session.
+  Creating, chatting in, and leaving swarms use the on-device Erlang worker.
+  The phone opens an outbound WebSocket; Distributed Erlang is not required.
 
 The interface calls participants **nodes**, including agents and playback devices.
 No people/account assumptions or permanent device identity are added.
+
+## Relay build changes
+
+Runtime preparation now includes OTP SSL/public_key/ASN.1 plus Gun/Cowlib and
+exports public build-host trust anchors into `cacerts.pem`. TLS verification stays
+enabled. Rebuild/install using the existing steps below, configure the same desk
+as the desktop and test on a different internet connection. The new source has
+not been compiled or exercised on an iPhone from this Windows session. Background
+operation remains outside the prototype.
 
 ## What to click for the physical-device test
 

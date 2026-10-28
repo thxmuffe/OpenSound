@@ -4,7 +4,8 @@ The browser app belongs here, alongside macOS, iOS and Windows. The independent
 [Reception Desk service](../../Services/ReceptionDesk/README.md) belongs under
 `Services/ReceptionDesk` and can serve any kind of client or future transport.
 
-This preserves the existing directory/QR frontend. It is not yet a browser node:
+The full browser app is deferred. This preserves the existing legacy directory/QR frontend;
+it uses the explicitly separate legacy directory launcher below, not the relay endpoint. It is not yet a browser node:
 it has no Erlang runtime, swarm chat, graph or internet invitation transport.
 Harmonizing it with the native apps remains future work.
 
@@ -13,7 +14,7 @@ Harmonizing it with the native apps remains future work.
 Run these in separate terminals from the repository root:
 
 ```sh
-bash Services/ReceptionDesk/run.sh
+bash Services/ReceptionDesk/run-legacy.sh
 bash Apps/WebApp/run.sh
 ```
 

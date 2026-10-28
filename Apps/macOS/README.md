@@ -22,6 +22,18 @@ Erlang and Homebrew are build dependencies. Copies of OTP/OpenSSL licenses are
 included, and modified native libraries are signed before the enclosing bundle.
 This local build is ad hoc signed, not notarized for public distribution.
 
+## Reception Desk relay
+
+The shared UI now accepts a Reception desk URL and **Use desk (new session)**.
+Use its public `wss://.../relay/v1` endpoint, then share v2 swarm invitations
+between rebuilt apps. The native Erlang adapter opens an outbound WebSocket,
+without Erlang distribution or port forwarding. Shared code/packaging changes
+still require a Mac rebuild and interoperability test; this Windows session did
+not build the Apple targets. See the [desk guide](../../Services/ReceptionDesk/README.md).
+
+Without a desk setting the original local developer transport described below
+remains available. Its loopback limits apply only to that legacy mode.
+
 ## Swarms
 
 Each runtime starts with a fresh node identity and a new swarm of one. The swarm
@@ -62,7 +74,7 @@ can invite others even after the original creator has left.
 This is a **trusted, same-computer prototype**. The new format is
 `parvi://swarm/v1?node=...&cookie=...&swarm=...&token=...`. Links contain private
 Erlang distribution credentials and a swarm-specific admission token. They work
-only with the new swarm-aware interface; the older Windows UI still uses the
+with the swarm-aware Mac and Windows interfaces; legacy clients use the
 legacy single chat group and connection-string format.
 
 Admission checks the issuing member's current local state. Membership changes

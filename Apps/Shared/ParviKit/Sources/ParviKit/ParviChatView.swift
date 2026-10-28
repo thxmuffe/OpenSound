@@ -16,6 +16,7 @@ public struct ParviChatView: View {
     @ViewState<Destination> private var destination = .chat
     @ViewState<Bool> private var showingDiagnostics = false
     @ViewState<Bool> private var showingList = true
+    @ViewState<Bool> private var confirmingDesk = false
     #if os(iOS)
     @ViewState<[String]> private var phonePath = []
     @ViewState<String> private var invitationFieldText = ""
@@ -266,6 +267,23 @@ public struct ParviChatView: View {
                     Text(notice).font(.caption).foregroundStyle(.teal)
                 }
             }.padding(16)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Reception desk URL").font(.caption).foregroundStyle(.secondary)
+                TextField("wss://your-desk/relay/v1", text: $model.deskURL)
+                    .textFieldStyle(.roundedBorder).font(.system(.caption, design: .monospaced))
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled().keyboardType(.URL)
+                    #endif
+                Button("Use desk (new session)") { confirmingDesk = true }
+                    .disabled(!model.canConfigure)
+                    .alert("Use this Reception desk?", isPresented: $confirmingDesk) {
+                        Button("Start new session", role: .destructive) { model.configureDesk() }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("Current transient swarm memberships and chats will be discarded. The new node session connects through this desk.")
+                    }
+                if model.relayConnected { Text("Reception desk connected").font(.caption).foregroundStyle(.teal) }
+            }.padding(.horizontal, 16).padding(.bottom, 12)
             if let error = model.error, !model.running { errorBanner(error) }
             Divider()
             HStack(spacing: 6) {

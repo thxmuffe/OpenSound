@@ -2,6 +2,8 @@
 -module(parvi_ios).
 -export([main/0, probe/0]).
 main() ->
+    CA = filename:join(code:root_dir(), "cacerts.pem"),
+    case filelib:is_file(CA) of true -> application:set_env(parvi, relay_cacertfile, CA); false -> ok end,
     {ok, _} = application:ensure_all_started(parvi),
     Proof = probe(),
     case os:getenv("PARVI_PROOF_PATH") of

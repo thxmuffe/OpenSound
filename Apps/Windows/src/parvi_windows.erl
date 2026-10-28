@@ -1,268 +1,277 @@
-%% Native desktop adapter. All messaging and discovery remain in control/.
+%% Native swarm UI; memberships, invitations and histories belong to control/.
 -module(parvi_windows).
 -behaviour(wx_object).
 -include_lib("wx/include/wx.hrl").
 -export([main/0, start/0, start_link/0, init/1, handle_event/2, handle_info/2,
          handle_call/3, handle_cast/2, terminate/2, code_change/3]).
 
-main() ->
-    %% Tail-call the stable host: no old UI code remains on its stack at reload.
-    parvi_windows_host:main().
-
+main() -> parvi_windows_host:main().
 start() -> wx_object:start(?MODULE, [], []).
 start_link() ->
     case wx_object:start_link(?MODULE, [], []) of
         {error, _} = Error -> Error;
         Object -> {ok, wx_object:get_pid(Object)}
     end.
-
 init([]) ->
     wx:new(),
     try build_window(parvi_windows_model:get())
     catch Class:Reason:Stack -> wx:destroy(), erlang:raise(Class, Reason, Stack) end.
 
 build_window(Saved) ->
-    parvi_node_status:ensure_started(),
-    parvi_topology:ensure_started(),
     Frame = wxFrame:new(wx:null(), ?wxID_ANY, "Parvi",
-        [{size, maps:get(size, Saved, {1020, 740})}]),
-    wxFrame:setMinSize(Frame, {760, 560}),
-    Root = wxPanel:new(Frame),
-    Row = wxBoxSizer:new(?wxHORIZONTAL),
-    Sidebar = wxPanel:new(Root, [{size, {330, -1}}]),
-    wxPanel:setBackgroundColour(Sidebar, {241, 245, 245}),
+        [{size, maps:get(size, Saved, {1120, 820})}]),
+    wxFrame:setMinSize(Frame, {940, 700}),
+    Root = wxPanel:new(Frame), Row = wxBoxSizer:new(?wxHORIZONTAL),
+    Sidebar = wxPanel:new(Root, [{size, {270, -1}}]),
+    wxPanel:setBackgroundColour(Sidebar, {241,245,245}),
     Side = wxBoxSizer:new(?wxVERTICAL),
     add(Side, title(Sidebar, "Parvi", 24), 0, 20),
-    add(Side, wxStaticText:new(Sidebar, ?wxID_ANY, "NODES"), 0, 12),
-    Peers = wxListCtrl:new(Sidebar, [{style, ?wxLC_REPORT bor ?wxLC_SINGLE_SEL}]),
-    wxListCtrl:insertColumn(Peers, 0, "Status", [{width, 125}]),
-    wxListCtrl:insertColumn(Peers, 1, "Node", [{width, 270}]),
-    wxListCtrl:assignImageList(Peers, status_lights(), ?wxIMAGE_LIST_SMALL),
-    wxListCtrl:connect(Peers, command_list_item_selected, [{userData, copy_node_connection}]),
-    wxListCtrl:setToolTip(Peers, "Click a connected node to copy its connection string. Disconnected does not mean dead."),
-    add(Side, Peers, 1, 12),
-    add(Side, wxStaticText:new(Sidebar, ?wxID_ANY,
-        "PARVI PROTOTYPE\nChat runs in Erlang/OTP.\nHistory lasts for this session."), 0, 16),
-    wxPanel:setSizer(Sidebar, Side),
-    wxSizer:add(Row, Sidebar, [{flag, ?wxEXPAND}]),
-    Content = wxPanel:new(Root),
-    wxPanel:setBackgroundColour(Content, {255,255,255}),
-    Column = wxBoxSizer:new(?wxVERTICAL),
-    Header = wxBoxSizer:new(?wxHORIZONTAL),
-    Heading = wxBoxSizer:new(?wxVERTICAL),
-    wxSizer:add(Heading, title(Content, "Swarm chat", 20)),
-    Summary = wxStaticText:new(Content, ?wxID_ANY, "1 node"),
-    wxSizer:add(Heading, Summary, [{flag, ?wxTOP}, {border, 6}]),
-    wxSizer:add(Header, Heading, [{proportion, 1}]),
-    Connect = button(Content, "Connect", connect),
-    wxSizer:add(Header, Connect),
-    wxSizer:add(Column, Header, [{flag, ?wxEXPAND bor ?wxALL}, {border, 22}]),
+    add(Side, title(Sidebar, "Swarms", 14), 0, 12),
+    Swarms = wxListBox:new(Sidebar, ?wxID_ANY),
+    wxListBox:connect(Swarms, command_listbox_selected, [{userData, select_swarm}]),
+    add(Side, Swarms, 1, 12),
+    Create = button(Sidebar, "New swarm", create), add(Side, Create, 0, 12),
+    add(Side, title(Sidebar, "Add a swarm", 13), 0, 12),
+    Hint = wxStaticText:new(Sidebar, ?wxID_ANY, "Paste an invitation from a swarm member."),
+    wxStaticText:wrap(Hint, 235), add(Side, Hint, 0, 8),
+    Incoming = wxTextCtrl:new(Sidebar, ?wxID_ANY, [{style, ?wxTE_PROCESS_ENTER}]),
+    wxTextCtrl:setToolTip(Incoming, "Swarm invitation to add"),
+    wxTextCtrl:connect(Incoming, command_text_updated, [{userData, edit_incoming}]),
+    wxTextCtrl:connect(Incoming, command_text_enter, [{userData, join}]),
+    add(Side, Incoming, 0, 12),
+    Join = button(Sidebar, "Add swarm", join), add(Side, Join, 0, 12),
+    add(Side, wxStaticText:new(Sidebar, ?wxID_ANY, "Reception desk URL"), 0, 8),
+    Desk = wxTextCtrl:new(Sidebar, ?wxID_ANY),
+    wxTextCtrl:setToolTip(Desk, "wss://your-desk/relay/v1"),
+    wxTextCtrl:connect(Desk, command_text_updated, [{userData, edit_desk}]),
+    add(Side, Desk, 0, 8),
+    Configure = button(Sidebar, "Use desk (new session)", configure), add(Side, Configure, 0, 8),
+    Local = wxStaticText:new(Sidebar, ?wxID_ANY, "Starting node..."), add(Side, Local, 0, 16),
+    wxPanel:setSizer(Sidebar, Side), wxSizer:add(Row, Sidebar, [{flag, ?wxEXPAND}]),
+    Content = wxPanel:new(Root), wxPanel:setBackgroundColour(Content, {255,255,255}),
+    Column = wxBoxSizer:new(?wxVERTICAL), Header = wxBoxSizer:new(?wxHORIZONTAL),
+    Heading = title(Content, "Choose a swarm", 20),
+    wxSizer:add(Header, Heading, [{proportion, 1}, {flag, ?wxALIGN_CENTER_VERTICAL}]),
+    Leave = button(Content, "Leave swarm", leave), wxSizer:add(Header, Leave),
+    add(Column, Header, 0, 20),
+    Summary = wxStaticText:new(Content, ?wxID_ANY, "Create a swarm or add one with an invitation."),
+    add(Column, Summary, 0, 12),
+    InvitationLabel = wxStaticText:new(Content, ?wxID_ANY, "Invitation to this swarm"),
+    add(Column, InvitationLabel, 0, 8),
+    Invitation = wxTextCtrl:new(Content, ?wxID_ANY, [{style, ?wxTE_READONLY}]),
+    wxTextCtrl:setToolTip(Invitation, "Select and copy with Ctrl+A, Ctrl+C. Contains private session credentials."),
+    add(Column, Invitation, 0, 12),
     Notebook = wxNotebook:new(Content, ?wxID_ANY),
-    wxNotebook:setToolTip(Notebook, "Network: drag nodes to arrange them; click a connected node to copy its connection string."),
-    Conversation = wxScrolledWindow:new(Notebook),
-    wxScrolledWindow:setScrollRate(Conversation, 0, 16),
-    Messages = wxBoxSizer:new(?wxVERTICAL),
-    wxScrolledWindow:setSizer(Conversation, Messages),
-    wxNotebook:addPage(Notebook, Conversation, "Chat"),
-    Network = wxPanel:new(Notebook),
+    Network = wxPanel:new(Notebook), NetworkSizer = wxBoxSizer:new(?wxVERTICAL),
+    Canvas = wxPanel:new(Network),
     true = code:soft_purge(parvi_fgraph_win),
     {module, parvi_fgraph_win} = code:load_file(parvi_fgraph_win),
-    Graph = parvi_graph_view:new(Network),
-    wxNotebook:addPage(Notebook, Network, "Network"),
-    Tab = maps:get(view, Saved, 1),
-    wxNotebook:setSelection(Notebook, Tab),
-    parvi_graph_view:pause(Graph, Tab =:= 0),
-    wxNotebook:connect(Notebook, command_notebook_page_changed, [{userData, change_view}]),
-    add(Column, Notebook, 1, 12),
-    Error = wxStaticText:new(Content, ?wxID_ANY, ""),
-    wxStaticText:setForegroundColour(Error, {155,65,25}),
-    add(Column, Error, 0, 12),
+    Graph = parvi_graph_view:new(Canvas),
+    add(NetworkSizer, Canvas, 1, 4),
+    Peers = wxListCtrl:new(Network, [{style, ?wxLC_REPORT bor ?wxLC_SINGLE_SEL}, {size, {-1, 125}}]),
+    wxListCtrl:insertColumn(Peers, 0, "Status", [{width, 140}]),
+    wxListCtrl:insertColumn(Peers, 1, "Node", [{width, 430}]),
+    wxListCtrl:assignImageList(Peers, status_lights(), ?wxIMAGE_LIST_SMALL),
+    wxListCtrl:connect(Peers, command_list_item_selected, [{userData, select_node}]),
+    add(NetworkSizer, Peers, 0, 6),
+    Details = wxStaticText:new(Network, ?wxID_ANY, "Select a node to see its identity."),
+    add(NetworkSizer, Details, 0, 8),
+    Remove = button(Network, "Remove both of us", remove), add(NetworkSizer, Remove, 0, 8),
+    wxPanel:setSizer(Network, NetworkSizer),
+    wxNotebook:addPage(Notebook, Network, "Graph"),
+    Chat = wxPanel:new(Notebook), ChatSizer = wxBoxSizer:new(?wxVERTICAL),
+    Conversation = wxScrolledWindow:new(Chat), wxScrolledWindow:setScrollRate(Conversation, 0, 16),
+    Messages = wxBoxSizer:new(?wxVERTICAL), wxScrolledWindow:setSizer(Conversation, Messages),
+    add(ChatSizer, Conversation, 1, 4),
     Composer = wxBoxSizer:new(?wxHORIZONTAL),
-    Draft = wxTextCtrl:new(Content, ?wxID_ANY,
-        [{style, ?wxTE_PROCESS_ENTER}, {value, ""}]),
-    wxTextCtrl:setToolTip(Draft, "Message the swarm (Enter to send)"),
+    Draft = wxTextCtrl:new(Chat, ?wxID_ANY, [{style, ?wxTE_PROCESS_ENTER}]),
+    wxTextCtrl:setToolTip(Draft, "Message the current swarm (Enter to send)"),
     wxTextCtrl:connect(Draft, command_text_enter, [{userData, send}]),
     wxTextCtrl:connect(Draft, command_text_updated, [{userData, edit_draft}]),
     wxSizer:add(Composer, Draft, [{proportion, 1}, {flag, ?wxEXPAND bor ?wxRIGHT}, {border, 12}]),
-    Send = button(Content, "Send", send),
-    wxSizer:add(Composer, Send),
-    wxSizer:add(Column, Composer, [{flag, ?wxEXPAND bor ?wxALL}, {border, 20}]),
+    Send = button(Chat, "Send", send), wxSizer:add(Composer, Send),
+    add(ChatSizer, Composer, 0, 12), wxPanel:setSizer(Chat, ChatSizer),
+    wxNotebook:addPage(Notebook, Chat, "Chat"),
+    wxNotebook:connect(Notebook, command_notebook_page_changed, [{userData, change_view}]),
+    add(Column, Notebook, 1, 12),
+    Error = wxStaticText:new(Content, ?wxID_ANY, ""),
+    wxStaticText:setForegroundColour(Error, {155,65,25}), add(Column, Error, 0, 12),
     wxPanel:setSizer(Content, Column),
-    wxSizer:add(Row, Content, [{proportion, 1}, {flag, ?wxEXPAND}]),
-    wxPanel:setSizer(Root, Row),
+    wxSizer:add(Row, Content, [{proportion, 1}, {flag, ?wxEXPAND}]), wxPanel:setSizer(Root, Row),
     wxFrame:createStatusBar(Frame),
-    wxFrame:connect(Frame, close_window),
-    wxFrame:connect(Frame, size, [{skip, true}]),
+    wxFrame:connect(Frame, close_window), wxFrame:connect(Frame, size, [{skip, true}]),
     wxFrame:connect(Frame, move, [{skip, true}]),
-    case maps:find(position, Saved) of
-        {ok, Position} -> wxFrame:move(Frame, Position);
-        error -> ok
-    end,
-    wxFrame:show(Frame),
-    wxFrame:maximize(Frame, [{maximize, maps:get(maximized, Saved, false)}]),
-    wxTextCtrl:changeValue(Draft, maps:get(draft, Saved, "")),
-    wxTextCtrl:setFocus(Draft),
-    self() ! refresh,
-    State = #{frame => Frame, peers => Peers, summary => Summary, notebook => Notebook, graph => Graph,
-              conversation => Conversation, messages => Messages, draft => Draft,
-              error => Error, send => Send, connect => Connect, dialog => undefined,
-              history => undefined, busy => false, node_names => [], node_rows => []},
-    Restored = case maps:get(dialog, Saved, false) of
-        false -> State;
-        true -> open_dialog(State)
-    end,
-    {Frame, Restored}.
+    case maps:find(position, Saved) of {ok, Position} -> wxFrame:move(Frame, Position); error -> ok end,
+    S = #{frame => Frame, content => Content, swarms => Swarms, create => Create, join => Join,
+          incoming => Incoming, desk => Desk, configure => Configure, local => Local, heading => Heading, leave => Leave,
+          summary => Summary, invitation => Invitation, invitation_label => InvitationLabel,
+          notebook => Notebook, graph => Graph, peers => Peers, details => Details, remove => Remove,
+          conversation => Conversation, messages => Messages, draft => Draft, send => Send, error => Error,
+          history => undefined, selected => undefined, selected_node => undefined,
+          node_names => [], node_rows => [], swarm_rows => []},
+    Ready = sync(Saved, S),
+    wxFrame:show(Frame), wxFrame:maximize(Frame, [{maximize, maps:get(maximized, Saved, false)}]),
+    self() ! refresh, {Frame, Ready}.
 
-handle_event(#wx{event = #wxClose{}, obj = Obj}, #{frame := Obj} = S) ->
-    {stop, normal, S};
-handle_event(#wx{event = #wxClose{}}, S) -> {noreply, close_dialog(S)};
-handle_event(#wx{event = #wxSize{}}, S) ->
-    remember_geometry(S),
-    self() ! relayout,
-    {noreply, S};
+handle_event(#wx{event = #wxClose{}}, S) -> {stop, normal, S};
+handle_event(#wx{event = #wxSize{}}, S) -> remember_geometry(S), self() ! relayout, {noreply, S};
 handle_event(#wx{event = #wxMove{}}, S) -> remember_geometry(S), {noreply, S};
 handle_event(#wx{userData = edit_draft}, S) ->
-    parvi_windows_model:put(#{draft => wxTextCtrl:getValue(maps:get(draft, S))}), {noreply, S};
-handle_event(#wx{userData = {edit, Key}, obj = Ctrl}, S) ->
-    parvi_windows_model:put(#{Key => wxTextCtrl:getValue(Ctrl)}), {noreply, S};
-handle_event(#wx{userData = connect}, S) -> {noreply, open_dialog(S)};
-handle_event(#wx{userData = cancel}, S) -> {noreply, close_dialog(S)};
-handle_event(#wx{userData = change_view}, S) ->
-    Tab = wxNotebook:getSelection(maps:get(notebook, S)),
-    parvi_windows_model:put(#{view => Tab}),
-    parvi_graph_view:pause(maps:get(graph, S), Tab =:= 0),
+    Model = parvi_windows_model:get(),
+    case maps:get(selected, S) of
+        undefined -> ok;
+        Id -> parvi_windows_model:put(#{drafts => (maps:get(drafts, Model))#{Id => wxTextCtrl:getValue(maps:get(draft, S))}})
+    end,
+    {noreply, sync(parvi_windows_model:get(), S)};
+handle_event(#wx{userData = edit_desk}, S) ->
+    parvi_windows_model:put(#{desk => wxTextCtrl:getValue(maps:get(desk, S))}),
     {noreply, S};
-handle_event(#wx{userData = copy_node_connection, event = #wxList{itemIndex = Index}}, S)
-        when Index >= 0 ->
-    case lists:nth(Index + 1, maps:get(node_rows, S)) of
-        {_, down, _} ->
-            show_error("This node is disconnected; its connection string is currently unavailable.", S),
-            {noreply, S};
-        {Name, _, _} -> copy_node(Name, S)
+handle_event(#wx{userData = configure}, S) ->
+    D = wxMessageDialog:new(maps:get(frame, S),
+        "Use this desk for a new node session? Current transient swarm memberships and chats will be discarded.",
+        [{caption, "Change Reception desk"}, {style, ?wxYES_NO bor ?wxNO_DEFAULT bor ?wxICON_QUESTION}]),
+    Answer = wxMessageDialog:showModal(D), wxMessageDialog:destroy(D),
+    case Answer of
+        ?wxID_YES -> action(#{method => configure_desk, url => string:trim(unicode:characters_to_binary(wxTextCtrl:getValue(maps:get(desk, S))))}, configure, S);
+        _ -> {noreply, S}
     end;
-handle_event(#wx{userData = send}, S) ->
-    wxNotebook:setSelection(maps:get(notebook, S), 0),
+handle_event(#wx{userData = edit_incoming}, S) ->
+    parvi_windows_model:put(#{incoming => wxTextCtrl:getValue(maps:get(incoming, S))}),
+    {noreply, sync(parvi_windows_model:get(), S)};
+handle_event(#wx{userData = select_swarm}, S) ->
+    Index = wxListBox:getSelection(maps:get(swarms, S)),
+    case Index >= 0 andalso Index < length(maps:get(swarm_rows, S)) of
+        true ->
+            {Id, _} = lists:nth(Index + 1, maps:get(swarm_rows, S)),
+            parvi_windows_model:put(#{selected => Id, view => 0});
+        false -> ok
+    end,
+    {noreply, sync(parvi_windows_model:get(), S)};
+handle_event(#wx{userData = change_view}, S) ->
+    parvi_windows_model:put(#{view => wxNotebook:getSelection(maps:get(notebook, S))}),
+    {noreply, sync(parvi_windows_model:get(), S)};
+handle_event(#wx{userData = select_node, event = #wxList{itemIndex = Index}}, S) ->
+    Rows = maps:get(node_rows, S),
+    case Index >= 0 andalso Index < length(Rows) of
+        true -> {Name, _, _} = lists:nth(Index + 1, Rows), {noreply, sync(parvi_windows_model:get(), S#{selected_node := Name})};
+        false -> {noreply, S}
+    end;
+handle_event(#wx{userData = create}, S) -> action(#{method => create_swarm}, create, S);
+handle_event(#wx{userData = join}, S) ->
+    Text = string:trim(unicode:characters_to_binary(wxTextCtrl:getValue(maps:get(incoming, S)))),
+    case Text of <<>> -> {noreply, S}; _ -> action(#{method => join_swarm, invitation => Text}, join, S) end;
+handle_event(#wx{userData = send}, #{selected := Id} = S) when Id =/= undefined ->
     Text = unicode:characters_to_binary(wxTextCtrl:getValue(maps:get(draft, S))),
     case string:trim(Text) of
         <<>> -> {noreply, S};
-        _ -> {noreply, request(#{method => send, text => Text}, send, S)}
+        _ -> action(#{method => send_swarm, swarm_id => Id, text => Text}, send, S)
     end;
-handle_event(#wx{userData = discover}, S) ->
-    URL = value(broker_url, S),
-    {noreply, request(#{method => discover, url => URL}, discover, S)};
-handle_event(#wx{userData = join}, S) ->
-    {noreply, request(#{method => connect, connection_string => value(connection_string, S)}, join, S)};
+handle_event(#wx{userData = leave}, #{selected := Id} = S) when Id =/= undefined ->
+    action(#{method => leave_swarm, swarm_id => Id}, leave, S);
+handle_event(#wx{userData = remove}, #{selected := Id, selected_node := Target} = S)
+        when Id =/= undefined, Target =/= undefined ->
+    D = wxMessageDialog:new(maps:get(frame, S),
+        "Both nodes will leave this swarm and their entry invitations will expire. Other swarms are unaffected.",
+        [{caption, "Remove both of us?"}, {style, ?wxYES_NO bor ?wxNO_DEFAULT bor ?wxICON_QUESTION}]),
+    Answer = wxMessageDialog:showModal(D), wxMessageDialog:destroy(D),
+    case Answer of ?wxID_YES -> action(#{method => remove_both, swarm_id => Id, target => Target}, remove, S); _ -> {noreply, S} end;
 handle_event(_, S) -> {noreply, S}.
 
 handle_info(refresh, S) ->
     erlang:send_after(600, self(), refresh),
-    Model = parvi_windows_model:get(),
-    Draft = maps:get(draft, S),
-    Text = maps:get(draft, Model, ""),
-    case wxTextCtrl:getValue(Draft) =:= Text of
-        true -> ok;
-        false -> wxTextCtrl:changeValue(Draft, Text)
-    end,
-    Graph = parvi_graph_view:update(parvi_topology:snapshot(), maps:get(graph, S)),
-    Updated = S#{graph := Graph},
-    Current = case {maps:get(dialog, Model, false), maps:get(dialog, S)} of
-        {false, D} when D =/= undefined -> close_dialog(Updated);
-        _ -> Updated
-    end,
-    {noreply, request(#{method => snapshot}, snapshot, Current)};
+    parvi_windows_model:request(#{method => snapshot}, snapshot, self(), make_ref()),
+    {noreply, sync(parvi_windows_model:get(), S)};
+handle_info({reply, _, _, _}, S) -> {noreply, sync(parvi_windows_model:get(), S)};
 handle_info(relayout, S) -> {noreply, render(maps:get(history, S), S)};
 handle_info({graph_node, Node}, S) ->
-    case lists:member(Node, [node() | nodes()]) of
-        true -> copy_node(atom_to_binary(Node), S);
-        false ->
-            show_error("No direct connection to this node; its connection string is unavailable.", S),
-            {noreply, S}
-    end;
-handle_info({node_connection, Ref, Result}, #{copy_ref := Ref} = S) ->
-    case Result of
-        {ok, String} ->
-            Clipboard = wxClipboard:get(),
-            case wxClipboard:open(Clipboard) of
-                true ->
-                    try
-                        Data = wxTextDataObject:new([{text, String}]),
-                        case wxClipboard:setData(Clipboard, Data) of
-                            true ->
-                                show_error("", S),
-                                wxFrame:setStatusText(maps:get(frame, S), "Connection string copied.");
-                            false -> show_error("Could not copy the connection string. Try again.", S)
-                        end
-                    after wxClipboard:close(Clipboard) end;
-                false -> show_error("Clipboard is unavailable. Click the node to try again.", S)
-            end;
-        _ -> show_error("Could not get this node's connection string. Check the connection and restart older app instances.", S)
-    end,
-    {noreply, maps:remove(copy_ref, S)};
-handle_info({reply, Ref, Kind, Result}, #{busy := Ref} = S0) ->
-    S = busy(false, S0),
-    case Result of
-        #{<<"messages">> := History, <<"peers">> := Peers, <<"error">> := Error} ->
-            WithNodes = update_node_rows(parvi_node_status:rows(), S),
-            wxStaticText:setLabel(maps:get(summary, S),
-                case length(Peers) of
-                    0 -> "1 node";
-                    N -> io_lib:format("~B nodes", [N + 1])
-                end),
-            wxFrame:setStatusText(maps:get(frame, S),
-                [atom_to_list(node()), " | ", maps:get(<<"runtime_info">>, Result)]),
-            case {Kind, Error} of
-                {snapshot, null} -> ok;
-                {_, null} -> show_error("", S);
-                _ -> show_error(Error, S)
-            end,
-            S1 = case {Kind, Error} of
-                {send, null} ->
-                    wxTextCtrl:changeValue(maps:get(draft, S), ""),
-                    wxTextCtrl:setFocus(maps:get(draft, S)), WithNodes;
-                {join, null} -> close_dialog(WithNodes);
-                _ -> WithNodes
-            end,
-            update_nodes(Result, S1),
-            S2 = case History =:= maps:get(history, S1) of
-                true -> S1;
-                false -> render(History, S1)
-            end,
-            {noreply, S2};
-        _ ->
-            show_error("Erlang worker unavailable. Retrying...", S),
-            {noreply, S}
+    Name = case Node of N when is_atom(N) -> atom_to_binary(N); N -> N end,
+    case lists:keymember(Name, 1, maps:get(node_rows, S)) of
+        true -> {noreply, sync(parvi_windows_model:get(), S#{selected_node := Name})};
+        false -> {noreply, S}
     end;
 handle_info(_, S) -> {noreply, S}.
 
-copy_node(Name, S) ->
-    Ref = make_ref(), Parent = self(),
-    spawn(fun() ->
-        Result = try
-            Node = binary_to_existing_atom(Name),
-            String = case Node =:= node() of
-                true -> parvi_connection:local();
-                false -> erpc:call(Node, parvi_connection, local, [], 2000)
-            end,
-            {ok, #{node := Name}} = parvi_connection:parse(String),
-            {ok, String}
-        catch _:_ -> unavailable end,
-        Parent ! {node_connection, Ref, Result}
-    end),
-    {noreply, S#{copy_ref => Ref}}.
+action(Command, Kind, S) ->
+    Model = parvi_windows_model:get(),
+    case active_request(Model) of
+        true -> {noreply, S};
+        false ->
+            parvi_windows_model:request(Command, Kind, self(), make_ref()),
+            {noreply, sync(parvi_windows_model:get(), S)}
+    end.
+active_request(#{pending := Pending}) ->
+    lists:any(fun(#{kind := Kind}) -> Kind =/= snapshot end, maps:values(Pending)).
 
-%% RabbitMQ Management v3.13.7's existing status palette (green/yellow/red/grey).
-status_lights() ->
-    Images = wxImageList:new(16, 16),
-    [begin
-        Bitmap = wxBitmap:new(16, 16), DC = wxMemoryDC:new(Bitmap),
-        Background = wxBrush:new({255,255,255}),
-        Brush = wxBrush:new(Colour), Pen = wxPen:new({100,100,100}),
-        wxDC:setBackground(DC, Background), wxDC:clear(DC),
-        wxDC:setBrush(DC, Brush), wxDC:setPen(DC, Pen), wxDC:drawCircle(DC, {8,8}, 5),
-        wxMemoryDC:destroy(DC), wxImageList:add(Images, Bitmap),
-        wxBitmap:destroy(Bitmap), wxBrush:destroy(Background), wxBrush:destroy(Brush), wxPen:destroy(Pen)
-    end || Colour <- [{152,248,152}, {255,255,123}, {255,122,122}, {221,221,221}]],
-    Images.
+sync(Model, S0) ->
+    Snapshot = maps:get(snapshot, Model), Swarms = maps:get(<<"swarms">>, Snapshot, []),
+    Id = maps:get(selected, Model), Active = Id =/= undefined,
+    Changed = Id =/= maps:get(selected, S0),
+    S = case Changed of true -> S0#{selected := Id, selected_node := undefined, history := undefined}; false -> S0 end,
+    Rows = [{maps:get(<<"id">>, Swarm),
+             unicode:characters_to_binary([maps:get(<<"name">>, Swarm), "  (", count_label(length(maps:get(<<"members">>, Swarm)), "node"), ")"])} || Swarm <- Swarms],
+    List = maps:get(swarms, S),
+    case Rows =:= maps:get(swarm_rows, S) of
+        true -> ok;
+        false -> wxListBox:set(List, [Label || {_, Label} <- Rows])
+    end,
+    case [I || {I, {Key, _}} <- lists:zip(lists:seq(0, length(Rows)-1), Rows), Key =:= Id] of
+        [Index] -> wxListBox:setSelection(List, Index);
+        [] -> ok
+    end,
+    Current = parvi_windows_model:selected(Model),
+    {Name, Members, Invitation, History} = case Current of
+        undefined -> {<<"Choose a swarm">>, [], <<>>, []};
+        _ -> {maps:get(<<"name">>, Current), maps:get(<<"members">>, Current),
+              maps:get(<<"invitation">>, Current, null), maps:get(<<"messages">>, Current)}
+    end,
+    wxStaticText:setLabel(maps:get(heading, S), Name),
+    wxStaticText:setLabel(maps:get(summary, S), case Active of
+        true -> [count_label(length(Members), "node"), " in this swarm"];
+        false -> "Create a swarm or add one with an invitation. This node is still running."
+    end),
+    change_text(maps:get(invitation, S), case Invitation of null -> <<>>; _ -> Invitation end),
+    change_text(maps:get(incoming, S), maps:get(incoming, Model)),
+    change_text(maps:get(desk, S), maps:get(desk, Model, "")),
+    change_text(maps:get(draft, S), parvi_windows_model:draft(Model)),
+    [wxWindow:show(maps:get(K, S), [{show, Active}]) || K <- [invitation, invitation_label, notebook, leave]],
+    Tab = maps:get(view, Model),
+    wxNotebook:changeSelection(maps:get(notebook, S), Tab),
+    parvi_graph_view:pause(maps:get(graph, S), not Active orelse Tab =/= 0),
+    %% Reset positions when the selected swarm changes, even if memberships overlap.
+    G0 = case Changed of true -> parvi_graph_view:update(#{nodes => [], edges => []}, maps:get(graph, S)); false -> maps:get(graph, S) end,
+    Network = parvi_windows_model:network(Model),
+    Graph = parvi_graph_view:update(Network, G0),
+    WithNodes = update_node_rows(maps:get(nodes, Network), S#{graph := Graph, swarm_rows := Rows}),
+    SelectedNode = maps:get(selected_node, WithNodes),
+    HasNode = lists:member(SelectedNode, Members),
+    wxStaticText:setLabel(maps:get(details, S), case HasNode of true -> SelectedNode; false -> "Select a node to see its identity." end),
+    Busy = active_request(Model),
+    enable(configure, not Busy, S), enable(create, not Busy, S), enable(join, not Busy andalso string:trim(maps:get(incoming, Model)) =/= "", S),
+    enable(leave, Active andalso not Busy, S),
+    enable(remove, HasNode andalso SelectedNode =/= identity_name() andalso not Busy, S),
+    enable(send, Active andalso not Busy andalso string:trim(parvi_windows_model:draft(Model)) =/= "", S),
+    enable(draft, Active, S),
+    wxStaticText:setLabel(maps:get(error, S), maps:get(error, Model)),
+    wxStaticText:wrap(maps:get(error, S), 600),
+    Relay = maps:get(<<"relay">>, Snapshot, #{}),
+    DeskStatus = case maps:get(<<"url">>, Relay, null) of
+        null -> "Local distribution";
+        _ -> case maps:get(<<"connected">>, Relay, false) of true -> "Reception desk connected"; false -> "Reception desk reconnecting" end
+    end,
+    wxStaticText:setLabel(maps:get(local, S), [DeskStatus, "\n", count_label(length(Swarms), "swarm")]),
+    wxFrame:setStatusText(maps:get(frame, S), [atom_to_list(node()), " | ", maps:get(<<"runtime_info">>, Snapshot, <<>>)]),
+    wxPanel:layout(maps:get(content, S)),
+    case Changed orelse History =/= maps:get(history, WithNodes) of true -> render(History, WithNodes); false -> WithNodes end.
+
+identity_name() -> case parvi_relay:id() of N when is_atom(N) -> atom_to_binary(N); N -> N end.
+
+count_label(N, Name) -> io_lib:format("~B ~s~s", [N, Name, case N of 1 -> ""; _ -> "s" end]).
+
+enable(Key, Enabled, S) -> wxWindow:enable(maps:get(Key, S), [{enable, Enabled}]).
+change_text(Ctrl, Text) ->
+    case unicode:characters_to_binary(wxTextCtrl:getValue(Ctrl)) =:= unicode:characters_to_binary(Text) of
+        true -> ok; false -> wxTextCtrl:changeValue(Ctrl, Text)
+    end.
 
 update_node_rows(Rows, S) ->
     List = maps:get(peers, S), Names = [N || {N, _, _} <- Rows],
@@ -278,27 +287,24 @@ update_node_rows(Rows, S) ->
             down -> {2, "Disconnected"}; checking -> {3, "Checking"}
         end,
         wxListCtrl:setItem(List, I, 0, Text), wxListCtrl:setItemImage(List, I, Image),
-        Label = case Name =:= atom_to_binary(node()) of
-            true -> <<Name/binary, " (this node)">>; false -> Name
-        end,
+        Label = case Name =:= identity_name() of true -> <<Name/binary, " (this node)">>; false -> Name end,
         wxListCtrl:setItem(List, I, 1, Label)
     end || {I, {Name, Status, _}} <- lists:zip(lists:seq(0, length(Rows)-1), Rows)],
     S#{node_names := Names, node_rows := Rows}.
 
-request(_, snapshot, #{busy := Ref} = S) when Ref =/= false -> S;
-request(Command, Kind, S) ->
-    Ref = make_ref(),
-    parvi_windows_model:request(Command, Kind, self(), Ref),
-    case Kind of snapshot -> S#{busy := Ref}; _ -> busy(Ref, S) end.
-
-busy(Ref, S) ->
-    Enabled = Ref =:= false,
-    [wxWindow:enable(maps:get(K, S), [{enable, Enabled}]) || K <- [send, draft]],
-    case maps:get(dialog, S) of
-        undefined -> ok;
-        _ -> [wxWindow:enable(maps:get(K, S), [{enable, Enabled}]) || K <- [discover, join]]
-    end,
-    S#{busy := Ref}.
+%% RabbitMQ Management v3.13.7's existing status palette (green/yellow/red/grey).
+status_lights() ->
+    Images = wxImageList:new(16, 16),
+    [begin
+        Bitmap = wxBitmap:new(16, 16), DC = wxMemoryDC:new(Bitmap),
+        Background = wxBrush:new({255,255,255}),
+        Brush = wxBrush:new(Colour), Pen = wxPen:new({100,100,100}),
+        wxDC:setBackground(DC, Background), wxDC:clear(DC),
+        wxDC:setBrush(DC, Brush), wxDC:setPen(DC, Pen), wxDC:drawCircle(DC, {8,8}, 5),
+        wxMemoryDC:destroy(DC), wxImageList:add(Images, Bitmap),
+        wxBitmap:destroy(Bitmap), wxBrush:destroy(Background), wxBrush:destroy(Brush), wxPen:destroy(Pen)
+    end || Colour <- [{152,248,152}, {255,255,123}, {255,122,122}, {221,221,221}]],
+    Images.
 
 render(undefined, S) -> S;
 render(History, S) ->
@@ -319,7 +325,7 @@ render(History, S) ->
     S#{history := History}.
 
 bubble(Parent, Sizer, #{<<"sender">> := Sender, <<"text">> := Text, <<"time">> := Time}) ->
-    Mine = Sender =:= atom_to_binary(node()),
+    Mine = Sender =:= identity_name(),
     Panel = wxPanel:new(Parent),
     wxPanel:setBackgroundColour(Panel, case Mine of true -> {219,241,238}; false -> {240,242,244} end),
     Column = wxBoxSizer:new(?wxVERTICAL),
@@ -335,72 +341,6 @@ bubble(Parent, Sizer, #{<<"sender">> := Sender, <<"text">> := Text, <<"time">> :
     Align = case Mine of true -> ?wxALIGN_RIGHT; false -> ?wxALIGN_LEFT end,
     wxSizer:add(Sizer, Panel, [{flag, Align bor ?wxALL}, {border, 8}]).
 
-open_dialog(#{dialog := D} = S) when D =/= undefined -> wxDialog:raise(D), S;
-open_dialog(S) ->
-    Model = parvi_windows_model:get(),
-    parvi_windows_model:put(#{dialog => true}),
-    D = wxDialog:new(maps:get(frame, S), ?wxID_ANY, "Connect a Parvi instance",
-        [{size, {610, 610}}, {style, ?wxDEFAULT_DIALOG_STYLE bor ?wxRESIZE_BORDER}]),
-    Column = wxBoxSizer:new(?wxVERTICAL),
-    add(Column, wxStaticText:new(D, ?wxID_ANY,
-        "Copy a connection string here and paste it into the other instance."), 0, 12),
-    OwnConnection = parvi_connection:local(),
-    field(D, Column, "This instance's connection string", OwnConnection, ?wxTE_READONLY),
-    Connection = field(D, Column, "Other instance's connection string", maps:get(connection, Model, ""), 0),
-    wxTextCtrl:connect(Connection, command_text_updated, [{userData, {edit, connection}}]),
-    add(Column, wxStaticText:new(D, ?wxID_ANY,
-        "The string includes the address and private session credentials.\nThis build connects instances on this Windows PC only."), 0, 12),
-    DialogError = wxStaticText:new(D, ?wxID_ANY, ""),
-    wxStaticText:setForegroundColour(DialogError, {155,65,25}),
-    add(Column, DialogError, 0, 8),
-    add(Column, title(D, "Reception desk", 14), 0, 12),
-    URL = field(D, Column, "Reception desk URL", maps:get(url, Model, "http://127.0.0.1:8765"), 0),
-    wxTextCtrl:connect(URL, command_text_updated, [{userData, {edit, url}}]),
-    Discover = button(D, "Register / Find nodes", discover),
-    add(Column, Discover, 0, 12),
-    Nodes = wxListBox:new(D, ?wxID_ANY),
-    add(Column, Nodes, 1, 12),
-    add(Column, wxStaticText:new(D, ?wxID_ANY,
-        "Optional discovery lists names only. To connect, ask the other\ninstance for its connection string."), 0, 12),
-    Actions = wxBoxSizer:new(?wxHORIZONTAL),
-    Join = button(D, "Connect", join),
-    wxSizer:add(Actions, button(D, "Close", cancel)),
-    wxSizer:add(Actions, Join, [{flag, ?wxLEFT}, {border, 12}]),
-    wxSizer:add(Column, Actions, [{flag, ?wxALL bor ?wxALIGN_RIGHT}, {border, 12}]),
-    wxDialog:setSizer(D, Column),
-    wxDialog:connect(D, close_window),
-    wxDialog:show(D),
-    busy(maps:get(busy, S), S#{dialog := D, broker_url => URL, connection_string => Connection,
-        dialog_error => DialogError, known_nodes => Nodes, discover => Discover, join => Join}).
-
-close_dialog(#{dialog := undefined} = S) -> S;
-close_dialog(#{dialog := D} = S) ->
-    parvi_windows_model:put(#{dialog => false}), wxDialog:destroy(D), S#{dialog := undefined}.
-
-update_nodes(Reply, #{dialog := D, known_nodes := List}) when D =/= undefined ->
-    Nodes = maps:get(<<"known_nodes">>, Reply, []),
-    Current = [wxListBox:getString(List, I) || I <- lists:seq(0, wxListBox:getCount(List)-1)],
-    case [unicode:characters_to_binary(N) || N <- Current] =:= Nodes of
-        true -> ok;
-        false -> wxListBox:set(List, Nodes)
-    end;
-update_nodes(_, _) -> ok.
-
-value(Key, S) -> string:trim(unicode:characters_to_binary(wxTextCtrl:getValue(maps:get(Key, S)))).
-show_error(Text, S) ->
-    wxStaticText:setLabel(maps:get(error, S), Text),
-    case maps:get(dialog, S) of
-        undefined -> ok;
-        D ->
-            Label = maps:get(dialog_error, S),
-            wxStaticText:setLabel(Label, Text),
-            wxStaticText:wrap(Label, 540),
-            wxDialog:layout(D)
-    end.
-field(D, Sizer, Label, Value, Style) ->
-    add(Sizer, wxStaticText:new(D, ?wxID_ANY, Label), 0, 4),
-    Ctrl = wxTextCtrl:new(D, ?wxID_ANY, [{value, Value}, {style, Style}]),
-    add(Sizer, Ctrl, 0, 6), Ctrl.
 button(Parent, Label, Action) ->
     B = wxButton:new(Parent, ?wxID_ANY, [{label, Label}]),
     wxButton:connect(B, command_button_clicked, [{userData, Action}]), B.

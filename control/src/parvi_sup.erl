@@ -10,6 +10,7 @@ init([]) ->
         #{id => parvi_pg, start => {pg, start_link, [parvi_pg]}},
         #{id => parvi_chat, start => {parvi_chat, start_link, []}},
         #{id => parvi_discovery, start => {parvi_discovery, start_link, []}},
+        #{id => parvi_relay, start => {parvi_relay, start_link, []}},
         #{id => parvi_network, start => {parvi_network, start_link, []}},
         #{id => parvi_swarms, start => {parvi_swarms, start_link, []}}
     ]}}.

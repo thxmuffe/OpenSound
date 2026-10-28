@@ -8,9 +8,9 @@ import ParviKit
 final class IOSErlangRuntime: ChatRuntime {
     let cookie = ""
     let localDeviceName = "This iPhone"
-    let connectionDescription = "Local node · create swarms and chat on this iPhone. Connections to other nodes are not enabled yet."
-    let connectionHelp = "Erlang runs inside this iPhone. Swarms and chat currently stay in this app. LAN/internet invitations and background operation are not enabled yet."
-    let canConnect = false
+    let connectionDescription = "Configure a Reception desk to join internet swarms."
+    let connectionHelp = "The iPhone opens an outbound encrypted connection to the Reception desk. Invitations are scoped to a swarm; background operation remains outside this prototype."
+    let canConnect = true
     private var started = false
     private var input: FileHandle?
     private var timer: Timer?

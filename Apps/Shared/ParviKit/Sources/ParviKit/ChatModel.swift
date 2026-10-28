@@ -20,12 +20,15 @@ public final class ChatModel: ObservableObject {
     @Published var joining = false
     @Published var creating = false
     @Published var changingMembership = false
+    @Published var deskURL = ""
+    @Published var configuring = false
+    @Published var relayConnected = false
     @Published var joinError: String?
     @Published var joinNotice: String?
     @Published var copiedSwarmID: String?
     let runtime: any ChatRuntime
     private enum Operation {
-        case send(String, String), join(String), create, leave(String), remove(String)
+        case send(String, String), join(String), create, leave(String), remove(String), configure
     }
     private var pending: [String: Operation] = [:]
     private var copyReset: Task<Void, Never>?
@@ -34,13 +37,14 @@ public final class ChatModel: ObservableObject {
     var invitation: String { running ? selectedSwarm?.invitation ?? "" : "" }
     var copiedInvitation: Bool { copiedSwarmID != nil && copiedSwarmID == selectedSwarmID }
     var canInvite: Bool { running && runtime.canConnect && !invitation.isEmpty }
+    var canConfigure: Bool { running && !configuring && !joining && !creating && !changingMembership && sendingSwarms.isEmpty && !deskURL.isEmpty }
     var canJoin: Bool {
-        running && runtime.canConnect && !joining &&
+        running && runtime.canConnect && !joining && !configuring &&
         !incomingInvitation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     var sending: Bool { selectedSwarmID.map { sendingSwarms.contains($0) } ?? false }
     var canSend: Bool {
-        running && selectedSwarm != nil && !sending && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        running && !configuring && selectedSwarm != nil && !sending && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     var memberCount: Int { selectedSwarm?.members.count ?? 0 }
     var messages: [ChatMessage] { selectedSwarm?.messages ?? [] }
@@ -68,6 +72,8 @@ public final class ChatModel: ObservableObject {
             self.running = true
             self.node = snapshot.node
             self.runtimeInfo = snapshot.runtime_info ?? ""
+            self.relayConnected = snapshot.relay?.connected ?? false
+            if self.deskURL.isEmpty, let url = snapshot.relay?.url { self.deskURL = url }
             self.observedNetwork = snapshot.network ?? NetworkSnapshot(nodes: [], edges: [])
             self.swarms = snapshot.swarms ?? []
             if !self.swarms.contains(where: { $0.id == self.selectedSwarmID }) {
@@ -94,6 +100,10 @@ public final class ChatModel: ObservableObject {
                 case .leave, .remove:
                     self.changingMembership = false
                     if let error = snapshot.error { self.error = error }
+                case .configure:
+                    self.configuring = false
+                    if let error = snapshot.error { self.error = error }
+                    else { self.drafts.removeAll(); self.incomingInvitation = ""; self.error = nil }
                 }
             } else if let error = snapshot.error { self.error = error }
         }, onFailure: { [weak self] error in
@@ -103,6 +113,8 @@ public final class ChatModel: ObservableObject {
             self.joining = false
             self.creating = false
             self.changingMembership = false
+            self.configuring = false
+            self.relayConnected = false
             self.sendingSwarms.removeAll()
             self.pending.removeAll()
             self.joinNotice = nil
@@ -137,9 +149,15 @@ public final class ChatModel: ObservableObject {
     }
 
     func createSwarm() {
-        guard running && !creating else { return }
+        guard running && !creating && !configuring else { return }
         creating = true; joinError = nil; joinNotice = nil
         request(["method": "create_swarm"], operation: .create)
+    }
+
+    func configureDesk() {
+        guard canConfigure else { return }
+        configuring = true
+        request(["method": "configure_desk", "url": deskURL.trimmingCharacters(in: .whitespacesAndNewlines)], operation: .configure)
     }
 
     func leaveSwarm(_ id: String) {
@@ -179,6 +197,7 @@ public final class ChatModel: ObservableObject {
         let name = id.components(separatedBy: "@").first ?? id
         if name.hasPrefix("parvi_mac_") { return "Mac · " + name.dropFirst("parvi_mac_".count).suffix(6) }
         if name.hasPrefix("parvi_windows_") { return "Windows · " + name.dropFirst("parvi_windows_".count) }
+        if id.count == 64 { return "Node · " + id.prefix(8) }
         return name
     }
     public func stop() { runtime.stop() }

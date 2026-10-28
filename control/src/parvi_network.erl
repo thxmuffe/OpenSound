@@ -7,13 +7,29 @@
 
 start_link() -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 snapshot() ->
+    case parvi_relay:enabled() of
+        true -> relay_snapshot();
+        false -> direct_snapshot()
+    end.
+relay_snapshot() ->
+    #{id := Id, connected := Connected, online := Online, watched := Watched} = parvi_relay:status(),
+    Swarms = parvi_swarms:snapshot(),
+    Members = lists:usort([Id | lists:append([maps:get(members, W) || W <- Swarms])]),
+    #{nodes => [#{id => N, state => case (N =:= Id andalso Connected) orelse lists:member(N, Online) of
+                    true -> <<"running">>;
+                    false -> case N =:= Id orelse lists:member(N, Watched) of true -> <<"down">>; false -> <<"checking">> end
+                end, detail => <<"relay_connection">>} || N <- Members],
+      edges => []}.
+direct_snapshot() ->
     try gen_server:call(?MODULE, snapshot, 250) of
         Snapshot -> Snapshot
     catch exit:_ -> #{nodes => [], edges => []} end.
 
 init([]) ->
-    ok = net_kernel:monitor_nodes(true, #{nodedown_reason => true}),
-    self() ! poll,
+    case parvi_relay:enabled() of
+        true -> ok;
+        false -> ok = net_kernel:monitor_nodes(true, #{nodedown_reason => true}), self() ! poll
+    end,
     {ok, #{entries => #{}, reports => #{}, pending => #{}}}.
 
 handle_call(snapshot, _, #{entries := Entries, reports := Reports} = S) ->

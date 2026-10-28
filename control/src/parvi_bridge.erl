@@ -34,10 +34,23 @@ request(JSON) ->
     iolist_to_binary(json:encode(Reply)).
 
 command(#{<<"method">> := <<"snapshot">>}) -> null;
+command(#{<<"method">> := <<"configure_desk">>, <<"url">> := URL}) ->
+    case parvi_relay:valid_url(URL) of
+        true ->
+            ok = application:stop(parvi),
+            ok = application:set_env(parvi, reception_desk_url, URL),
+            {ok, _} = parvi:start(), null;
+        false -> <<"Use wss://your-desk/relay/v1 (ws:// is allowed only on localhost).">>
+    end;
 command(#{<<"method">> := <<"create_swarm">>} = Request) ->
     swarm_result(parvi_swarms:create(maps:get(<<"name">>, Request, <<>>)));
 command(#{<<"method">> := <<"join_swarm">>, <<"invitation">> := Invitation}) ->
     case parvi_invitation:parse(Invitation) of
+        {ok, #{desk := Desk} = Parsed} ->
+            case parvi_relay:url() of
+                Desk -> swarm_result(parvi_swarms:join_relay(Parsed));
+                _ -> <<"Set this invitation's Reception desk URL first. Changing desks starts a new node session.">>
+            end;
         {ok, #{node := Name, cookie := Cookie, swarm := Id, token := Token}} ->
             case command(#{<<"method">> => <<"connect">>, <<"node">> => Name, <<"cookie">> => Cookie}) of
                 null -> swarm_result(parvi_swarms:join(binary_to_existing_atom(Name), Id, Token));
@@ -85,9 +98,11 @@ command(_) -> <<"Unsupported request.">>.
 
 snapshot() ->
     Status = parvi:status(),
-    #{<<"node">> => atom_to_binary(node()),
-      <<"connection_string">> => case node() of
-          nonode@nohost -> null;
+    #{<<"node">> => case parvi_relay:id() of N when is_atom(N) -> atom_to_binary(N); N -> N end,
+      <<"relay">> => parvi_relay:status(),
+      <<"connection_string">> => case {parvi_relay:enabled(), node()} of
+          {true, _} -> null;
+          {_, nonode@nohost} -> null;
           _ -> parvi_connection:local()
       end,
       <<"network">> => parvi_network:snapshot(),

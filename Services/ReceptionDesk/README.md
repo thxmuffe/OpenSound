@@ -1,65 +1,127 @@
-# ReceptionDesk
+# Parvi Reception Desk
 
-An Erlang/OTP service, separate from the browser app in
-[`Apps/WebApp`](../../Apps/WebApp/README.md). Its current implementation is a
-supervised, in-memory node-name directory and an HTTP API using OTP `inets`.
-The internal OTP application/module names remain `parvi_broker` for compatibility.
+A Phoenix/Cowboy host with supervised Erlang relay workers. Each Parvi node opens
+an outbound WebSocket connection and keeps it open. The desk forwards admission,
+membership and chat messages for as long as a direct peer path is unavailable.
+It does not join swarms or own their memberships or histories. The full browser
+client under `Apps/WebApp` remains deferred; `/` is only a small desk landing page.
 
-The Reception Desk is the future home for internet rendezvous, permission-checked
-mailboxes and relay mechanisms. Those features are not implemented yet. The
-current API is an unauthenticated local prototype, not ready for public deployment.
+## Run locally on Windows
 
-## Build and run
+With the Windows app already built:
 
-From the repository root:
+```powershell
+.\Services\ReceptionDesk\run.ps1
+```
+
+The launcher prepares a private Elixir 1.19.5 build tool, uses the existing OTP
+runtime and resolves locked dependencies. Nothing is installed system-wide.
+Override `PARVI_OTP_ROOT` if needed. Subsequent runs reuse ignored build caches.
+The default desk is `ws://127.0.0.1:8765/relay/v1` and its landing page is
+`http://127.0.0.1:8765/`. `PARVI_BROKER_PORT` changes the development port.
+
+On macOS/Linux with Elixir 1.19 and a compatible OTP installed:
 
 ```sh
 bash Services/ReceptionDesk/build.sh
 bash Services/ReceptionDesk/run.sh
 ```
 
-The service listens on `http://127.0.0.1:8765`. Its root returns service metadata;
-it does not serve the WebApp. Products go to `builds/Services/ReceptionDesk/`,
-and compiler output goes to `builds/intermediates/ReceptionDesk/`.
+In each rebuilt native app, enter the same **Reception desk URL** and select
+**Use desk (new session)**. This explicitly replaces the current transient
+memberships with a fresh relay node session. Select a swarm in one app, copy its
+invitation and paste it into **Add a swarm** in another. Only one admission is
+needed. New and existing memberships stay independent. Changing UI selection
+never joins or leaves a swarm.
 
-On Windows, after [preparing OTP](../../Apps/Windows/README.md):
+For command-line startup, set `PARVI_RECEPTION_DESK_URL` before starting an app.
+Without a desk setting, existing same-computer Distributed Erlang tests still
+work. Restart without that setting to return to local transport. Never use the
+localhost URL on a different device: localhost always refers to that device.
 
-```powershell
-.\Services\ReceptionDesk\run.ps1
-```
+## Internet deployment
 
-`PARVI_BROKER_BIND` and `PARVI_BROKER_PORT` retain their existing configuration
-names. The default bind is loopback. Restarting clears all directory records.
+`render.yaml` defines a **single** Docker web service, a generated
+`SECRET_KEY_BASE` and `/health` check. The Dockerfile builds a Phoenix release.
+Deploy that Blueprint from this repository, then use
+`wss://YOUR-SERVICE.onrender.com/relay/v1` in every native app. Render terminates
+TLS at its ingress; the container listens on `0.0.0.0:$PORT`. Other hosting can
+use an equivalent HTTPS reverse proxy with WebSocket upgrades enabled.
 
-## Current API
+This change prepares deployment but does not publish a service or create a
+Render account/resource. Test Windows and a rebuilt iPhone on separate internet
+connections after deployment. An already installed older phone build cannot
+use the new transport. Apple UI and packaging sources are updated, but their
+build/device verification requires the Mac/Xcode environment.
 
-- `GET /`: service name and API path.
-- `GET /api/nodes`: `{"node_ids":[...]}`.
-- `POST /api/nodes` with `Content-Type: application/json` and
-  `{"node_id":"mac@127.0.0.1"}` registers a name and returns `node_ids` plus
-  `registered_node_id`.
+Only `wss://` is accepted for public desk addresses. Plain `ws://` is restricted
+to localhost development. Clients verify certificate chains and hostnames.
+`PARVI_RELAY_CA_FILE` may select a private CA file without changing OS trust.
+iOS preparation bundles public build-host trust anchors because BEAM cannot
+invoke macOS certificate-store commands inside the phone sandbox.
 
-Names are unverified announcements, not stable device identities. Registrations
-are idempotent and serialized by a gen_server. Limits: 256 names, 255 bytes per
-name and 1024 bytes per request. Incoming names remain binaries, never atoms.
-Errors: 400 invalid input, 415 unsupported content type, 405 unsupported method,
-503 full directory. No Erlang cookies belong in this API.
+## Protocol and behavior
 
-There is no expiry, unregister, persistence, liveness check, mailbox, WebSocket,
-NAT traversal, TLS configuration or relay yet. Native apps still have their
-existing transport restrictions; discovery does not establish a connection.
-The native Mac invitation UI no longer exposes this legacy directory flow.
+See [RELAY_PROTOCOL.md](../../docs/RELAY_PROTOCOL.md) for the wire contract,
+credentials, bounds and restart behavior. There is no public node directory on
+this endpoint. Erlang cookies, external Erlang terms and arbitrary RPC never
+cross the relay. WSS encrypts each client-to-desk connection; messages are not
+end-to-end encrypted from other desk operators.
+
+Connections authenticate ephemeral Ed25519 identities with fresh challenges.
+A recipient owns per-swarm capability-addressed mailboxes. The desk stamps the
+sender identity and checks the destination mailbox scope. Native swarm workers
+validate invitations and incoming member messages. No chat is stored server-side.
+
+On socket loss clients reconnect with bounded exponential backoff, reopen their
+mailboxes and resend membership observations. A desk restart loses its routing
+state; running nodes reauthenticate with the same in-memory keys and rebuild it.
+There is no durable offline queue or exactly-once delivery. Sending while locally
+disconnected fails; a disconnect after submission can still lose a message.
+An initial admission timeout is a failed operation, not proof of peer death.
+
+This first implementation uses one service instance. Multiple independent desk
+replicas would need shared routing; adding replicas blindly will split clients.
+Audio, direct peer/NAT traversal, durable storage, accounts and the full browser
+app are outside this milestone.
 
 ## Verification
 
-```sh
-rebar3 eunit
-python3 Services/ReceptionDesk/tools/smoke.py
+```powershell
+# Build the native client and shared protocol tests.
+.\Apps\Windows\build.ps1 -Test
+# In the environment prepared by setup.ps1:
+cd Services/ReceptionDesk
+mix test
+cd ../..
+python Services/ReceptionDesk/tools/relay-smoke.py --idle
+python Services/ReceptionDesk/tools/tls-smoke.py
+python Apps/Windows/relay-ui-smoke.py
 ```
 
-The integration check builds the service and WebApp, tests their separate HTTP
-origins and API forwarding, validates directory behavior, then uses the existing
-Mac bundle to check two real local Erlang runtimes, discovery and chat. Build
-that bundle first with `bash Apps/macOS/build.sh` if it is absent.
+The relay integration test runs a temporary Phoenix desk with three separate
+BEAM VMs **without node names or Distributed Erlang**. It checks overlapping
+swarms, isolated chat, peer invitations, mutual removal/revocation and a desk
+restart. `--idle` verifies ping/pong beyond the inactivity timeout. The TLS test
+uses a private temporary certificate; it checks WSS chat and rejects wrong
+hostnames and untrusted certificates. It never installs a trust anchor.
+The helper currently locates Windows build products and the portable Elixir
+cache; override `PARVI_TEST_ERL` / `PARVI_ELIXIR_ROOT` for another local runtime.
+The production release also boots locally with runtime configuration and
+distribution disabled (`tools/release-smoke.py`). Docker image execution was not
+verified here because the Docker engine is not running; the image still needs
+its Linux/Render deployment check.
 
-Render deployment will be a separate step after the internet protocol is ready.
+The original `inets` node-name directory is retained separately for legacy
+regression tests: `run-legacy.ps1` / `run-legacy.sh`. It is unauthenticated local
+discovery, not this relay and not suitable for public hosting. The old directory
+smoke test now launches that explicit legacy service.
+
+## Dependency provenance
+
+`mix.lock` and `control/rebar.lock` pin the server/client dependencies. Gun 2.7.0
+and Cowboy 2.20.0 retain their upstream header-validation protections. Cowlib is
+pinned to upstream commit `4401b858f2229abb3ea115c60924f6c77e5f8aa3`, the fix
+identified for CVE-2026-43966, rather than the affected Hex release. See the
+[Erlang Ecosystem Foundation advisory](https://cna.erlef.org/cves/CVE-2026-43966.html).
+Keep dependency licenses with deployment and app bundles.

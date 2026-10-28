@@ -14,12 +14,14 @@ The Reception desk also has a Windows launcher: `Services/ReceptionDesk/run.ps1`
 The Mac app and [iPhone project](Apps/iOS/README.md) reuse the local
 [ParviKit package](Apps/Shared/ParviKit/README.md). The iPhone app now embeds real
 Erlang/OTP, with startup and UI messaging verified in the simulator. The signed
-physical-iPhone build also passes its runtime self-test; networking is next.
+physical-iPhone build also passes its runtime self-test. New relay sources need
+a fresh Apple build and physical-device networking verification.
 
-A minimal [Reception desk](Services/ReceptionDesk/README.md) now runs in Erlang and
-serves a node-name API. The separate [WebApp](Apps/WebApp/README.md) retains the
-directory and QR interface. Internet rendezvous, mailboxes and relay are next;
-the current directory is a local prototype.
+The [Reception desk](Services/ReceptionDesk/README.md) now hosts a Phoenix/Cowboy
+WebSocket relay with authenticated node sessions and scoped mailboxes. Native
+nodes retain their swarms/chats and reconnect after desk restart. Internet
+deployment is prepared in `render.yaml`; no public service has been deployed.
+The full browser [WebApp](Apps/WebApp/README.md) remains deferred.
 
 The newer [Parvi Audio handover](docs/notes%2020261026.md) sets the immediate goal:
 real Erlang chat on Mac and iPhone, before audio. The first Mac step is implemented
@@ -31,6 +33,9 @@ smoke test. iPhone runtime execution is verified on the physical phone; see the
 OpenSound explores a simple idea: publish audio onto a network with a shared playback timeline, then let intelligent speakers subscribe to the streams they need and process them locally. Sources and outputs should be able to join a running system without rebuilding a fixed audio installation.
 
 The ambition is an openly specified, independently implementable standard for networked sound. Becoming a standard will require community participation, multiple implementations, measured interoperability, and sustained maintenance. This repository is a starting point, not a standards body's specification. The name is provisional; name and trademark availability have not been checked.
+
+See the [shared app structure](docs/APP_STRUCTURE.md) for node independence,
+multiple swarm memberships, and swarm-owned Graph/Chat views.
 
 ## Repository layout and builds
 
@@ -45,7 +50,7 @@ Apps/
   Windows/               wxErlang desktop app
   WebApp/                browser app (currently directory/QR prototype)
   Shared/ParviKit/        shared Apple UI/model
-Services/ReceptionDesk/  Erlang rendezvous service (currently local directory)
+Services/ReceptionDesk/  Phoenix/Cowboy host and Erlang relay workers
 control/                 shared Erlang runtime and swarm logic
 docs/
 builds/

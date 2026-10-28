@@ -27,6 +27,11 @@ for crypto_nif in "$APP"/Contents/Resources/runtime/lib/crypto-*/priv/lib/crypto
   fi
 done
 cp "$ROOT/LICENSE" "$APP/Contents/Resources/LICENSE"
+for dependency in gun cowlib; do
+  for license in "$ROOT/builds/intermediates/control/default/lib/$dependency"/LICENSE*; do
+    if [ -f "$license" ]; then cp "$license" "$APP/Contents/Resources/$dependency-$(basename "$license")"; fi
+  done
+done
 OTP_ROOT=$(erl -noshell -eval 'io:put_chars(code:root_dir()), halt().')
 OTP_LICENSE=""
 for candidate in "$OTP_ROOT/LICENSE.txt" "$OTP_ROOT/../../LICENSE.txt"; do

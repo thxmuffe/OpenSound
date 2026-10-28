@@ -21,7 +21,7 @@ env = dict(os.environ, PARVI_BROKER_BIND="127.0.0.1", PARVI_BROKER_PORT=str(port
 
 
 def start():
-    process = subprocess.Popen(["bash", "Services/ReceptionDesk/run.sh"], cwd=ROOT, env=env,
+    process = subprocess.Popen(["bash", "Services/ReceptionDesk/run-legacy.sh"], cwd=ROOT, env=env,
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for _ in range(150):
         try:

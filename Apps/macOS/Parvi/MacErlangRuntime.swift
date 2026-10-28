@@ -5,8 +5,8 @@ import ParviKit
 final class MacErlangRuntime: ChatRuntime {
     private(set) var cookie = ""
     let localDeviceName = "This Mac"
-    let connectionDescription = "Local prototype · swarm invitations currently work between Parvi instances on this Mac."
-    let connectionHelp = "Invitations contain private Erlang credentials. Membership, leave and mutual removal are scoped to each swarm. This is trusted local transport, not hardened internet authorization; LAN and internet connections are not enabled."
+    let connectionDescription = "Use a Reception desk for internet swarms, or local invitations for same-Mac tests."
+    let connectionHelp = "Relay invitations use scoped mailbox and admission credentials. Legacy local invitations contain Erlang credentials. Changing desks starts a fresh session."
     let canConnect = true
     private var process: Process?
     private var input: FileHandle?

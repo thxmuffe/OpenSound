@@ -1,13 +1,9 @@
-# Parvi for Windows — wxErlang exercise
+# Parvi for Windows — wxErlang
 
-Native Windows controls, using the same `control/` Erlang/OTP application as the
-Mac/iOS prototypes. The UI runs in the local BEAM process through wxErlang;
-the small C launcher starts the private runtime without a console. There is no
-browser, remote backend substitute, or separate chat implementation.
-
-The layout follows the shared SwiftUI app: node sidebar, Swarm chat heading,
-conversation, composer, and a connection dialog with Reception desk discovery.
-History stays in the existing bounded, transient chat worker (200 messages).
+The native Windows app follows the [shared app structure](../../docs/APP_STRUCTURE.md)
+used by macOS and iOS. The sidebar lists swarms and provides **New swarm** and
+**Add swarm**. Selecting a swarm opens its invitation, **Graph** and **Chat** tabs.
+Nodes can belong to many swarms or none; swarms own their chat histories.
 
 ## Build and launch
 
@@ -20,187 +16,116 @@ C++** workload. From the repository root:
 .\builds\Windows\Parvi\Parvi.exe
 ```
 
-Setup downloads the official OTP 29.1.2 Windows ZIP and checks its pinned SHA-256.
-It extracts under `builds/intermediates/Windows/otp`; it does not install Erlang, edit PATH,
-or change machine settings. `PARVI_OTP_ROOT` can point to another extracted
-Windows OTP 29.1.2 distribution with wx support.
+Setup verifies and extracts the official OTP 29.1.2 archive into
+`builds/intermediates/Windows/otp`. To reuse an older ignored runtime cache, set
+`PARVI_OTP_ROOT` to that extracted directory before building. No global Erlang
+installation or PATH change is required. Keep `Parvi.exe`, `ebin/`, and `runtime/`
+together. The current build is unsigned and retains the full runtime libraries.
+Use `.\Apps\Windows\run.ps1` for terminal diagnostics.
 
-The resulting `builds/Windows/Parvi/` folder contains `Parvi.exe`, `ebin/`, and `runtime/`.
-Keep these together. This first exercise retains the full runtime libraries;
-package-size reduction and a signed installer are later work. Windows may need
-the Microsoft Visual C++ runtime required by the official OTP distribution.
-The build directory is ignored by Git. UI builds can run while the app is open;
-close the app when changing the native C launcher itself.
+After upgrading from the old node-sidebar UI, launch the executable at the new
+path above. Backend/model changes require restarting older sessions once.
 
-After updating an older checkout, Git does not move its ignored runtime cache.
-To reuse it, set `PARVI_OTP_ROOT` to the existing extracted OTP directory or copy
-that directory to `builds/intermediates/Windows/otp` before running setup.
-Build and launch through the new paths; native verification still requires Windows.
+## Join through a Reception desk
 
-For terminal diagnostics, run `.\Apps\Windows\run.ps1`. Each launch creates an
-independent named Erlang node with a fresh session cookie. The cookie included in
-the connection string is generated inside BEAM, separate from the launch-time cookie.
+Start the [Reception Desk](../../Services/ReceptionDesk/README.md) with
+`.\Services\ReceptionDesk\run.ps1`. Restart the Windows app after upgrading this
+backend. In each app enter `ws://127.0.0.1:8765/relay/v1` in **Reception desk URL**
+and choose **Use desk (new session)**. This discards the current transient
+memberships and creates a fresh relay session. Copy a selected swarm invitation
+to the other app's Add swarm field. The desk continues forwarding chat and
+membership messages over the open connections.
 
-## Connect two instances
+For internet use, deploy the supplied Render service and enter its public
+`wss://.../relay/v1` URL on every device. No port forwarding or direct Erlang
+connection is needed. Public deployment and an updated physical-iPhone build
+still need verification. Relay mode displays connection observations, and does
+not draw fictional direct peer links. See the [protocol](../../docs/RELAY_PROTOCOL.md).
+The full browser client is not required.
 
-Launch `Parvi.exe` twice. Open **Connect** in each instance. In the first, select
-**This instance's connection string** and copy with Ctrl+A, Ctrl+C (or the native
-context menu). Paste into **Other instance's connection string** in the second
-instance with Ctrl+V, then click **Connect**. The first field is read-only; the
-second is editable. Wait for both node
-lists to show two nodes, then send messages in either direction. Enter
-or **Send** submits a message; invalid messages leave the draft intact.
+## Join and select swarms (local development mode)
 
-Click a node in the **Nodes** sidebar to copy its connection string. For a remote
-node, Parvi requests that node's own string over the existing trusted Erlang
-connection. Both nodes must include the shared connection-string operation.
-Discovery-only names do not contain credentials and cannot be copied
-as complete connection strings.
+Launch two instances. In the first, select a swarm and copy **Invitation to this
+swarm** using Ctrl+A, Ctrl+C or the native context menu. In the second, paste into
+**Add a swarm** and click **Add swarm**. Only one admission is needed. Both nodes
+can then chat in that swarm. Their other memberships remain independent.
 
-## Node status lights
+**New swarm** creates and selects another swarm. Clicking a sidebar row makes it
+current without changing any memberships. **Leave swarm** ends only that
+membership. Leaving every swarm keeps the node running and shows the empty-state
+instructions. The prototype starts with one fresh swarm for convenience.
 
-The native Nodes list uses RabbitMQ Management v3.13.7's existing
-[green/yellow/red/grey status palette](https://github.com/rabbitmq/rabbitmq-server/blob/v3.13.7/deps/rabbitmq_management/priv/www/css/main.css).
-Every light also has a text label:
+The Chat composer and history belong to the selected swarm. Drafts survive
+selection changes and window rebuilds; acknowledgments clear only the matching
+submitted draft. Histories remain in `parvi_swarms`, bounded to 200 messages per
+swarm for this session. New members do not receive earlier history.
 
-| Light | Label | Observation |
-| --- | --- | --- |
-| Green | Running | The node's Parvi chat worker answered its status call. |
-| Yellow | Not responding | Distribution may still be connected, but the worker timed out or is unavailable. |
-| Red | Disconnected | OTP reported `nodedown`; this does not prove the remote VM stopped. |
-| Grey | Checking | A connection is known but its first worker check has not completed. |
+Invitations use `parvi://swarm/v1?node=...&cookie=...&swarm=...&token=...`.
+These legacy local invitations include private Erlang credentials and work only
+between trusted Parvi nodes on the same computer. Relay mode instead generates
+v2 invitations containing desk/node/mailbox credentials without Erlang cookies. The shared core handles admission, leave and mutual
+removal. These strings are different from the legacy node connection strings.
+The Reception Desk directory remains a separate service; joining a swarm uses
+its member invitation directly.
 
-`net_kernel:monitor_nodes/2` supplies connection events and disconnect reasons.
-A supervised status worker checks connected chat workers every two seconds with
-a 1.5-second timeout, separately from the UI. It does not declare a remote node
-dead or shorten OTP's distribution heartbeat timeout. Network failure detection
-can therefore take longer than a worker responsiveness check.
+## Graph and node details
 
-Disconnected nodes remain visible for the session and their status survives UI
-reload. Reconnection returns them to Checking/Running. Clicking a disconnected
-row reports that its connection string cannot currently be fetched. The worker
-is installed under the running Windows supervisor during UI reload, so this UI
-update does not require restarting existing apps.
+Graph shows only the selected swarm's members and observed distribution links
+between them. It uses the attributed native OTP Reltool force graph with the
+bundled layout engine; see [third-party notices](THIRD_PARTY.md). Drag nodes to
+arrange them. The hidden graph pauses while Chat is selected.
 
-## Network graph
+Click a graph vertex or member-list row to see the node identity. For another
+member, **Remove both of us** asks for confirmation and invokes the same
+swarm-scoped operation as the Apple apps. Other memberships stay intact.
 
-The **Network** tab shows the observed Erlang distribution topology with the same
-status colours as the sidebar. **Chat** retains the conversation. Drag a vertex
-to reposition it, or click a directly connected vertex to copy its connection
-string. Sending a message switches to Chat. The selected tab survives UI reload.
+Status lights retain RabbitMQ Management's existing palette, with text labels:
+Running (green), Not responding (yellow), Disconnected (red), Checking (grey).
+The shared `parvi_network` worker observes OTP connection events and probes the
+swarm worker asynchronously. Disconnected does not prove that a VM stopped.
+A member can remain in the roster while disconnected. Observations are sampled,
+not a globally consistent topology or an audio routing graph.
 
-The native view adapts OTP Reltool's force graph; it does not embed a browser or
-introduce a new layout engine. See [source provenance](THIRD_PARTY.md). Reltool's
-release-editing controls are hidden. The layout pauses on the hidden Network tab,
-and its linked graph/ticker processes are stopped with the old window on reload.
+## Automatic UI reload
 
-A supervised topology worker samples each connected node's `erlang:nodes/0`
-roughly every three seconds, using bounded asynchronous requests. It combines
-those observations with this node's current direct connections and deduplicates
-bidirectional links. It never draws a complete mesh just because nodes are listed.
-An indirectly reported node with no local status is grey. Disconnected known
-nodes remain visible, but a failed reporter's old links are removed. This is an
-eventually updated connectivity view, not a globally synchronized network map or
-an audio routing graph. The force layout has not been validated for large swarms.
+Compiling `Apps/Windows/src/parvi_windows.erl` into the running app's `ebin/`
+rebuilds its window automatically, normally within a second. Building skips an
+unchanged native launcher, so UI-only builds work while the app is open.
+Selection, drafts by swarm, selected tab, invitation input and geometry belong to
+the supervised model; they survive disposal of the window. Pending actions also
+belong to the model, so they complete while a window is being replaced.
 
-## Automatic UI reload during development
-
-Restart existing instances once to activate the reload host. After that, compiling
-`Apps/Windows/src/parvi_windows.erl` into the app's `ebin/` directory automatically
-rebuilds each running window, normally within about a second. Use
-`.\Apps\Windows\build.ps1` while the app is running; the script skips rebuilding an
-unchanged native launcher. There is no need to reconnect or recopy connection
-strings for a UI edit.
-
-The Windows supervisor owns a model process, a reload watcher, a disposable wx
-window, and a node-status worker. The model stores current drafts, window geometry,
-and connection-dialog fields as edits happen. It also dispatches requests so an
-in-flight send survives destruction of the window. Chat history stays exclusively
-in the existing chat worker; windows read fresh snapshots instead of restoring
-old chat data. The Erlang node, cookie, and peer connections remain alive. The
-window may briefly flicker when recreated.
-
-Incomplete compiler output is ignored. There is **no rollback** and no saved old
-UI binary. If new UI code fails to initialize, the window remains unavailable
-until a corrected build arrives; the model and backend continue running. A window
-that crashes during normal operation is restarted by its OTP supervisor using
-the current code. Repeated crashes escalate through normal supervisor restart
-limits. Closing the current window normally still ends the app.
-
-This watches the Windows UI module only. Changes to the host, shared backend,
-native libraries, or runtime still require a deliberate upgrade or restart.
-The graph view module is reloaded alongside the disposable window. New topology
-and status workers can be installed under the existing supervisor by the UI.
-For an explicit rebuild from an Erlang debugging connection, call
-`parvi_windows_host:reload/0`.
-
-The versioned format is `parvi://connect/v1?node=...&cookie=...`, with URI-encoded
-values. The string contains private credentials; it is not encryption or a public
-web link. It expires when the originating app closes.
-The shared parser rejects invalid, duplicate, missing, and oversized fields;
-the existing bridge still enforces loopback-only peer names. The Mac app's legacy
-two-field request remains supported internally.
-
-Optional discovery:
-
-```powershell
-.\Services\ReceptionDesk\run.ps1
-```
-
-Open `http://127.0.0.1:8765/` for the existing Reception desk website. Register
-both apps with **Register / Find nodes** and refresh to see known names. Ask
-the desired instance for its connection string. Discovery does not authenticate or
-connect nodes and never carries chat traffic. Restarting the desk clears names.
-The PowerShell launcher supports the same `PARVI_BROKER_BIND` and
-`PARVI_BROKER_PORT` environment variables as the existing shell script.
+There is no rollback. Incomplete BEAM output is ignored; valid code that fails to
+start leaves the UI unavailable until a corrected build arrives. Ordinary window
+crashes use normal OTP supervision. The backend, model, host, native libraries
+and runtime need a deliberate upgrade or restart when their code changes.
 
 ## Checks
 
 ```powershell
 .\Apps\Windows\build.ps1 -Test
-# Run Services/ReceptionDesk/run.ps1 once to compile it, then stop it if desired.
-python .\Apps\Windows\smoke.py
 python .\Apps\Windows\reload-smoke.py
 ```
 
-The smoke test starts its own directory on a temporary loopback port and two real
-Windows BEAM nodes. It checks directory registration, peer selection, cookie
-authentication, two-way UTF-8 chat, oversized input, and peer departure. It does
-not alter the normal desk on port 8765. Core EUnit tests cover worker and `pg`
-restart recovery. A GUI send and the connection dialog were checked separately.
+EUnit covers the shared chat/swarm core and Windows model: graph membership
+filtering, isolated histories/drafts, delayed acknowledgments, rejected invitations,
+and a live node with no swarms. The isolated native-window test checks real peer
+membership, scoped graphs, repeated reloads, model/worker continuity, failed-build
+recovery without rollback, window-crash recovery and an in-flight swarm send.
+It uses private module copies and temporary local nodes.
 
-The native-window reload test uses an isolated copy of the app modules. It checks
-repeated automatic reloads, retained model data, unchanged node/cookie/chat workers,
-continued messaging while UI code is broken, corrected-build recovery, supervised
-window-crash recovery, and sends that survive window replacement. Its graph checks
-use three real nodes, including a peer-reported link, topology updates on
-disconnect/reconnect, and destruction of the old graph process during reload.
+The legacy transport/directory smoke test remains available via
+`python Apps/Windows/smoke.py` after compiling ReceptionDesk with its Windows
+launcher (`run-legacy.ps1`). It tests the old bridge compatibility path, not the swarm UI.
 
-## Current scope
+## Current scope and runtime provenance
 
-Connections remain loopback-only, matching the Mac prototype's existing policy.
-The shared bridge now accepts both `parvi_mac_<digits>` and
-`parvi_windows_<digits>` local names. It rejects LAN hosts. This does not prove
-Windows–Mac or Windows–iPhone networking. The iOS prototype remains foreground,
-local-only, with its physical-device runtime test still pending in the progress
-log. There is no audio engine in this milestone.
+This is native wxErlang in the local BEAM with shared `control/` code. Windows-Mac and Windows-iPhone relay interoperability still requires rebuilt
+Apple apps and physical-device testing. There is no audio
+engine yet. UI snapshots refresh roughly every 600 ms; this is not an audio
+latency claim. Quitting ends the node and all transient memberships.
 
-Polling the shared snapshot every 600 ms provides chat/member updates without
-blocking the wx event loop. This is a UI refresh interval, not an audio-latency
-claim. Worker restarts are recovered by the existing OTP supervisor; the next
-snapshot shows the worker's new session history. Closing the app ends its node.
-OTP's local EPMD helper can remain running after all app instances close.
-
-## Runtime provenance
-
-Official archive:
-https://github.com/erlang/otp/releases/download/OTP-29.1.2/otp_win64_29.1.2.zip
-
-SHA-256 recorded from the downloaded archive:
+The official Windows OTP archive is pinned to 29.1.2 with SHA-256
 `4efe9772a84c6c1ef75377e9326815584958776c905f2bf687b62509e2d809c0`.
-
-Erlang/OTP is Apache-2.0 licensed; wxWidgets uses the wxWindows Library Licence
-(LGPL with an exception). Keep upstream notices when preparing a distributable
-package. This local build is unsigned. See the upstream
-[OTP source and license](https://github.com/erlang/otp/tree/OTP-29.1.2) and
-[wxWidgets license](https://www.wxwidgets.org/about/licence/).
+Erlang/OTP is Apache-2.0 licensed; wxWidgets uses the wxWindows Library Licence.
+Keep the bundled notices with the runtime when distributing it.

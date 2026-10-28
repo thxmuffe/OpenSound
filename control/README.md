@@ -114,3 +114,19 @@ separate future design.
 
 See [the iOS investigation](../docs/decisions/0001-chat-first-and-ios-feasibility.md)
 and [progress log](../docs/PROGRESS.md) for the next hardware gate.
+
+
+## Reception Desk transport
+
+`parvi_relay` now provides an outbound Gun WebSocket adapter with authenticated
+binary node identities, scoped mailboxes, verified WSS and reconnect. Configure
+`PARVI_RECEPTION_DESK_URL` at startup, or issue bridge `configure_desk` with `url`
+to explicitly start a fresh session. Swarm v2 invitations route through that desk;
+local v1 invitations remain the separate developer transport.
+
+`parvi_swarm_wire` defines the validated JSON schema. `parvi_swarms` owns admission,
+membership, bounded histories and revocation for either transport. Its relay
+admission path is asynchronous. `parvi_network` reports relay connection presence
+without inventing direct distribution edges. The desk never receives Erlang
+cookies or executable terms. See [protocol](../docs/RELAY_PROTOCOL.md) and
+[launch/deployment guide](../Services/ReceptionDesk/README.md).
