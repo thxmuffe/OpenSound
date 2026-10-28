@@ -100,6 +100,22 @@ secure cluster admission and removal are explicit implementation work.
    removal choice when the apps adopt it; existing app UI/relay behavior is not
    changed by the isolated implementation. See the experiment README for tested
    attacks, bounds and the full-VM trust assumption.
+2a. **OTP foundation alignment (execute before step 3):** behavior and reuse take
+   priority over renaming. Keep current `parvi`/`swarm` source identifiers and UI
+   labels until later; do not add a replacement room/session framework. The
+   native runtime uses standard node connections, remote PIDs, links/monitors,
+   OTP supervisors and `pg` process groups. Reuse the existing shared chat worker
+   instead of another native chat implementation. Do not start custom swarm
+   membership gossip, per-swarm transport routing, node-health polling or topology
+   workers in that runtime. Admission state records permission to reconnect, not
+   live process membership; `pg` and ERTS provide the latter. Keep only the WebRTC
+   carrier, invitation/revocation policy and application data/history as custom
+   behavior. Replace manual local observer monitoring with `pg` where suitable.
+   Verify real chat, process-group discovery, worker/scope restart, subscriptions,
+   native disconnects and cluster-wide removal over the proven carrier. Preserve
+   the existing app path until native app integration: legacy swarm modules may
+   remain for compatibility but must not be dependencies of the native runtime.
+   No Windows or graph edits; no broad UI/source renaming in this step.
 3. **Internet and recovery:** separate access networks, relay-required paths,
    desk outages, network changes, connection arbitration, bounded queues and
    backpressure. Reuse rendezvous/relay facilities rather than rebuilding them.
