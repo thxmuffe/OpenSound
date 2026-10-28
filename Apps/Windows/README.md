@@ -144,7 +144,7 @@ two-field request remains supported internally.
 Optional discovery:
 
 ```powershell
-.\Apps\Web\run.ps1
+.\Services\ReceptionDesk\run.ps1
 ```
 
 Open `http://127.0.0.1:8765/` for the existing Reception desk website. Register
@@ -158,7 +158,7 @@ The PowerShell launcher supports the same `PARVI_BROKER_BIND` and
 
 ```powershell
 .\Apps\Windows\build.ps1 -Test
-# Run Apps/Web/run.ps1 once to compile it, then stop it if desired.
+# Run Services/ReceptionDesk/run.ps1 once to compile it, then stop it if desired.
 python .\Apps\Windows\smoke.py
 python .\Apps\Windows\reload-smoke.py
 ```

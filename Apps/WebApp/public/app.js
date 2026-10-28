@@ -54,6 +54,6 @@ try {
   document.getElementById('qr').innerHTML = qr.createSvgTag({ scalable: true, margin: 4 });
 } catch (_) { document.getElementById('qr').textContent = 'QR unavailable. Use the link below.'; }
 document.getElementById('network-note').textContent = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
-  ? 'This localhost link works on this Mac only. For a phone QR, explicitly bind the reception desk to your Mac’s private LAN address and open that address here first. A QR opens this form; it cannot obtain the phone’s Erlang node name itself.'
-  : 'Other devices need access to this private LAN address. The QR opens this form; an installed app must provide its own node name.';
+  ? 'This local WebApp link works on this computer only. The QR opens this page; it cannot obtain another app’s node identity.'
+  : 'The QR opens this WebApp page. An installed app must provide its own node identity.';
 refresh();

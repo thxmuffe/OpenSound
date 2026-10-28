@@ -16,7 +16,7 @@ REPO = ROOT.parents[1]
 BUILD = REPO / 'builds/Windows/Parvi'
 ERL = BUILD / 'runtime/bin/erl.exe'
 EBIN = BUILD / 'ebin'
-BROKER = REPO / 'builds/Web/ReceptionDesk/lib/parvi_broker/ebin'
+BROKER = REPO / 'builds/Services/ReceptionDesk/lib/parvi_broker/ebin'
 
 
 class Node:
@@ -65,7 +65,7 @@ def await_snapshot(node, predicate):
 
 def main():
     if not BROKER.exists():
-        raise SystemExit('Run Apps/Web/run.ps1 once to compile the Reception desk first.')
+        raise SystemExit('Run Services/ReceptionDesk/run.ps1 once to compile the Reception desk first.')
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
         port = sock.getsockname()[1]

@@ -21,7 +21,7 @@ env = dict(os.environ, PARVI_BROKER_BIND="127.0.0.1", PARVI_BROKER_PORT=str(port
 
 
 def start():
-    process = subprocess.Popen(["bash", "Apps/Web/run.sh"], cwd=ROOT, env=env,
+    process = subprocess.Popen(["bash", "Services/ReceptionDesk/run.sh"], cwd=ROOT, env=env,
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     for _ in range(150):
         try:
@@ -50,10 +50,32 @@ def call(body=None, method=None, content_type="application/json", path="/api/nod
 
 broker = start()
 first = second = None
+web = None
 try:
     assert json.loads(call()[1]) == {"node_ids": []}
-    assert call(path="/")[0] == 200
-    assert call(path="/qrcode.js")[0] == 200
+    assert json.loads(call(path="/")[1])["service"] == "ReceptionDesk"
+    assert call(path="/qrcode.js")[0] == 404
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        web_port = probe.getsockname()[1]
+    web = subprocess.Popen(["bash", "Apps/WebApp/run.sh"], cwd=ROOT,
+                           env=dict(os.environ, PARVI_WEBAPP_PORT=str(web_port),
+                                    PARVI_RECEPTION_DESK_URL=base),
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for _ in range(100):
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{web_port}/", timeout=2) as response:
+                assert b"Parvi WebApp" in response.read()
+            break
+        except urllib.error.URLError:
+            time.sleep(0.05)
+    else:
+        raise TimeoutError("WebApp startup")
+    for asset in ["app.js", "style.css", "qrcode.js"]:
+        with urllib.request.urlopen(f"http://127.0.0.1:{web_port}/{asset}") as response:
+            assert response.status == 200
+    with urllib.request.urlopen(f"http://127.0.0.1:{web_port}/api/nodes") as response:
+        assert json.load(response) == {"node_ids": []}
     assert call(b"not json")[0] == 400
     assert call(b'{}')[0] == 400
     assert call(b'{"node_id":"x@host"}', content_type="text/plain")[0] == 415
@@ -80,6 +102,9 @@ try:
     assert json.loads(call()[1])["node_ids"] == []
     print("PASS: HTTP API, validation, duplicate registration, app discovery, Erlang handshake, two-way chat, restart clears names")
 finally:
+    if web is not None:
+        web.terminate()
+        web.wait(timeout=5)
     for instance in (first, second):
         if instance is not None:
             instance.close()

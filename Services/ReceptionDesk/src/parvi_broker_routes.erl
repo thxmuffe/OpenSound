@@ -20,10 +20,7 @@ route(#mod{method = Method, request_uri = URI} = Info) ->
     case {Method, Path} of
         {"GET", "/api/nodes"} -> json(200, #{node_ids => parvi_directory:nodes()});
         {"POST", "/api/nodes"} -> register(Info);
-        {"GET", "/"} -> asset("index.html", "text/html; charset=utf-8");
-        {"GET", "/app.js"} -> asset("app.js", "text/javascript; charset=utf-8");
-        {"GET", "/style.css"} -> asset("style.css", "text/css; charset=utf-8");
-        {"GET", "/qrcode.js"} -> asset("qrcode.js", "text/javascript; charset=utf-8");
+        {"GET", "/"} -> json(200, #{service => <<"ReceptionDesk">>, api => <<"/api/nodes">>});
         {_, "/api/nodes"} -> json(405, #{error => <<"Use GET to list or POST to register.">>});
         _ -> json(404, #{error => <<"Not found">>})
     end.
@@ -47,8 +44,3 @@ register(#mod{parsed_header = Headers, entity_body = Body}) ->
     end.
 
 json(Code, Value) -> {Code, "application/json; charset=utf-8", iolist_to_binary(json:encode(Value))}.
-asset(Name, Type) ->
-    case file:read_file(filename:join([code:priv_dir(parvi_broker), "www", Name])) of
-        {ok, Body} -> {200, Type, Body};
-        _ -> json(404, #{error => <<"Asset not found">>})
-    end.

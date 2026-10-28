@@ -3,7 +3,7 @@ set -euo pipefail
 SOURCE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$SOURCE/../.." && pwd)
 bash "$SOURCE/build.sh"
-exec erl -noshell -pa "$ROOT/builds/Web/ReceptionDesk/lib/parvi_broker/ebin" -eval '
+exec erl -noshell -pa "$ROOT/builds/Services/ReceptionDesk/lib/parvi_broker/ebin" -eval '
   case os:getenv("PARVI_BROKER_BIND") of
     false -> ok;
     Address -> {ok, IP} = inet:parse_address(Address),

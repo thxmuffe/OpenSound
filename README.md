@@ -9,21 +9,22 @@ It bundles Erlang and supports chat between app instances on the same Mac.
 
 A native [Windows wxErlang exercise](Apps/Windows/README.md) reuses the same Erlang
 chat and discovery workers, with a bundled runtime and `Parvi.exe` launcher.
-The Reception desk also has a Windows launcher: `Apps/Web/run.ps1`.
+The Reception desk also has a Windows launcher: `Services/ReceptionDesk/run.ps1`.
 
 The Mac app and [iPhone project](Apps/iOS/README.md) reuse the local
 [ParviKit package](Apps/Shared/ParviKit/README.md). The iPhone app now embeds real
-Erlang/OTP, with startup and UI messaging verified in the simulator. A signed
-physical-iPhone run is still required; Mac–iPhone networking follows that test.
+Erlang/OTP, with startup and UI messaging verified in the simulator. The signed
+physical-iPhone build also passes its runtime self-test; networking is next.
 
-A minimal [Reception desk](Apps/Web/README.md) now runs in Erlang and
-serves a node-name API and QR join page. The Mac connection sheet can register
-and fetch known names; authentication and peer connections remain separate.
+A minimal [Reception desk](Services/ReceptionDesk/README.md) now runs in Erlang and
+serves a node-name API. The separate [WebApp](Apps/WebApp/README.md) retains the
+directory and QR interface. Internet rendezvous, mailboxes and relay are next;
+the current directory is a local prototype.
 
 The newer [Parvi Audio handover](docs/notes%2020261026.md) sets the immediate goal:
 real Erlang chat on Mac and iPhone, before audio. The first Mac step is implemented
 in [control/](control/README.md), with supervised chat actors and a two-node local
-smoke test. iPhone runtime execution is still unverified; see the
+smoke test. iPhone runtime execution is verified on the physical phone; see the
 [iOS investigation](docs/decisions/0001-chat-first-and-ios-feasibility.md) and
 [progress log](docs/PROGRESS.md). No audio or interoperability guarantee exists yet.
 
@@ -42,15 +43,17 @@ Apps/
   macOS/                 SwiftUI desktop app
   iOS/                   embedded-runtime iPhone app
   Windows/               wxErlang desktop app
-  Web/                   Reception desk web app and HTTP server
+  WebApp/                browser app (currently directory/QR prototype)
   Shared/ParviKit/        shared Apple UI/model
+Services/ReceptionDesk/  Erlang rendezvous service (currently local directory)
 control/                 shared Erlang runtime and swarm logic
 docs/
 builds/
   macOS/Parvi.app/
   iOS/Debug-iphoneos/Parvi.app/
   Windows/Parvi/          executable, runtime and companion files
-  Web/ReceptionDesk/      compiled web application and assets
+  WebApp/                static browser app
+  Services/ReceptionDesk/ compiled Reception Desk service
   intermediates/         compilers, downloaded runtimes and caches
 ```
 
@@ -63,8 +66,10 @@ From the repository root:
 | Check Apple UI/model | `bash Apps/macOS/test.sh` |
 | Build unsigned iPhone app | `bash Apps/iOS/build.sh device` |
 | Build unsigned iPhone simulator app | `bash Apps/iOS/build.sh sim` |
-| Build web app | `bash Apps/Web/build.sh` |
-| Run web app | `bash Apps/Web/run.sh` |
+| Build browser app | `bash Apps/WebApp/build.sh` |
+| Run browser app | `bash Apps/WebApp/run.sh` |
+| Build Reception Desk | `bash Services/ReceptionDesk/build.sh` |
+| Run Reception Desk | `bash Services/ReceptionDesk/run.sh` |
 | Prepare and build Windows app | `.\Apps\Windows\setup.ps1`, then `.\Apps\Windows\build.ps1 -Test` |
 | Check both Erlang applications | `rebar3 eunit` |
 

@@ -1,5 +1,21 @@
 # Progress
 
+## 2026-10-28 — WebApp and ReceptionDesk separated
+
+Moved the browser assets and QR license to `Apps/WebApp`, and the Erlang service,
+API, launchers and directory tests to `Services/ReceptionDesk`. Build outputs are
+`builds/WebApp` and `builds/Services/ReceptionDesk`; service compiler caches use
+`builds/intermediates/ReceptionDesk`. Updated workspace and Windows references.
+The service root identifies ReceptionDesk; browser assets have their own host.
+A small local development host forwards the existing WebApp API requests to the
+separate service, preserving the directory UI without adding a runtime dependency
+from the service to the browser app.
+
+No internet transport, mailbox, relay, browser node or Render deployment was added.
+All ten Erlang tests and the integration smoke check pass, including separate
+frontend assets, API forwarding, real local node discovery/chat and directory
+restart. Native Windows execution was not tested on this Mac.
+
 ## 2026-10-28 — Invitation text-field behavior
 
 Replaced the iPhone invitation text/scroll view with a regular editable SwiftUI
@@ -309,7 +325,7 @@ Broker EUnit and control EUnit checks pass. Both Mac and unsigned iPhone UI
 builds succeed. End-to-end testing passed for real app registration, returned
 peer names, authenticated Erlang connection, two-way chat and broker reset.
 Native registration and idempotent web registration were also verified in the
-UI; the page renders its local QR code. See [broker guide and API](../Apps/Web/README.md)
+UI; the page renders its local QR code. See [broker guide and API](../Services/ReceptionDesk/README.md)
 for usage, limits, QR behavior and the integration-test command.
 
 ## 2026-10-26 — Shared native code and iPhone project
