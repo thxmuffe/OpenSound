@@ -80,7 +80,9 @@ struct ParviNetworkView: View {
                 }
             }
         } message: {
-            Text("This node and the selected node will leave this swarm, and both entry invitations will expire. Their other swarms are unaffected.")
+            Text(model.nativeCluster
+                 ? "This node and the selected node will lose access to the entire native cluster. Their issued and entry invitations will expire."
+                 : "This node and the selected node will leave this swarm, and both entry invitations will expire. Their other swarms are unaffected.")
         }
     }
 

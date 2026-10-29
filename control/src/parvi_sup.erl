@@ -18,7 +18,10 @@ init([]) ->
         #{id => parvi_swarms, start => {parvi_swarms, start_link, []}}
     ],
     Children = case application:get_env(parvi, runtime_profile, legacy_apps) of
-        native_cluster -> Core;
+        native_cluster -> Core ++ case application:get_env(parvi, native_desk, false) of
+            true -> [#{id => parvi_cluster_desk, start => {parvi_cluster_desk, start_link, []}}];
+            false -> []
+        end;
         legacy_apps -> Core ++ Compatibility
     end,
     {ok, {#{strategy => rest_for_one, intensity => 5, period => 10}, Children}}.

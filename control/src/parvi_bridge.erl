@@ -20,6 +20,12 @@ loop() ->
 
 %% An embedded host can call this same function without emulating terminal I/O.
 request(JSON) ->
+    case application:get_env(parvi, runtime_profile, legacy_apps) of
+        native_cluster -> parvi_native_bridge:request(JSON);
+        legacy_apps -> legacy_request(JSON)
+    end.
+
+legacy_request(JSON) ->
     Reply = try
         Request = json:decode(JSON),
         Result = command(Request),

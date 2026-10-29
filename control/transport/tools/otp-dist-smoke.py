@@ -23,6 +23,9 @@ otp = Path(subprocess.check_output([ERL, '-noshell', '-eval',
 assert (otp / 'releases/29/OTP_VERSION').read_text().strip() == '29.1.2', 'Use OTP 29.1.2'
 ERLEXEC = next(otp.glob('erts-*/bin/erlexec'))
 sources = sorted((ROOT / 'control/transport/experiments/otp_dist/src').glob('*.erl'))
+sources += [ROOT / 'control/src' / f'{name}.erl' for name in (
+    'parvi_cluster_auth', 'parvi_cluster_authority', 'parvi_cluster_trust',
+    'parvi_cluster_desk', 'parvi_dist_channel', 'parvi_webrtc_dist')]
 subprocess.run([str(otp / 'bin/erlc'), '-Werror', '+debug_info', '-o', str(BUILD),
                 *map(str, sources)], check=True)
 paths = [BUILD]

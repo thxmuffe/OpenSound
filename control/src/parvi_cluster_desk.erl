@@ -1,13 +1,14 @@
-%% Experimental introductions only. OTP traffic stays on the WebRTC carrier.
-%% Start after net_kernel and parvi:start(native_cluster), not in shipping apps.
+%% Desk introductions only. OTP traffic stays on the WebRTC carrier.
+%% Start after net_kernel; supervised by the Mac native runtime profile.
 -module(parvi_cluster_desk).
 -behaviour(gen_server).
--export([start_link/0, create/0, invite/1, join/1, status/0]).
+-export([start_link/0, create/0, invite/1, invitation/0, join/1, status/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 
 start_link() -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 create() -> gen_server:call(?MODULE, create).
 invite(TTL) -> gen_server:call(?MODULE, {invite, TTL}).
+invitation() -> gen_server:call(?MODULE, invitation).
 join(Link) -> gen_server:call(?MODULE, {join, Link}).
 status() -> gen_server:call(?MODULE, status).
 
@@ -17,23 +18,32 @@ init([]) ->
     {ok, Trust} = parvi_cluster_trust:start_link(self()),
     {ok, Relay} = parvi_relay:start_link(#{owner => self(), delivery => raw}),
     {ok, #{trust => Trust, relay => Relay, cluster => undefined,
-           mailbox => parvi_cluster_auth:fresh(16), sessions => #{}, event => starting}}.
+           mailbox => parvi_cluster_auth:fresh(16), sessions => #{}, event => starting,
+           invitation => undefined}}.
 
 handle_call(create, _, #{cluster := undefined} = S) ->
     {ok, Policy} = parvi_cluster_trust:create(),
     {reply, {ok, Policy}, mailbox(maps:get(<<"cluster">>, Policy), S)};
+handle_call(invitation, _, S) ->
+    Policy = parvi_cluster_trust:policy(),
+    case {Policy, maps:get(connected, parvi_relay:status())} of
+        {#{<<"cluster">> := Cluster, <<"epoch">> := Epoch}, true} ->
+            Now = erlang:system_time(second),
+            case maps:get(invitation, S) of
+                {Cluster, Epoch, Expiry, Link} when Expiry > Now -> {reply, {ok, Link}, S};
+                _ ->
+                    case make_invitation(259200, S) of
+                        {ok, Link} -> {reply, {ok, Link}, S#{invitation := {Cluster, Epoch, Now + 259200, Link}}};
+                        Error -> {reply, Error, S}
+                    end
+            end;
+        _ -> {reply, {error, not_ready}, S}
+    end;
 handle_call({invite, TTL}, _, #{cluster := Cluster} = S) when is_binary(Cluster) ->
     Reply = case maps:get(connected, parvi_relay:status()) of
         false -> {error, desk_disconnected};
         true ->
-            case parvi_cluster_trust:invite(TTL) of
-                {ok, Invitation} ->
-                    Query = uri_string:compose_query([
-                        {<<"desk">>, parvi_relay:url()}, {<<"node">>, parvi_relay:id()},
-                        {<<"mailbox">>, maps:get(mailbox, S)}, {<<"invitation">>, Invitation}]),
-                    {ok, <<"parvi://cluster/v2?", Query/binary>>};
-                Error -> Error
-            end
+            make_invitation(TTL, S)
     end,
     {reply, Reply, S};
 handle_call({join, Link}, _, #{cluster := undefined} = S) ->
@@ -137,4 +147,16 @@ parse_link(Link) ->
     catch _:_ -> {error, invalid_invitation_or_different_desk} end.
 
 terminate(_, #{trust := Trust, relay := Relay}) ->
+    %% Stop the local authority too; a normal linked shutdown alone leaves it alive.
+    try parvi_cluster_trust:retire() catch exit:_ -> ok end,
     [try gen_server:stop(Pid) catch exit:_ -> ok end || Pid <- [Trust, Relay]], ok.
+
+make_invitation(TTL, S) ->
+    case parvi_cluster_trust:invite(TTL) of
+        {ok, Invitation} ->
+            Query = uri_string:compose_query([
+                {<<"desk">>, parvi_relay:url()}, {<<"node">>, parvi_relay:id()},
+                {<<"mailbox">>, maps:get(mailbox, S)}, {<<"invitation">>, Invitation}]),
+            {ok, <<"parvi://cluster/v2?", Query/binary>>};
+        Error -> Error
+    end.

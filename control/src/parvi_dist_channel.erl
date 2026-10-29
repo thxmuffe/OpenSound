@@ -1,4 +1,4 @@
-%% Probe-only process distribution controller, backed by ex_webrtc/ex_sctp.
+%% Process distribution controller, backed by ex_webrtc/ex_sctp.
 %% Typed length framing separates admission envelopes from opaque OTP packets.
 -module(parvi_dist_channel).
 -behaviour(gen_server).

@@ -37,6 +37,7 @@ public struct SwarmSnapshot: Identifiable, Decodable {
 
 public struct CommandResult: Decodable {
     public let swarm_id: String?
+    public let notice: String?
 }
 
 public struct RelaySnapshot: Decodable {
@@ -46,6 +47,7 @@ public struct RelaySnapshot: Decodable {
 }
 
 public struct ChatSnapshot: Decodable {
+    public let native_cluster: Bool?
     public let direct: DirectSnapshot?
     public let swarms: [SwarmSnapshot]?
     public let result: CommandResult?

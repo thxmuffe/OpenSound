@@ -1,4 +1,4 @@
-%% Isolated OTP 29 carrier proof. Only pre-established probe channels are usable.
+%% OTP 29 carrier. Only pre-established, authorized channels are usable.
 %% Handshakes, cookies, ticks and native distribution semantics belong to OTP.
 -module(parvi_webrtc_dist).
 -export([listen/1, listen/2, address/0, accept/1, accept_connection/5,

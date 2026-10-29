@@ -1,4 +1,4 @@
-%% Per-VM trust boundary for the isolated native carrier. No persistent identity.
+%% Per-VM trust boundary for the native carrier. No persistent identity.
 -module(parvi_cluster_trust).
 -behaviour(gen_server).
 -export([start_link/1, identity/0, policy/0, create/0, invite/1, remove_both/1,

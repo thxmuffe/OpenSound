@@ -2,12 +2,22 @@
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 APP="$ROOT/builds/macOS/Parvi.app"
+export REBAR_CACHE_DIR="$ROOT/builds/intermediates/rebar-cache"
+if ! command -v mix >/dev/null 2>&1; then
+  export PATH="$ROOT/builds/intermediates/tools/elixir/bin:$PATH"
+fi
+# Compile the pinned upstream WebRTC/SCTP dependencies with Mix. Our runtime
+# modules are Erlang in control/src and remain part of the ordinary release.
+cd "$ROOT/control/transport"
+mix deps.get
+mix compile
 cd "$ROOT/control"
 rebar3 release
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$ROOT/Apps/macOS/Parvi/Info.plist" "$APP/Contents/Info.plist"
 # ditto preserves the runtime layout, including versioned OTP directories.
 ditto "$ROOT/builds/intermediates/control/default/rel/parvi" "$APP/Contents/Resources/runtime"
+python3 "$ROOT/Apps/macOS/package-native.py" "$APP/Contents/Resources"
 # OTP crypto provides secure session/invitation randomness. Bundle its OpenSSL
 # dependency so the app does not depend on the build machine's Homebrew install.
 for crypto_nif in "$APP"/Contents/Resources/runtime/lib/crypto-*/priv/lib/crypto.so; do

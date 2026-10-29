@@ -5,8 +5,8 @@ import ParviKit
 final class MacErlangRuntime: ChatRuntime {
     private(set) var cookie = ""
     let localDeviceName = "This Mac"
-    let connectionDescription = "Use a Reception desk for internet swarms, or local invitations for same-Mac tests."
-    let connectionHelp = "Relay invitations use scoped mailbox and admission credentials. Legacy local invitations contain Erlang credentials. Changing desks starts a fresh session."
+    let connectionDescription = "Create a native cluster or join one through the global Reception Desk."
+    let connectionHelp = "Native invitations grant whole-VM trust. This increment supports one cluster per session. Restart to switch clusters; voluntary leave is not implemented yet. iPhone and Windows currently use the earlier transport."
     let canConnect = true
     private var process: Process?
     private var input: FileHandle?
@@ -33,14 +33,18 @@ final class MacErlangRuntime: ChatRuntime {
             let name = "parvi_mac_\(ProcessInfo.processInfo.processIdentifier)\(Int.random(in: 100000...999999))@127.0.0.1"
             task.arguments = ["-boot", runtime.appendingPathComponent("releases/0.1.0/start").path,
                               "-noshell", "-name", name, "-setcookie", cookie,
-                              "-kernel", "inet_dist_use_interface", "{127,0,0,1}",
+                              "-start_epmd", "false", "-proto_dist", "parvi_webrtc",
+                              "-kernel", "connect_all", "false", "dist_auto_connect", "never",
+                              "-parvi", "runtime_profile", "native_cluster", "native_desk", "true",
                               "-s", "parvi_bridge", "main"]
+            let libraries = runtime.appendingPathComponent("native_lib")
+            let dependencies = try FileManager.default.contentsOfDirectory(at: libraries, includingPropertiesForKeys: nil)
+            task.arguments! += ["-pa"] + dependencies.map { $0.appendingPathComponent("ebin").path }
             var env = ProcessInfo.processInfo.environment
             env["ROOTDIR"] = runtime.path
             env["BINDIR"] = runtime.appendingPathComponent("\(erts)/bin").path
             env["EMU"] = "beam"
             env["PROGNAME"] = "erl"
-            env["ERL_EPMD_ADDRESS"] = "127.0.0.1"
             task.environment = env
             task.currentDirectoryURL = FileManager.default.temporaryDirectory
             let stdin = Pipe(), stdout = Pipe(), stderr = Pipe()
