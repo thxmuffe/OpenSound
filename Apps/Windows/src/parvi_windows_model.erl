@@ -66,6 +66,10 @@ complete(Command, Kind, Reply, S) when Kind =:= join; Kind =:= create ->
         #{<<"result">> := #{<<"swarm_id">> := Id}} -> choose(S1#{selected := Id, error := ""});
         _ -> S1#{error := ""}
     end;
+complete(Command, snapshot,
+         #{<<"relay">> := #{<<"connected">> := true}} = Reply,
+         #{error := <<"Reception desk disconnected. Wait for reconnection.">>} = S) ->
+    complete(Command, snapshot, Reply, S#{error := ""});
 complete(_, snapshot, Reply, S) ->
     case Reply of
         #{<<"native_cluster">> := true, <<"swarms">> := [_ | _]} -> S#{notice := ""};

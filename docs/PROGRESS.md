@@ -1,5 +1,22 @@
 # Progress
 
+## 2026-10-29 — Clear obsolete desk-disconnection error after reconnect
+
+The live Render health endpoint returns HTTP 200, and a temporary client using
+the bundled Windows runtime authenticated over public WSS. Reading the existing
+Windows UI confirmed that its sidebar said connected while its action-error
+label still said disconnected. The model retained the earlier failed-action
+error across successful snapshots. It now clears that specific error when a
+snapshot confirms relay connectivity; unrelated errors remain visible. Failed
+send drafts remain available for manual retry; no message was sent on the user's
+behalf. The initial disconnection's cause was not captured and is unconfirmed.
+
+The model compiles with warnings as errors and is staged for the existing
+automatic reloader. A direct callback check confirms a connected snapshot clears
+the old error. The existing live window still showed the old error after staging;
+loading the expanded backend watcher in that instance is not confirmed. No tests
+were added. No service deployment or restart was performed.
+
 ## 2026-10-29 — Unconditional backend reload in the Windows watcher
 
 Extended the existing 750 ms watcher with 13 executable lines using OTP's

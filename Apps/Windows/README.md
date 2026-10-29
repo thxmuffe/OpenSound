@@ -140,6 +140,9 @@ The shared `parvi_network` worker observes OTP connection events and probes the
 swarm worker asynchronously. Disconnected does not prove that a VM stopped.
 The local node shows Running even while the Reception desk is reconnecting;
 desk connectivity is shown separately in the sidebar.
+The temporary disconnected-action error clears when a subsequent snapshot
+confirms the desk connection. Failed sends retain their draft and are not retried
+automatically.
 A member can remain in the roster while disconnected. Observations are sampled,
 not a globally consistent topology or an audio routing graph.
 

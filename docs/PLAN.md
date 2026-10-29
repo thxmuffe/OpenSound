@@ -59,6 +59,9 @@ model, using OTP code-loading functions. No environment mode or state migration.
 An app running the previous UI-only watcher needs one restart to install the
 expanded watcher; subsequent backend changes reload automatically. Desk
 reachability remains a separate status.
+The Windows model also clears an obsolete disconnected-action error when a
+later snapshot confirms the desk connection; failed messages still need manual
+retry. Live health and WSS authentication pass; the earlier outage cause is unknown.
 
 ### Architecture decision: BEAM/OTP on server and in browser
 
