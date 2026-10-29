@@ -11,6 +11,8 @@ It bundles Erlang and supports chat between app instances on the same Mac.
 
 A native [Windows wxErlang exercise](Apps/Windows/README.md) reuses the same Erlang
 chat and discovery workers, with a bundled runtime and `Parvi.exe` launcher.
+Windows sources now also understand the newer native OTP profile; Windows NIF
+packaging remains incomplete, so the default build retains the earlier relay.
 The Reception desk also has a Windows launcher: `Services/ReceptionDesk/run.ps1`.
 
 The Mac app and [iPhone project](Apps/iOS/README.md) reuse the local

@@ -1,4 +1,6 @@
-param([string]$OtpRoot = $env:PARVI_OTP_ROOT, [switch]$Test)
+param([string]$OtpRoot = $env:PARVI_OTP_ROOT, [switch]$Test,
+      [ValidateSet('Native', 'Legacy')][string]$Transport = 'Legacy',
+      [string]$NativeLibRoot = $env:PARVI_WINDOWS_NATIVE_LIB)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $work = Join-Path $repo 'builds\intermediates\Windows'
@@ -9,9 +11,38 @@ $erlc = Join-Path $OtpRoot 'bin\erlc.exe'
 $erl = Join-Path $OtpRoot 'bin\erl.exe'
 if (!(Test-Path -LiteralPath $erlc)) { throw 'Set PARVI_OTP_ROOT to an extracted Windows OTP 29.1.2 archive.' }
 & (Join-Path $repo 'scripts\erlang-deps.ps1') -OtpRoot $OtpRoot
+if ($Transport -eq 'Native') {
+    if (!$NativeLibRoot) {
+        throw 'Native Windows NIF packaging is not available yet: the pinned DTLS/Unifex stack requires POSIX facilities. Supply -NativeLibRoot with Windows-built transport/Elixir applications, or explicitly use -Transport Legacy for the earlier relay app. See Apps/Windows/README.md.'
+    }
+    $NativeLibRoot = (Resolve-Path -LiteralPath $NativeLibRoot).Path
+    # Verify target NIFs before modifying an existing app bundle. Mac/iOS artifacts
+    # cannot be reused as Windows dynamic libraries.
+    $paths = @(Get-ChildItem -LiteralPath $NativeLibRoot -Directory | ForEach-Object { Join-Path $_.FullName 'ebin' })
+    $check = 'case application:ensure_all_started(parvi_transport) of {ok, _} -> ok; StartError -> io:format("~p~n", [StartError]), halt(1) end, lists:foreach(fun(M) -> case code:ensure_loaded(M) of {module, M} -> ok; LoadError -> io:format("~p: ~p~n", [M, LoadError]), halt(1) end end, [''Elixir.ExDTLS.Native.Nif'', ''Elixir.ExLibSRTP.Native.Nif'', ''Elixir.ExSCTP'', crc_nif]), halt().'
+    & $erl -noshell -pa @paths -eval $check
+    if ($LASTEXITCODE) { throw 'Native Windows dependency loading failed. The existing bundle was not updated.' }
+}
 $out = Join-Path $repo 'builds\Windows\Parvi'
 $ebin = Join-Path $out 'ebin'
 New-Item -ItemType Directory -Force $ebin | Out-Null
+if ($Transport -eq 'Native') {
+    $nativeLib = Join-Path $out 'native_lib'
+    New-Item -ItemType Directory -Force $nativeLib | Out-Null
+    foreach ($library in Get-ChildItem -LiteralPath $NativeLibRoot -Directory) {
+        $target = Join-Path $nativeLib $library.Name
+        New-Item -ItemType Directory -Force $target | Out-Null
+        foreach ($folder in @('ebin', 'priv')) {
+            $sourceFolder = Join-Path $library.FullName $folder
+            if (Test-Path -LiteralPath $sourceFolder) {
+                Copy-Item -LiteralPath $sourceFolder -Destination $target -Recurse -Force
+            }
+        }
+        Get-ChildItem -LiteralPath $library.FullName -File | Where-Object {
+            $_.Name -match '^(LICENSE|COPYING|NOTICE)'
+        } | Copy-Item -Destination $target -Force
+    }
+}
 $relayLib = Join-Path $out 'relay_lib'
 New-Item -ItemType Directory -Force $relayLib | Out-Null
 foreach ($dep in @('gun', 'cowlib')) {
@@ -60,4 +91,6 @@ if ($Test) {
     & $erl -noshell -pa $ebin -eval 'case eunit:test([parvi_tests, parvi_swarms_tests, parvi_relay_tests, parvi_windows_model_tests], [verbose]) of ok -> halt(0); _ -> halt(1) end.'
     if ($LASTEXITCODE) { throw 'Core tests failed.' }
 }
-Write-Host "Built $out\Parvi.exe"
+$profile = if ($Transport -eq 'Native') { 'native_cluster' } else { 'legacy_apps' }
+[System.IO.File]::WriteAllText((Join-Path $out 'runtime-profile'), $profile, [System.Text.Encoding]::ASCII)
+Write-Host "Built $out\Parvi.exe ($profile)"

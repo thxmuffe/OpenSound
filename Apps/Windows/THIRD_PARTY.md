@@ -25,3 +25,10 @@ Their license files accompany their compiled modules. These are pure Erlang
 transport libraries, not another UI runtime. Dependency locks record provenance.
 The graph adapter also accepts binary relay identities and shortens long display
 labels; full identities remain visible in node details.
+
+Optional native builds use the exact WebRTC/SCTP dependency versions locked in
+`control/transport/mix.lock`, plus Elixir support applications. They are loaded
+from `native_lib/`. Supply Windows-built DLLs and dependency licenses together;
+the build copies each application's license/notice files. The repository does
+not yet produce a complete Windows native dependency bundle. Mac/iPhone native
+artifacts are not compatible with Windows.

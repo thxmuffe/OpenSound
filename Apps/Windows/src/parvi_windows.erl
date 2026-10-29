@@ -40,7 +40,8 @@ build_window(Saved) ->
     wxTextCtrl:connect(Incoming, command_text_enter, [{userData, join}]),
     add(Side, Incoming, 0, 12),
     Join = button(Sidebar, "Add swarm", join), add(Side, Join, 0, 12),
-    add(Side, wxStaticText:new(Sidebar, ?wxID_ANY, "Reception desk URL"), 0, 8),
+    DeskLabel = wxStaticText:new(Sidebar, ?wxID_ANY, "Reception desk URL"),
+    add(Side, DeskLabel, 0, 8),
     Desk = wxTextCtrl:new(Sidebar, ?wxID_ANY),
     wxTextCtrl:setToolTip(Desk, "wss://your-desk/relay/v1"),
     wxTextCtrl:connect(Desk, command_text_updated, [{userData, edit_desk}]),
@@ -103,7 +104,7 @@ build_window(Saved) ->
     wxFrame:connect(Frame, move, [{skip, true}]),
     case maps:find(position, Saved) of {ok, Position} -> wxFrame:move(Frame, Position); error -> ok end,
     S = #{frame => Frame, content => Content, swarms => Swarms, create => Create, join => Join,
-          incoming => Incoming, desk => Desk, configure => Configure, local => Local, heading => Heading, leave => Leave,
+          incoming => Incoming, desk_label => DeskLabel, desk => Desk, configure => Configure, local => Local, heading => Heading, leave => Leave,
           summary => Summary, invitation => Invitation, invitation_label => InvitationLabel,
           notebook => Notebook, graph => Graph, peers => Peers, details => Details, remove => Remove,
           conversation => Conversation, messages => Messages, draft => Draft, send => Send, error => Error,
@@ -171,7 +172,10 @@ handle_event(#wx{userData = leave}, #{selected := Id} = S) when Id =/= undefined
 handle_event(#wx{userData = remove}, #{selected := Id, selected_node := Target} = S)
         when Id =/= undefined, Target =/= undefined ->
     D = wxMessageDialog:new(maps:get(frame, S),
-        "Both nodes will leave this swarm and their entry invitations will expire. Other swarms are unaffected.",
+        case native(parvi_windows_model:get()) of
+            true -> "Both nodes will lose access to the entire native cluster, including other logical swarms. Their invitations will expire.";
+            false -> "Both nodes will leave this swarm and their entry invitations will expire. Other swarms are unaffected."
+        end,
         [{caption, "Remove both of us?"}, {style, ?wxYES_NO bor ?wxNO_DEFAULT bor ?wxICON_QUESTION}]),
     Answer = wxMessageDialog:showModal(D), wxMessageDialog:destroy(D),
     case Answer of ?wxID_YES -> action(#{method => remove_both, swarm_id => Id, target => Target}, remove, S); _ -> {noreply, S} end;
@@ -204,6 +208,7 @@ active_request(#{pending := Pending}) ->
 
 sync(Model, S0) ->
     Snapshot = maps:get(snapshot, Model), Swarms = maps:get(<<"swarms">>, Snapshot, []),
+    Native = native(Model),
     Id = maps:get(selected, Model), Active = Id =/= undefined,
     Changed = Id =/= maps:get(selected, S0),
     S = case Changed of true -> S0#{selected := Id, selected_node := undefined, history := undefined}; false -> S0 end,
@@ -227,9 +232,13 @@ sync(Model, S0) ->
     wxStaticText:setLabel(maps:get(heading, S), Name),
     wxStaticText:setLabel(maps:get(summary, S), case Active of
         true -> [count_label(length(Members), "node"), " in this swarm",
-            case maps:get(<<"url">>, maps:get(<<"relay">>, Snapshot, #{}), null) of
-                null -> ""; _ -> "\nRelayed through the Reception desk; direct peer links are not shown."
+            case Native of
+                true -> "\nNative OTP over WebRTC. Invitations grant whole-VM trust.";
+                false -> case maps:get(<<"url">>, maps:get(<<"relay">>, Snapshot, #{}), null) of
+                    null -> ""; _ -> "\nRelayed through the Reception desk; direct peer links are not shown."
+                end
             end];
+        false when Native -> "Create a native cluster or paste a native invitation. One cluster per session; restart to switch.";
         false -> "Create a swarm or add one with an invitation. This node is still running."
     end),
     change_text(maps:get(invitation, S), case Invitation of null -> <<>>; _ -> Invitation end),
@@ -237,6 +246,7 @@ sync(Model, S0) ->
     change_text(maps:get(desk, S), maps:get(desk, Model, "")),
     change_text(maps:get(draft, S), parvi_windows_model:draft(Model)),
     [wxWindow:show(maps:get(K, S), [{show, Active}]) || K <- [invitation, invitation_label, notebook, leave]],
+    [wxWindow:show(maps:get(K, S), [{show, not Native}]) || K <- [desk_label, desk, configure]],
     Tab = maps:get(view, Model),
     wxNotebook:changeSelection(maps:get(notebook, S), Tab),
     parvi_graph_view:pause(maps:get(graph, S), not Active orelse Tab =/= 0),
@@ -249,12 +259,20 @@ sync(Model, S0) ->
     HasNode = lists:member(SelectedNode, Members),
     wxStaticText:setLabel(maps:get(details, S), case HasNode of true -> SelectedNode; false -> "Select a node to see its identity." end),
     Busy = active_request(Model),
-    enable(configure, not Busy, S), enable(create, not Busy, S), enable(join, not Busy andalso string:trim(maps:get(incoming, Model)) =/= "", S),
-    enable(leave, Active andalso not Busy, S),
+    enable(configure, not Native andalso not Busy, S),
+    enable(create, not Busy andalso not (Native andalso Active), S),
+    enable(join, not Busy andalso not (Native andalso Active) andalso string:trim(maps:get(incoming, Model)) =/= "", S),
+    enable(leave, not Native andalso Active andalso not Busy, S),
+    wxWindow:setToolTip(maps:get(leave, S), case Native of
+        true -> "Native voluntary leave is not implemented. Quit to disconnect; membership is not revoked.";
+        false -> "Leave this swarm. Other memberships stay intact."
+    end),
     enable(remove, HasNode andalso SelectedNode =/= identity_name() andalso not Busy, S),
     enable(send, Active andalso not Busy andalso string:trim(parvi_windows_model:draft(Model)) =/= "", S),
     enable(draft, Active, S),
-    wxStaticText:setLabel(maps:get(error, S), maps:get(error, Model)),
+    wxStaticText:setLabel(maps:get(error, S), case maps:get(error, Model) of
+        "" -> maps:get(notice, Model, ""); ErrorText -> ErrorText
+    end),
     wxStaticText:wrap(maps:get(error, S), 600),
     Relay = maps:get(<<"relay">>, Snapshot, #{}),
     DeskStatus = case maps:get(<<"url">>, Relay, null) of
@@ -266,7 +284,12 @@ sync(Model, S0) ->
     wxPanel:layout(maps:get(content, S)),
     case Changed orelse History =/= maps:get(history, WithNodes) of true -> render(History, WithNodes); false -> WithNodes end.
 
-identity_name() -> case parvi_relay:id() of N when is_atom(N) -> atom_to_binary(N); N -> N end.
+native(Model) -> maps:get(<<"native_cluster">>, maps:get(snapshot, Model), false).
+identity_name() ->
+    case application:get_env(parvi, runtime_profile, legacy_apps) of
+        native_cluster -> atom_to_binary(node());
+        legacy_apps -> case parvi_relay:id() of N when is_atom(N) -> atom_to_binary(N); N -> N end
+    end.
 
 count_label(N, Name) -> io_lib:format("~B ~s~s", [N, Name, case N of 1 -> ""; _ -> "s" end]).
 

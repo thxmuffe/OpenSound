@@ -1,5 +1,70 @@
 # Progress
 
+## 2026-10-29 — Unconditional backend reload in the Windows watcher
+
+Extended the existing 750 ms watcher with 13 executable lines using OTP's
+`code:module_status/1`, `code:purge/1` and `code:load_file/1`. It reloads all
+changed, loaded project modules in the app's `ebin/`; the UI retains its existing
+window rebuild path. Backend, model and host receive no compatibility/state
+checks or environment-specific treatment. No additional worker or dependency.
+Existing process state is retained; incompatible changes and old-code purges
+may crash/terminate processes. Failed loads are logged and retried.
+
+The host compiles with warnings as errors and is staged in the Windows bundle.
+No tests were added or run and the live app was not restarted. One restart of
+an app using the old UI-only watcher is needed to install the expanded watcher.
+Native libraries, runtime and launch settings remain outside BEAM code reload.
+
+## 2026-10-29 — Correct local node status during desk disconnection
+
+The legacy relay snapshot incorrectly marked the local node down whenever it
+had neither a desk connection nor direct peers. The runtime producing the
+snapshot is itself evidence that the local node is running. It now reports
+Running with `local_process` detail independently of desk connectivity; the
+sidebar continues to report desk reconnection. Remote status and graph edges
+are unchanged. The shared worker compiles with warnings as errors and is staged
+in the Windows app's `ebin` for the next restart. No tests were added or run,
+and the running app was not restarted or reloaded.
+
+## 2026-10-29 — Windows native source alignment; dependency build incomplete
+
+Reviewed the accepted OTP architecture, incremental implementation policy and
+recent Mac/iPhone integration. Windows now has explicit launch profiles. Native
+startup selects the shared WebRTC distribution carrier and native desk/runtime,
+disables EPMD and automatic/transitive distribution connections, and loads
+transport applications from `native_lib/`. The existing bridge already routes
+native commands to the shared runtime; no second membership/chat layer was added.
+
+The Windows UI recognizes native snapshots, uses the actual OTP node identity,
+shows asynchronous submission notices and whole-VM trust, and confirms
+cluster-wide mutual removal. It disables voluntary leave and hides unsupported
+desk switching. Additional create/join actions are disabled while a native
+cluster is selected. Existing swarm labels, graph implementation, UI/model
+ownership and the legacy multi-swarm path remain in place.
+
+`build.ps1 -Transport Native -NativeLibRoot ...` can accept a self-contained
+Windows dependency bundle, checking application/NIF loading before packaging.
+No such complete bundle is available here. The default remains `Legacy`, with
+an explicit profile file consumed by both launchers; failed native packaging
+does not silently select another transport.
+
+Validation: all shared and Windows Erlang sources compile with warnings as
+errors. The Win32 launcher compiles with `/W4 /WX`; PowerShell scripts parse.
+A Windows OTP VM boots the native carrier without EPMD using a transient cookie;
+this does not exercise WebRTC or admission. The complete legacy Windows app was
+rebuilt at `builds/Windows/Parvi/Parvi.exe`, without running test suites or UI.
+No tests were added. No app launch, peer connection, Render service change or
+Mac/iPhone build was performed.
+
+Dependency investigation fetched the pinned transport packages. With the
+Visual Studio environment, upstream CRC compiles; the Mix build then fails
+because Cargo is not installed. Source inspection also confirms POSIX socket/
+time headers in DTLS and POSIX shared memory/mapping in Shmex/Unifex. A Rust
+installation alone is not a demonstrated solution. Dependency sources were not
+edited, and no native bundle or cross-platform interoperability is claimed.
+Next Windows work is a supported Windows NIF build/port, followed by native app
+packaging and a focused invitation/chat check through the global Render desk.
+
 ## 2026-10-29 — Native iPhone packaging and startup in source
 
 Added target static builds for upstream DTLS, SCTP, SRTP and CRC NIFs, using

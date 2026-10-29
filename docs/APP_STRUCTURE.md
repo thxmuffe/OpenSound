@@ -4,6 +4,15 @@ The macOS, iOS and Windows apps follow this interaction model. Platform controls
 and responsive layouts can differ; membership and chat behavior come from the
 same Erlang/OTP core in `control/`.
 
+The following multi-swarm behavior describes the legacy app profile. Updated
+Mac/iPhone native sources, and the optional Windows native source path, instead
+represent one trusted OTP cluster per session through the existing swarm UI.
+`pg` supplies live chat membership; admission policy is separate from liveness.
+Removal revokes both nodes across the entire cluster. Voluntary leave and
+switching are not implemented there. Windows native NIF packaging is incomplete;
+its default runnable build still uses the legacy profile. See the platform
+READMEs and [current plan](PLAN.md) for implementation and validation limits.
+
 ## Nodes and swarms
 
 A node is an independent running actor/runtime. It can belong to any number of

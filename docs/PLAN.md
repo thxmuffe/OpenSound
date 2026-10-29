@@ -41,6 +41,25 @@ the updated native apps and check connections through Render when needed to
 support that work. Address recovery and TURN when actual use or the next feature
 requires them; no separate testing phase is required.
 
+**Windows follow-up requested 2026-10-29:** launch/profile and UI sources now
+understand the shared native runtime, cluster-wide removal and pending joins.
+Shared/Windows Erlang and the Win32 launcher compile; a Windows OTP VM boots the
+native carrier without EPMD. The legacy app is rebuilt. Windows NIF packaging is
+still incomplete: the upstream build stops at missing Cargo, and the pinned
+DTLS/Unifex/Shmex sources also depend on POSIX facilities. Keep the legacy relay
+build available until those dependencies have a supported Windows build/port.
+Next for Windows: finish that dependency increment, build the native app, then
+check invitation/admission/chat through the global Render desk as needed.
+Do not describe this source integration as runnable native Windows support.
+
+Windows status correction: the legacy relay snapshot now reports the local
+runtime as Running independently of desk connectivity. The existing reload loop
+now unconditionally reloads changed project BEAM modules, including backend and
+model, using OTP code-loading functions. No environment mode or state migration.
+An app running the previous UI-only watcher needs one restart to install the
+expanded watcher; subsequent backend changes reload automatically. Desk
+reachability remains a separate status.
+
 ### Architecture decision: BEAM/OTP on server and in browser
 
 Use Phoenix with its Cowboy adapter for the server host, and Popcorn 1.0 with

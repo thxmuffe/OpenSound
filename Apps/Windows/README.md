@@ -5,6 +5,57 @@ used by macOS and iOS. The sidebar lists swarms and provides **New swarm** and
 **Add swarm**. Selecting a swarm opens its invitation, **Graph** and **Chat** tabs.
 Nodes can belong to many swarms or none; swarms own their chat histories.
 
+**2026-10-29:** Windows launch/UI sources now also support the shared native
+OTP-over-WebRTC profile used by the updated Mac/iPhone sources. Its Windows NIF
+build is incomplete. The default Windows build therefore retains the working
+legacy relay profile; it does not claim native-cluster interoperability.
+
+## Native source integration and remaining work
+
+The native launcher disables EPMD, automatic transitive connections and automatic
+distribution reconnect. `parvi_sup` owns the shared `pg` scope, `parvi_chat` and
+desk connector. No legacy swarm gossip, topology or health worker runs in that
+profile. The existing graph renders the shared snapshot without a new graph
+implementation. Reception Desk traffic introduces peers; native OTP traffic
+travels over the encrypted WebRTC DataChannel.
+
+The UI uses the existing swarm labels for one native cluster per session. Start
+with **New swarm**, or paste a native `parvi://cluster/v2` invitation from a
+rebuilt peer. Submission is shown as pending until admission is observed.
+Invitations grant whole-VM trust. **Remove both of us** confirms cluster-wide
+revocation, including other logical swarms. Voluntary leave is disabled; quit
+disconnects without revoking membership. Restart to switch clusters or retry a
+failed join. Desk switching, mesh and automatic recovery remain unimplemented.
+Legacy invitations cannot join the native profile.
+
+Native packaging needs Windows x64 builds of the pinned `control/transport`
+dependencies, Elixir runtime applications, and their native DLLs and licenses.
+The first upstream Windows build compiled CRC with Visual Studio, then stopped
+because Cargo was absent. Source inspection also found POSIX `sys/mman.h`,
+`shm_open` and socket/time headers in Shmex/Unifex/DTLS; installing Rust alone
+does not establish a usable Windows build. No dependency sources were patched.
+The next increment is a Windows-supported build/port of those NIF dependencies,
+then a native app build and an invitation/chat check through the global desk.
+Shared/Windows Erlang and the Win32 launcher compile, and a Windows OTP VM boots
+the carrier without EPMD. The legacy app was rebuilt; native app startup, NIF
+packaging and connectivity remain unverified. See [progress](../../docs/PROGRESS.md).
+
+For an externally prepared, self-contained Windows dependency bundle only:
+
+```powershell
+.\Apps\Windows\build.ps1 -Transport Native -NativeLibRoot C:\path\to\windows-native-lib
+```
+
+The supplied directory must contain one application directory per dependency,
+including `parvi_transport`, `elixir`, `eex` and `logger`, with `ebin/`, `priv/`
+and license files. All dependent DLLs must be included in their Windows runtime
+locations; Mac shared objects and iPhone static archives cannot be reused.
+The builder checks application startup and actual DTLS/SRTP/SCTP/CRC NIF loading
+before updating the bundle, copies the supplied libraries into `native_lib/`,
+and records the launch profile in `runtime-profile`. This input hook has not
+been exercised with a complete Windows native bundle. There is no automatic
+fallback from failed native packaging to relay mode.
+
 ## Build and launch
 
 Requires Windows x64, PowerShell, and Visual Studio's **Desktop development with
@@ -12,7 +63,7 @@ C++** workload. From the repository root:
 
 ```powershell
 .\Apps\Windows\setup.ps1
-.\Apps\Windows\build.ps1 -Test
+.\Apps\Windows\build.ps1 -Transport Legacy
 .\builds\Windows\Parvi\Parvi.exe
 ```
 
@@ -21,12 +72,14 @@ Setup verifies and extracts the official OTP 29.1.2 archive into
 `PARVI_OTP_ROOT` to that extracted directory before building. No global Erlang
 installation or PATH change is required. Keep `Parvi.exe`, `ebin/`, and `runtime/`
 together. The current build is unsigned and retains the full runtime libraries.
+Keep the generated `runtime-profile` file with the executable. Native builds
+also require `native_lib/`. Both launchers read the same profile file.
 Use `.\Apps\Windows\run.ps1` for terminal diagnostics.
 
 After upgrading from the old node-sidebar UI, launch the executable at the new
 path above. Backend/model changes require restarting older sessions once.
 
-## Join through a Reception desk
+## Legacy profile: join through a Reception desk
 
 Restart the rebuilt Windows app: it automatically connects to
 `wss://parvi-reception-desk.onrender.com/relay/v1`, configured once in the shared
@@ -43,7 +96,7 @@ Relay mode displays connection observations, and does
 not draw fictional direct peer links. See the [protocol](../../docs/RELAY_PROTOCOL.md).
 The full browser client is not required.
 
-## Join and select swarms (local development mode)
+## Legacy profile: join and select swarms (local development mode)
 
 Set `$env:PARVI_RECEPTION_DESK_URL = ""` before launching from PowerShell to
 select local-only transport instead of the public default. Launch two instances.
@@ -70,7 +123,7 @@ removal. These strings are different from the legacy node connection strings.
 The Reception Desk directory remains a separate service; joining a swarm uses
 its member invitation directly.
 
-## Graph and node details
+## Legacy profile: graph and node details
 
 Graph shows only the selected swarm's members and observed distribution links
 between them. It uses the attributed native OTP Reltool force graph with the
@@ -85,10 +138,12 @@ Status lights retain RabbitMQ Management's existing palette, with text labels:
 Running (green), Not responding (yellow), Disconnected (red), Checking (grey).
 The shared `parvi_network` worker observes OTP connection events and probes the
 swarm worker asynchronously. Disconnected does not prove that a VM stopped.
+The local node shows Running even while the Reception desk is reconnecting;
+desk connectivity is shown separately in the sidebar.
 A member can remain in the roster while disconnected. Observations are sampled,
 not a globally consistent topology or an audio routing graph.
 
-## Automatic UI reload
+## Automatic code reload
 
 Compiling `Apps/Windows/src/parvi_windows.erl` into the running app's `ebin/`
 rebuilds its window automatically, normally within a second. Building skips an
@@ -99,13 +154,23 @@ belong to the model, so they complete while a window is being replaced.
 
 There is no rollback. Incomplete BEAM output is ignored; valid code that fails to
 start leaves the UI unavailable until a corrected build arrives. Ordinary window
-crashes use normal OTP supervision. The backend, model, host, native libraries
-and runtime need a deliberate upgrade or restart when their code changes.
+crashes use normal OTP supervision.
+
+The same 750 ms loop also reloads every changed, already-loaded project module
+in the app's `ebin/`, including the backend, model and reloader itself. It uses
+OTP's `code:module_status/1`, purges old code and loads the replacement. This is
+always enabled, with no development/testing mode, compatibility checks, state
+migration or rollback. Existing process state is kept; incompatible changes can
+crash processes, and purging can kill processes still executing old code. Load
+failures are logged and retried on the next poll. Newly referenced modules load
+normally through OTP. Native libraries, runtime and launch settings still need
+their own upgrade/restart. Restart an app running the earlier UI-only reloader
+once to install this behavior; subsequent compiled backend changes reload too.
 
 ## Checks
 
 ```powershell
-.\Apps\Windows\build.ps1 -Test
+.\Apps\Windows\build.ps1 -Transport Legacy -Test
 python .\Apps\Windows\reload-smoke.py
 ```
 
@@ -119,6 +184,8 @@ It uses private module copies and temporary local nodes.
 The legacy transport/directory smoke test remains available via
 `python Apps/Windows/smoke.py` after compiling ReceptionDesk with its Windows
 launcher (`run-legacy.ps1`). It tests the old bridge compatibility path, not the swarm UI.
+These existing helpers do not validate native Windows startup, admission or
+WebRTC interoperability. No tests were added or run for the native source update.
 
 ## Current scope and runtime provenance
 

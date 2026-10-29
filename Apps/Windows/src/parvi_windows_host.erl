@@ -1,4 +1,4 @@
-%% Watch compiled UI code; the supervisor owns processes, the model owns state.
+%% Reload changed app modules; the supervisor owns processes, the model owns state.
 -module(parvi_windows_host).
 -behaviour(gen_server).
 -export([main/0, run/0, run/1, start_link/1, reload/0, status/0]).
@@ -36,6 +36,7 @@ handle_info({'DOWN', _, process, Pid, normal}, #{pid := Pid, owner := Owner} = S
 handle_info(_, S) -> {noreply, S}.
 
 check(#{path := Path, hash := Hash} = S, Force) ->
+    reload_modules(filename:dirname(Path)),
     case file:read_file(Path) of
         {ok, Binary} ->
             NewHash = erlang:md5(Binary),
@@ -60,6 +61,18 @@ check(#{path := Path, hash := Hash} = S, Force) ->
             end;
         _ -> S
     end.
+
+reload_modules(Directory) ->
+    Modules = [M || {M, File} <- code:all_loaded(), is_list(File),
+                    filename:dirname(File) =:= Directory, M =/= parvi_windows],
+    [begin
+        code:purge(M),
+        case code:load_file(M) of
+            {module, M} -> ok;
+            {error, Reason} -> logger:error("Reload failed for ~p: ~p", [M, Reason])
+        end
+    end || {M, modified} <- code:module_status(Modules)],
+    ok.
 
 start_ui(S) ->
     case supervisor:start_child(parvi_windows_sup, #{id => window,

@@ -11,7 +11,7 @@ request(Command, Kind, ReplyTo, Ref) -> gen_server:cast(?MODULE, {request, Comma
 init(Seed) ->
     Desk = case parvi_relay:url() of undefined -> ""; URL -> unicode:characters_to_list(URL) end,
     {ok, maps:merge(#{selected => undefined, drafts => #{}, view => 0, incoming => "", desk => Desk,
-                     snapshot => #{}, pending => #{}, error => "", serial => 0, applied => 0}, Seed)}.
+                     snapshot => #{}, pending => #{}, error => "", notice => "", serial => 0, applied => 0}, Seed)}.
 handle_call(get, _, S) -> {reply, S, S};
 handle_call({put, Values}, _, S) -> {reply, ok, maps:merge(S, Values)}.
 handle_cast({request, _, snapshot, _, _}, #{pending := Pending} = S) when map_size(Pending) > 0 ->
@@ -37,7 +37,10 @@ handle_info({reply, Ref, Reply}, #{pending := Pending} = S) ->
                 _ -> S1
             end,
             Next = case Reply of
-                #{<<"error">> := null} -> complete(Command, Kind, Reply, S2);
+                #{<<"error">> := null} ->
+                    Notice = maps:get(<<"notice">>, maps:get(<<"result">>, Reply, #{}), ""),
+                    S3 = case Kind of snapshot -> S2; _ -> S2#{notice := Notice} end,
+                    complete(Command, Kind, Reply, S3);
                 #{<<"error">> := Error} -> S2#{error := Error};
                 _ -> S2#{error := "Erlang worker unavailable. Retrying..."}
             end,
@@ -63,7 +66,11 @@ complete(Command, Kind, Reply, S) when Kind =:= join; Kind =:= create ->
         #{<<"result">> := #{<<"swarm_id">> := Id}} -> choose(S1#{selected := Id, error := ""});
         _ -> S1#{error := ""}
     end;
-complete(_, snapshot, _, S) -> S;
+complete(_, snapshot, Reply, S) ->
+    case Reply of
+        #{<<"native_cluster">> := true, <<"swarms">> := [_ | _]} -> S#{notice := ""};
+        _ -> S
+    end;
 complete(_, configure, _, S) -> S#{drafts := #{}, incoming := "", error := ""};
 complete(_, _, _, S) -> S#{error := ""}.
 
