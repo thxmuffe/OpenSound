@@ -42,8 +42,10 @@ This increment supports **one native cluster per app session**, displayed throug
 the existing swarm UI. Additional independent swarms and switching clusters are
 not implemented in this path. Restart the app to create/join another cluster or
 retry a failed join. Desk switching is not implemented in the native bridge.
-Native `parvi://cluster/v2` invitations grant whole-VM trust and are incompatible
-with the earlier relay invitations used by current iPhone and Windows builds.
+Native `parvi://cluster/v2` invitations grant whole-VM trust. iPhone source now
+has matching native packaging/startup; its new app has not been built or run.
+Previously installed iPhone apps and current Windows builds use the earlier,
+incompatible relay invitations.
 
 Chat reuses `parvi_chat` and its `pg` scope, with local transient history of up
 to 200 messages and best-effort sends. No history download or replay is added.

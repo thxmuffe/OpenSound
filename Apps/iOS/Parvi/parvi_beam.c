@@ -18,6 +18,10 @@ extern void *prim_buffer_nif_init(void), *prim_file_nif_init(void);
 extern void *zlib_nif_init(void), *zstd_nif_init(void);
 extern void *prim_socket_nif_init(void), *prim_net_nif_init(void);
 extern void *asn1rt_nif_nif_init(void), *crypto_nif_init(void);
+#ifdef PARVI_NATIVE_TRANSPORT
+extern void *parvi_dtls_nif_init(void), *parvi_srtp_nif_init(void);
+extern void *parvi_crc_nif_init(void), *ex_sctp_nif_init(void);
+#endif
 
 StaticDriver driver_tab[] = {{&inet_driver_entry, 0}, {&ram_file_driver_entry, 0}, {NULL, 0}};
 void erts_init_static_drivers(void) {}
@@ -27,6 +31,10 @@ StaticNif erts_static_nif_tab[] = {
     {zlib_nif_init, 0, 0, NULL}, {zstd_nif_init, 0, 0, NULL},
     {prim_socket_nif_init, 0, 0, NULL}, {prim_net_nif_init, 0, 0, NULL},
     {asn1rt_nif_nif_init, 1, 0, NULL}, {crypto_nif_init, 1, 0, NULL},
+#ifdef PARVI_NATIVE_TRANSPORT
+    {parvi_dtls_nif_init, 1, 0, NULL}, {parvi_srtp_nif_init, 1, 0, NULL},
+    {parvi_crc_nif_init, 1, 0, NULL}, {ex_sctp_nif_init, 1, 0, NULL},
+#endif
     {NULL, 0, 0, NULL}
 };
 /* Compatibility helper needed by the pinned device archive's errno object. */
@@ -66,10 +74,22 @@ void parvi_beam_start(const char *root, const char *data_directory, uint16_t por
     setenv("ERL_CRASH_DUMP", dump, 1);
     setenv("PARVI_BRIDGE_PORT", port_string, 1);
     setenv("PARVI_PROOF_PATH", proof, 1);
+#ifdef PARVI_NATIVE_TRANSPORT
+    char cookie[33];
+    unsigned char random_cookie[16];
+    arc4random_buf(random_cookie, sizeof(random_cookie));
+    for (int i = 0; i < 16; i++) snprintf(cookie + i * 2, 3, "%02x", random_cookie[i]);
+#endif
     const char *values[] = {"beam", "-S", "1:1", "-SDcpu", "1:1", "-SDio", "1", "-A", "1",
         "-sbwt", "none", "-MIscs", "128", "--", "-root", root,
         "-bindir", bindir, "-progname", "erl", "--", "-noshell", "-noinput",
-        "-start_epmd", "false", "-boot", boot, "-pa", beams, "-s", "parvi_ios", "main", NULL};
+        "-start_epmd", "false", "-boot", boot, "-pa", beams,
+#ifdef PARVI_NATIVE_TRANSPORT
+        "-setcookie", cookie, "-proto_dist", "parvi_webrtc",
+        "-kernel", "connect_all", "false", "dist_auto_connect", "never",
+        "-parvi", "runtime_profile", "native_cluster", "native_desk", "true",
+#endif
+        "-s", "parvi_ios", "main", NULL};
     int count = 0;
     while (values[count]) count++;
     char **args = calloc((size_t)count + 1, sizeof(char *));

@@ -1,145 +1,119 @@
 # Parvi for iPhone
 
-This project embeds a real, interpreted Erlang/OTP 29.1.2 VM **inside the iOS
-app process**. It runs the shared Parvi OTP application and shared SwiftUI view.
-No chat execution is forwarded to the Mac. It uses the Mac app's shared design,
-with native iPhone navigation and touch/keyboard behavior. The signed relay build
-is installed on the physical iPhone and has authenticated to the shared default
-Render desk over verified WSS. The runtime and connection receipts match its
-running process. A physical Mac–iPhone invitation, bidirectional chat exchange
-and two-node Mac graph have also been verified through Render. Audio and
-background operation remain outside this prototype.
+The app embeds an interpreted OTP 29.1.2 / ERTS 17.1.1 VM inside the iOS
+process, reusing the shared Erlang runtime and SwiftUI interface. The current
+source adds native OTP distribution over WebRTC, with the same trust and Render
+desk connector as Mac. No execution is forwarded to a Mac.
 
-## Shared app experience
+**Current status:** device native dependencies cross-compile and the embedded
+host links. Shared iOS Swift compilation/type-checking and resource preparation
+pass. This native app has not been fully built, installed or run on a phone.
+The previously installed relay build and its physical Mac–iPhone chat proof are
+historical; they do not validate the new native transport.
 
-- The opening Swarms screen uses the same list, New swarm and Add swarm controls
-  as the Mac sidebar. One node can hold several independent local swarms.
-- Selecting a swarm opens its own heading, node count, invitation area, Chat and
-  Graph tabs. Swipe between tabs, or tap their segmented control. Native Back
-  navigation and the edge swipe return to Swarms.
-- Chat bubbles, timestamps, colors, separate drafts, graph/list display, node
-  details and Leave swarm use the same shared implementation as macOS.
-- The composer follows the keyboard. The invitation area hides while composing
-  to keep the conversation visible; Done dismisses the keyboard.
-- The information button opens a sheet with local node status, OTP/runtime details
-  and networking limits, with a Done button and drag handle.
-- Invitation fields support normal editing, selection, copy and paste, and Copy
-  is always available. The rebuilt app automatically connects to the public desk
-  configured in `control/src/parvi.app.src` to obtain and join v2 invitations.
-  Creating, chatting in, and leaving swarms use the on-device Erlang worker.
-  The phone opens an outbound WebSocket; Distributed Erlang is not required.
+## Prepare and build
 
-The interface calls participants **nodes**, including agents and playback devices.
-No people/account assumptions or permanent device identity are added.
+Requirements: Xcode/iOS SDK, Python 3.11+, OTP 29.1.2, rebar3, Elixir 1.19,
+CMake, make and Rust 1.90+. Compile the pinned upstream dependencies in
+`control/transport` with Mix first, as described in its
+[guide](../../control/transport/README.md). That supplies portable BEAM files and
+Unifex-generated C sources; no Mac native binary is copied to the phone.
+The scripts use the existing Rust/Elixir caches under `builds/intermediates/tools`.
 
-## Relay build changes
-
-Runtime preparation now includes OTP SSL/public_key/ASN.1 plus Gun/Cowlib and
-exports public build-host trust anchors into `cacerts.pem`. TLS verification stays
-enabled. The exporter handles OTP 29's certificate records as well as DER binaries.
-DNS uses OTP's in-process `net:getaddrinfo` adapter on iOS, which cannot launch
-the external `inet_gethost` helper. Gun still uses the original hostname for
-HTTP and TLS verification. IPv6-only resolver results select the IPv6 transport.
-The default desk is shared with the desktop apps. Test across separate internet
-connections to distinguish public-relay operation from local-network reachability.
-
-## What to click for the physical-device test
-
-The project is already prepared on this Mac. Open `Apps/iOS/Parvi.xcodeproj` and:
-
-1. Keep the iPhone connected by cable and unlocked. Accept **Trust This Computer**.
-2. On iPhone: **Settings → Privacy & Security → Developer Mode → On → Restart**.
-   After restart, unlock it and confirm **Enable**. If Developer Mode is absent,
-   open the phone in Xcode's Device Hub to finish pairing first.
-3. In Xcode: **Xcode → Settings → Accounts → + → Apple Account**. Sign in yourself.
-4. In the project navigator, select the blue **Parvi** project. Under **Targets**,
-   select **Parvi → Signing & Capabilities**. Enable **Automatically manage signing**
-   and select your **Personal Team**. If the bundle identifier is unavailable,
-   change it to your own unique identifier (for example `fi.yourname.parvi.test`).
-5. Select scheme **Parvi**, then your physical iPhone in the toolbar's destination
-   menu. Wait for any device-support preparation to finish, then click **▶ Run**.
-6. If iPhone asks you to trust the developer, follow **Settings → General → VPN &
-   Device Management** for your Apple Account's developer profile, then run again.
-
-The app opens its Swarms list and connects to the default desk automatically.
-Wait for **Reception desk connected**. In the Mac app, open a swarm and use its
-**Copy** button; paste that invitation into **Add a swarm** on the phone. Open
-that swarm's Chat and exchange messages in both directions, then check Graph.
-The information button shows **Node running**, OTP/ERTS and the worker PID.
-Keep the app in the foreground for this test.
-
-On each fresh launch the startup test sends a message through the Erlang chat
-worker, kills that worker, waits for OTP supervision to restart it, verifies empty
-history after restart, then records success. Its receipt is saved
-inside the app's Documents folder as `parvi_runtime_proof.json`, with old/new worker
-PIDs, OTP/ERTS versions and test results. A supervisor report saying the test worker
-was killed is expected. The receipt is generated by Erlang, not hard-coded in Swift.
-The scoped startup message is added only in local-only mode, so the runtime test
-never depends on external desk availability. `parvi_connection_status.json`
-records the actual relay status, URL, node ID and OS PID from the native bridge's
-snapshots; it omits invitation secrets, mailbox capabilities and chat content.
-
-If startup fails, inspect Xcode's console and the app's Documents folder for
-`parvi_erl_crash.dump`. The VM starts once per process; stop/relaunch the app to retry.
-An unsigned compilation or simulator run does not prove physical-device success.
-
-## Prepare from a fresh checkout
-
-Requirements: Xcode and iOS SDK, Python 3, Erlang/OTP 29.1.2 (ERTS 17.1.1), rebar3.
 From the repository root:
 
 ```sh
 python3 Apps/iOS/prepare-runtime.py --target device
 ```
 
-This downloads the pinned upstream iOS runtime if needed, checks SHA-256,
-compiles the shared Erlang sources, and stages only the necessary OTP resources.
-The native archives and generated resources stay under ignored `builds/intermediates/iOS/`.
-They are not fetched during an Xcode build. Re-run the prepare step after changing
-Erlang source; Swift changes are compiled normally by Xcode.
-The Xcode copy phase declares its runtime output so updated BEAM resources are
-included in the app's signature even when no Swift source changes.
+Preparation downloads/checks the pinned Mob OTP archive, compiles the shared
+Erlang sources and cross-builds the static transport dependencies. The first
+native preparation also downloads OpenSSL 3.5.9, SRTP 2.7.0 and Rust crates.
+OpenSSL's source checksum is checked against its published SHA-256. The separate
+iOS Cargo manifest/lock uses upstream Rustler 0.37.0 for static NIF entry points,
+with the unmodified ExSCTP implementation and sctp-proto 0.3.0. The desktop's
+Rustler dependency remains unchanged.
 
-Unsigned build check:
+All generated resources, archives, objects and toolchain caches stay under
+`builds/`. Device and simulator outputs are separate. For a simulator preparation,
+use `--target sim`; its new native path has not been compiled in this increment.
+
+Open `Apps/iOS/Parvi.xcodeproj`, select **Parvi** and your connected iPhone, then
+Run with the existing Personal Team signing configuration. Developer Mode and
+Apple's developer-profile trust are still required. Keep the app in the foreground
+and allow the local-network permission for direct peer connections.
+
+For an unsigned full compilation when wanted:
 
 ```sh
 bash Apps/iOS/build.sh device
 # Or: bash Apps/iOS/build.sh sim
 ```
 
-The helper also prepares the runtime. Build products are written to
-`builds/iOS/Debug-iphoneos/Parvi.app` or
-`builds/iOS/Debug-iphonesimulator/Parvi.app`. Xcode caches and prepared runtimes
-stay in `builds/intermediates/iOS/`. These are unsigned verification builds;
-exporting an `.ipa` requires a separate signed archive/export workflow.
+Full app builds and installation are separate from runtime preparation. The app
+build script does not deploy to a device. Re-run preparation after changing
+Erlang/native source; a preparation stamp makes Xcode recopy runtime resources.
+Swift-only edits compile normally in Xcode.
 
-The helper passes the product directory globally so the app and shared Swift
-package compile against the same artifacts. Keep that setting global when using
-custom `xcodebuild` commands; a target-only override can reuse incompatible
-package metadata. Builds launched directly in Xcode use its default product
-directory.
+## Native invitation and chat path
 
-To prepare and compile the Apple Silicon simulator version, use
-`python3 Apps/iOS/prepare-runtime.py --target sim` and select an iPhone simulator in
-Xcode. Runtime selection follows the destination SDK through `Runtime.xcconfig`.
-This integration is arm64 only. Minimum iOS target is 17.0; the connected iPhone
-was detected as a 12 mini on iOS 26.6.1. No team ID or credentials are committed.
+Use a rebuilt native Mac and native iPhone. Create a cluster using **New swarm**
+on one node, wait for **Reception desk connected**, then copy its invitation to
+**Add swarm** on the other. A submitted invitation is not a completed connection;
+wait until both nodes appear before sending. The existing swarm view represents
+one **Native cluster** per app session.
 
-## Architecture and limits
+The shared default desk is `wss://parvi-reception-desk.onrender.com/relay/v1`.
+It introduces peers; native messages and admission proofs use the encrypted
+WebRTC DataChannel. Native invitations grant whole-VM trust. **Remove both of
+us** revokes cluster-wide access, rather than one logical swarm. These links are
+incompatible with the older relay invitations used by current Windows and
+previously installed Apple apps.
 
-- `control/`: shared Erlang supervision, chat, history and JSON requests.
-- `Apps/Shared/ParviKit`: shared native UI, UI model and snapshot types.
-- `IOSErlangRuntime`: iOS-only host/bridge, starting BEAM in-process on a worker thread.
-- `parvi_beam.c`: minimal native startup plus the static OTP driver/NIF table.
-- `parvi_ios`: Erlang startup probe and a loopback-only UI socket inside the phone.
+One native cluster per session is implemented. Voluntary leave, switching,
+automatic reconnect, a connection mesh, authority recovery and background
+operation remain incomplete. Force-quit and reopen to retry a failed join or
+start a different cluster. Quitting disconnects but does not revoke the remote
+membership. History is local, transient and best effort; no replay is added.
 
-The internal socket is a native/BEAM bridge on the **same device**, not an
-inter-device transport. Internet swarm traffic travels through the outbound
-Reception Desk WebSocket. Distribution and EPMD remain disabled, and the VM
-remains unnamed (`nonode@nohost`); relay identities are separate ephemeral keys.
-No hot updating, background audio keepalive, or internet listener is implemented.
-The VM lifetime is the app process lifetime; iOS may suspend it in the background.
+## Embedded host
 
-Next gate: exercise cross-platform chat, leave, mutual removal and reconnect on
-separate internet connections. Direct peer/LAN transport is subsequent work. See
-[THIRD_PARTY.md](THIRD_PARTY.md) for the pinned runtime's provenance and licenses.
+`parvi_beam.c` registers static DTLS, SRTP, SCTP and CRC NIF entry points alongside
+OTP's static NIFs. C NIF globals are namespaced at compilation to preserve the
+isolation that separate shared objects provide on Mac. Rustler's runtime symbol
+lookup is supported by exporting the OTP NIF API from the linked executable.
+
+`parvi_ios` adds resource code paths, starts a fresh named node with the WebRTC
+carrier, then starts the shared native profile and desk connector. EPMD and
+automatic transitive connections are disabled. DNS uses OTP's in-process
+`net:getaddrinfo` adapter for the desk and configured STUN/TURN hostnames; iOS
+cannot spawn the desktop `inet_gethost` helper. TLS verification uses public
+build-host trust anchors exported to `cacerts.pem`.
+
+The loopback socket is only the UI/BEAM bridge inside the same phone. Networking,
+admission and chat remain in BEAM. The VM starts once per process and iOS may
+suspend the entire process in the background.
+
+Normal startup writes a `status=running` receipt to Documents/
+`parvi_runtime_proof.json`; this is not a passing connection or supervision test.
+The earlier destructive runtime probe is opt-in with `PARVI_RUNTIME_PROBE=1` in
+Xcode's launch environment. `parvi_connection_status.json` records actual snapshot
+status, native node/peer names and OS PID, without invitation secrets or chat.
+Startup failures can leave `parvi_erl_crash.dump` for diagnosis.
+
+## Earlier relay path
+
+The earlier runtime is retained explicitly, without the new static dependencies:
+
+```sh
+python3 Apps/iOS/prepare-runtime.py --target device --transport relay
+bash Apps/iOS/build.sh device relay
+```
+
+For a direct Xcode build of that prepared path, set the `PARVI_TRANSPORT` build
+setting to `relay`. It uses separate resources under `Resources-relay-device`.
+The default build setting is `native`. Relay mode retains the earlier multi-swarm
+behavior; it cannot join a native cluster.
+
+See [provenance](THIRD_PARTY.md), [plan](../../docs/PLAN.md) and
+[progress](../../docs/PROGRESS.md) for versions and validation limits.

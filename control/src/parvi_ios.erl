@@ -2,14 +2,33 @@
 -module(parvi_ios).
 -export([main/0, probe/0, resolve_host/1]).
 main() ->
+    Root = code:root_dir(),
+    code:add_paths(filelib:wildcard(filename:join([Root, "lib", "*", "ebin"]))),
+    ok = application:load(parvi),
     %% iOS cannot spawn inet_gethost. Resolve through the statically linked
     %% prim_net NIF, then let Gun look up the original hostname in this VM.
     ok = inet_db:set_lookup([file]),
     application:set_env(parvi, relay_resolver, {?MODULE, resolve_host}),
     CA = filename:join(code:root_dir(), "cacerts.pem"),
     case filelib:is_file(CA) of true -> application:set_env(parvi, relay_cacertfile, CA); false -> ok end,
+    case application:get_env(parvi, runtime_profile, legacy_apps) of
+        native_cluster ->
+            {ok, _} = application:ensure_all_started(crypto),
+            Name = binary_to_atom(<<"parvi_ios_", (binary:encode_hex(crypto:strong_rand_bytes(8)))/binary,
+                                    "@127.0.0.1">>),
+            {ok, _} = net_kernel:start(Name, #{name_domain => longnames}),
+            {ok, _} = application:ensure_all_started(parvi_transport),
+            resolve_ice_servers();
+        legacy_apps -> ok
+    end,
     {ok, _} = application:ensure_all_started(parvi),
-    Proof = probe(),
+    %% The earlier feasibility test is opt-in; normal launch does not kill workers.
+    Proof = case os:getenv("PARVI_RUNTIME_PROBE") of
+        "1" -> probe();
+        _ -> #{status => <<"running">>, otp => list_to_binary(erlang:system_info(otp_release)),
+               erts => list_to_binary(erlang:system_info(version)),
+               os_pid => list_to_binary(os:getpid()), node => atom_to_binary(node())}
+    end,
     case os:getenv("PARVI_PROOF_PATH") of
         false -> ok;
         Path -> ok = file:write_file(Path, json:encode(Proof))
@@ -27,12 +46,24 @@ resolve_host(Host) ->
             case {IPv4, IPv6} of
                 {[], []} -> {error, nxdomain};
                 _ ->
-                    ok = inet_db:clear_hosts(),
                     [ok = inet_db:add_host(IP, [binary_to_list(Host)]) || IP <- IPv4 ++ IPv6],
                     {ok, case IPv4 of [] -> inet6; _ -> inet end}
             end;
         Error -> Error
     end.
+
+resolve_ice_servers() ->
+    %% ExICE uses inet lookup for STUN/TURN. Seed its configured hostnames using
+    %% the same in-process platform resolver as Gun; never spawn inet_gethost.
+    Servers = application:get_env(parvi_transport, native_ice_servers,
+        [#{urls => application:get_env(parvi, direct_stun_urls, [])}]),
+    URLs = lists:append([case maps:get(urls, S, []) of
+        U when is_binary(U) -> [U]; Us -> Us end || S <- Servers]),
+    lists:foreach(fun(URL) -> case 'Elixir.ExSTUN.URI':parse(URL) of
+        {ok, #{host := Host}} -> resolve_host(Host);
+        _ -> ok
+    end end, URLs),
+    ok.
 
 serve(Socket) ->
     case gen_tcp:recv(Socket, 0) of
@@ -57,10 +88,14 @@ probe() ->
     After = await_worker(Before, 100),
     [] = parvi:history(),
     {ok, _} = parvi:send(<<"On-device Erlang self-test passed.">>),
-    [#{id := SwarmId} | _] = parvi_swarms:snapshot(),
-    case parvi_relay:enabled() of
-        false -> ok = parvi_swarms:send(SwarmId, <<"On-device Erlang self-test passed.">>);
-        true -> ok %% Runtime proof must not depend on external desk availability.
+    case application:get_env(parvi, runtime_profile, legacy_apps) of
+        native_cluster -> ok;
+        legacy_apps ->
+            [#{id := SwarmId} | _] = parvi_swarms:snapshot(),
+            case parvi_relay:enabled() of
+                false -> ok = parvi_swarms:send(SwarmId, <<"On-device Erlang self-test passed.">>);
+                true -> ok
+            end
     end,
     #{status => <<"passed">>, otp => list_to_binary(erlang:system_info(otp_release)),
       erts => list_to_binary(erlang:system_info(version)),
@@ -71,7 +106,11 @@ probe() ->
 
 await_worker(_Before, 0) -> error(worker_restart_timeout);
 await_worker(Before, Attempts) ->
-    case {whereis(parvi_chat), whereis(parvi_discovery), whereis(parvi_swarms)} of
-        {Pid, Discovery, Swarms} when is_pid(Pid), is_pid(Discovery), is_pid(Swarms), Pid =/= Before -> Pid;
+    Ready = case application:get_env(parvi, runtime_profile, legacy_apps) of
+        native_cluster -> is_pid(whereis(parvi_cluster_desk));
+        legacy_apps -> is_pid(whereis(parvi_discovery)) andalso is_pid(whereis(parvi_swarms))
+    end,
+    case whereis(parvi_chat) of
+        Pid when is_pid(Pid), Pid =/= Before, Ready -> Pid;
         _ -> timer:sleep(20), await_worker(Before, Attempts - 1)
     end.

@@ -42,8 +42,9 @@ local, transient and best effort; this adds no delivery acknowledgment or replay
 
 The local harness explicitly establishes the tested native links. Automated
 connection topology, internet recovery and mobile packaging remain later steps.
-The Mac source now selects the native profile with a supervised desk connector;
-iPhone and Windows retain the compatibility runtime. Names and UI labels are
+Mac and iPhone sources now select the native profile with a supervised desk
+connector; Windows retains the compatibility runtime. New Apple app execution
+remains unverified, and previously installed apps are unchanged. Names and UI labels are
 deliberately unchanged, except the native cluster's display name.
 
 ## Reception Desk introductions (step 3a, compiled only)

@@ -8,8 +8,13 @@ import ParviKit
 final class IOSErlangRuntime: ChatRuntime {
     let cookie = ""
     let localDeviceName = "This iPhone"
+    #if PARVI_NATIVE_TRANSPORT
+    let connectionDescription = "Create a native cluster or join one through the global Reception Desk."
+    let connectionHelp = "Native invitations grant whole-VM trust. This increment supports one cluster per session. Force-quit and reopen to retry or switch clusters. Voluntary leave and background recovery are not implemented."
+    #else
     let connectionDescription = "The default Reception desk connects automatically. Share a swarm invitation to add another node."
     let connectionHelp = "The iPhone opens an outbound encrypted connection to the Reception desk. Invitations are scoped to a swarm; background operation remains outside this prototype."
+    #endif
     let canConnect = true
     private var started = false
     private var input: FileHandle?
@@ -102,6 +107,7 @@ final class IOSErlangRuntime: ChatRuntime {
     private func recordConnectionStatus(_ snapshot: ChatSnapshot) {
         guard let relay = snapshot.relay else { return }
         let status: [String: Any] = ["node": snapshot.node,
+            "native_cluster": snapshot.native_cluster ?? false,
             "os_pid": String(ProcessInfo.processInfo.processIdentifier),
             "direct_peers": snapshot.direct?.peers ?? [],
             "url": relay.url as Any? ?? NSNull(), "connected": relay.connected,

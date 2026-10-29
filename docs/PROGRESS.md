@@ -1,5 +1,43 @@
 # Progress
 
+## 2026-10-29 — Native iPhone packaging and startup in source
+
+Added target static builds for upstream DTLS, SCTP, SRTP and CRC NIFs, using
+OpenSSL 3.5.9 and SRTP 2.7.0. The iOS-only Cargo manifest/lock builds the
+unmodified ExSCTP implementation with Rustler 0.37.0's static entry points;
+the desktop dependency is unchanged. C NIF globals receive compiler namespaces
+to preserve isolation at static link time. Dependency sources are not modified.
+CMake and the missing Rust simulator target were installed as build tooling.
+
+The iOS host now registers those NIFs, starts a fresh named node using the shared
+WebRTC carrier/native profile, and stages portable BEAM dependencies plus OTP
+compiler resources. Runtime preparation defaults to native; an explicit relay
+build retains the earlier path in separate resources. Xcode's expanded device
+settings select the expected archives, C/Swift flags and resource directory.
+The executable exports the OTP NIF API for Rustler's runtime lookup.
+
+The existing in-process DNS adapter also seeds configured STUN/TURN hostnames;
+desk resolution no longer clears unrelated cached hostnames. The phone declares
+its local-network usage. Networking and trust stay in BEAM. Normal iOS startup
+now records `status=running` rather than automatically killing/restarting the
+chat worker; the earlier feasibility probe is opt-in via `PARVI_RUNTIME_PROBE=1`.
+
+Validation: shared Erlang compilation passes with warnings as errors. Device
+static archives compile, and the C host links against the embedded OTP runtime
+and transport, including an executable link with 176 exported NIF API symbols.
+The shared iOS Swift module compiles and the native iPhone host type-checks.
+Device runtime resources and public TLS roots are prepared. The initial sandbox
+blocked certificate export and Swift package cache access; authorized execution
+completed those steps. No automated tests were added or run.
+
+No full app build, installation, on-device execution, Render connection or desk
+interruption was performed. Simulator native compilation remains unverified.
+Previously installed Mac/iPhone apps retain their earlier behavior; compile/link
+success does not establish a native Mac–iPhone connection. The one-cluster,
+leave/reconnect, mesh and authority-recovery limitations remain as documented.
+Next implementation is the small binary-stream/remote-DSP increment; build/use
+the new native apps when that work needs connection evidence.
+
 ## 2026-10-29 — Native Mac integration in source
 
 Moved the reusable WebRTC carrier, distribution controller, admission authority,

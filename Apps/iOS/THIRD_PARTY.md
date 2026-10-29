@@ -1,5 +1,35 @@
 # Embedded runtime provenance
 
+## Native transport source builds (2026-10-29)
+
+The native profile adds static NIFs built from the pinned dependencies in
+`control/transport/mix.lock`: ExDTLS, ExLibSRTP, ExSCTP, CRC and their
+Unifex/Shmex/Bunch C support. `prepare-transport.py` reads their source/generated
+interfaces without modifying dependency trees. Compiler macros namespace C NIF
+globals for static linking.
+
+- [OpenSSL 3.5.9](https://openssl-library.org/source/): target-built SSL and
+  crypto libraries; published SHA-256
+  `603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a`.
+  The native profile links this crypto archive instead of the runtime archive's
+  crypto library. The OTP crypto NIF remains upstream-provided; the explicit
+  relay build retains the original crypto archive.
+- [Cisco libsrtp 2.7.0](https://github.com/cisco/libsrtp/tree/v2.7.0): compiled
+  from the upstream tag using CMake and the target OpenSSL build.
+- [Rustler 0.37.0](https://github.com/rusterlium/rustler/releases/tag/rustler-0.37.0):
+  upstream prefixed static NIF entry points. `Apps/iOS/transport/Cargo.toml`
+  and its lockfile build the unmodified ExSCTP source with sctp-proto 0.3.0.
+  The desktop Rustler version is unchanged.
+- Elixir 1.19 support and portable transport BEAM modules come from the existing
+  Mix build. Mac `.so`/`.dylib` binaries are excluded.
+
+Available source licenses/notices are staged with the runtime. Device native
+archives and host linkage are checked; this is not on-device execution, App Store
+distribution or a complete license-audit claim. Simulator native compilation
+remains unverified for this increment.
+
+## Base OTP runtime
+
 Parvi uses the prebuilt interpreted OTP 29.1.2 / ERTS 17.1.1 archives from
 [GenericJam/mob release otp-d199a49a](https://github.com/GenericJam/mob/releases/tag/otp-d199a49a).
 The release identifies OTP source commit `d199a49a` (OTP-29.1.2). The downloader

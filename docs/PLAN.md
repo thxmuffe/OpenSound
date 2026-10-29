@@ -27,17 +27,19 @@ Use the single Render-hosted Reception Desk for development, testing and
 production. Service changes and interruptions are authorized; no separate desk
 or environment is required.
 
-**Current implementation:** Mac sources now integrate the native carrier, trust
-worker and desk connector with the shared OTP chat runtime and existing UI.
-Erlang compilation, Swift checks and dependency packaging pass; the new app has
-not been rebuilt, launched or connection-tested. This increment represents one
+**Current implementation:** Mac and iPhone sources now integrate the native
+carrier, trust worker and desk connector with the shared OTP chat runtime and
+existing UI. Erlang compilation, Swift checks, Mac dependency packaging and
+iPhone device static compilation/linkage pass. Neither new app has been fully
+rebuilt, launched or connection-tested. This increment represents one
 native cluster per session; voluntary leave, switching and reconnect remain
 unimplemented. See the Mac README for usage and limits.
 
-**Next implementation:** extend the native packaging/integration to iPhone.
-Build/use the updated Mac path and check connections through Render when needed
-to support that work. Address recovery and TURN when actual use or the next
-feature requires them; no separate testing phase is required.
+**Next implementation:** a small binary-stream/remote-DSP increment (step 5),
+with explicit worker placement and local playback/timing initially. Build/use
+the updated native apps and check connections through Render when needed to
+support that work. Address recovery and TURN when actual use or the next feature
+requires them; no separate testing phase is required.
 
 ### Architecture decision: BEAM/OTP on server and in browser
 
@@ -168,12 +170,15 @@ secure cluster admission and removal are explicit implementation work.
      failed/cancelled joins, reconnect and simultaneous attempts,
      connection mesh, backpressure, authority recovery/publication/receipts.
      Do not add a second membership system alongside OTP.
-4. **Native Mac/iPhone integration (Mac sources implemented; iPhone next):**
+4. **Native Mac/iPhone integration (sources implemented; execution unverified):**
    Mac build/host sources now package the libraries, carrier, trust worker and
    desk connector, reuse the shared native OTP chat runtime and expose
    invitation/join/chat through the existing UI. App execution is unverified.
    Keep the change focused; no Windows, graph or broad naming cleanup.
-   Then extend packaging to iPhone. Check device behavior as needed; suspension,
+   iPhone now has static dependency builds, NIF registration and named-node
+   startup. Device native compilation/linkage and resource preparation pass;
+   simulator native compilation, full builds and phone execution are unverified.
+   Check device behavior as needed; suspension,
    recovery and failure isolation can be separate increments rather than entry
    requirements for using the native path.
 5. **Distributed DSP proof:** one timestamped binary audio stream, a remote DSP
@@ -186,8 +191,8 @@ secure cluster admission and removal are explicit implementation work.
 
 The reusable carrier, trust and desk modules now live in `control/src/` and
 compile with the shared core. Probe/harness code remains experimental in
-`control/transport/experiments/otp_dist`. Mac packaging includes the native
-runtime dependencies and retains explicit invitation-based admission.
+`control/transport/experiments/otp_dist`. Mac packages the runtime dependencies;
+iPhone builds them statically. Both retain explicit invitation-based admission.
 
 ### Implementation update: native relay first
 
@@ -375,6 +380,7 @@ in them.
 
 Start with the implementation approach and next step at the top of this file,
 then `docs/PROGRESS.md` for completed work and known limitations. Continue with
-iPhone native packaging and the Mac path as needed; do not restart completed proofs or treat the historical
+the binary-stream/remote-DSP increment and native apps as needed; do not restart
+completed proofs or treat the historical
 audio milestones as prerequisites. Update the plan as implementation reveals
 what is useful next.

@@ -16,6 +16,8 @@
 	<string>1</string>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Parvi connects directly to your trusted audio and chat nodes on this network.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

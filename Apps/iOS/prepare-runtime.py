@@ -2,9 +2,11 @@
 """Prepare a pinned iOS BEAM runtime and the shared Erlang application."""
 import argparse
 import hashlib
+import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -14,6 +16,7 @@ HASHES = {
 }
 parser = argparse.ArgumentParser()
 parser.add_argument('--target', choices=HASHES, default='device')
+parser.add_argument('--transport', choices=['native', 'relay'], default='native')
 args = parser.parse_args()
 target = args.target
 archive = ROOT / f'builds/intermediates/iOS/downloads/otp-ios-{target}-d199a49a.tar.gz'
@@ -32,10 +35,15 @@ if not (otp / 'erts-17.1.1/lib/libbeam.a').exists():
 version = subprocess.check_output(['erl', '-noshell', '-eval',
     'io:put_chars(erlang:system_info(version)), halt().'], text=True)
 assert version == '17.1.1', f'Expected ERTS 17.1.1 compiler, got {version}'
-subprocess.run(['rebar3', 'compile'], cwd=ROOT / 'control', check=True)
-resources = ROOT / f'builds/intermediates/iOS/Resources-{target}/runtime'
+env = dict(os.environ, REBAR_CACHE_DIR=str(ROOT / 'builds/intermediates/rebar-cache'),
+           ERL_CRASH_DUMP=str(ROOT / 'builds/intermediates/iOS/prepare-erl_crash.dump'))
+subprocess.run(['rebar3', 'compile'], cwd=ROOT / 'control', env=env, check=True)
+if args.transport == 'native':
+    subprocess.run([sys.executable, str(ROOT / 'Apps/iOS/prepare-transport.py'), '--target', target], check=True)
+resources = ROOT / f'builds/intermediates/iOS/Resources-{args.transport}-{target}/runtime'
 resources.mkdir(parents=True, exist_ok=True)
-for name in ['kernel', 'stdlib', 'inets', 'crypto', 'asn1', 'public_key', 'ssl']:
+for name in ['kernel', 'stdlib', 'inets', 'crypto', 'asn1', 'public_key', 'ssl'] + (
+        ['compiler'] if args.transport == 'native' else []):
     matches = list((otp / 'lib').glob(f'{name}-*'))
     assert len(matches) == 1, (name, matches)
     app = matches[0]
@@ -47,15 +55,32 @@ for name in ['gun', 'cowlib']:
                     resources / f'lib/{name}/ebin', dirs_exist_ok=True)
     for license in (ROOT / f'builds/intermediates/control/default/lib/{name}').glob('LICENSE*'):
         shutil.copy2(license, resources / f'{name}-{license.name}')
+if args.transport == 'native':
+    # BEAM bytecode is portable; Mac shared objects and resource symlinks are not.
+    libraries = list((ROOT / 'builds/intermediates/BeamTransport/dev/lib').iterdir())
+    elixir = ROOT / 'builds/intermediates/tools/elixir/lib'
+    libraries += [elixir / name for name in ['elixir', 'eex', 'logger']]
+    notices = resources / 'NativeTransportLicenses'
+    notices.mkdir(exist_ok=True)
+    for library in libraries:
+        shutil.copytree(library / 'ebin', resources / 'lib' / library.name / 'ebin', dirs_exist_ok=True)
+        (resources / 'lib' / library.name / 'priv').mkdir(exist_ok=True)
+        for base in [library, ROOT / 'builds/intermediates/BeamTransportDeps' / library.name]:
+            for license in base.glob('*'):
+                if license.is_file() and license.name.upper().startswith(('LICENSE', 'COPYING', 'NOTICE')):
+                    shutil.copy2(license, notices / f'{library.name}-{license.name}')
+    shutil.copytree(ROOT / f'builds/intermediates/iOS/transport-{target}/licenses', notices, dirs_exist_ok=True)
+    shutil.copy2(elixir.parent / 'LICENSE', notices / 'elixir-LICENSE')
 # iOS does not expose the host's certificate-store loading commands to BEAM.
 # Export public trust anchors at build time; never disable TLS verification.
 ca_bundle = subprocess.check_output(['erl', '-noshell', '-eval',
     "Certs = [case C of {cert, DER, _} -> DER; DER when is_binary(DER) -> DER end "
     "|| C <- public_key:cacerts_get()], "
-    "io:put_chars(public_key:pem_encode([{'Certificate', C, not_encrypted} || C <- Certs])), halt()."])
+    "io:put_chars(public_key:pem_encode([{'Certificate', C, not_encrypted} || C <- Certs])), halt()."], env=env)
 (resources / 'cacerts.pem').write_bytes(ca_bundle)
 shutil.copy2(otp / 'releases/29/start_clean.boot', resources / 'start_clean.boot')
 (resources / 'erts-17.1.1/bin').mkdir(parents=True, exist_ok=True)
 shutil.copy2(ROOT / 'LICENSE', resources / 'LICENSE')
 shutil.copy2(ROOT / 'Apps/iOS/MOB-LICENSE', resources / 'MOB-LICENSE')
+(resources / 'prepared.stamp').write_text(f'{args.transport} {target}\n')
 print(f'Prepared {target}: {resources}', flush=True)

@@ -69,8 +69,10 @@ library search path without changing OS trust or system library locations.
 
 ## Platform packaging
 
-The Mac build now packages the upstream dependencies and native carrier. Its
-source integration is not yet a verified running app. iPhone packaging is next.
+Mac and iPhone sources now package the native carrier and dependencies. Neither
+new app path has been verified running. iPhone uses target-built static NIFs;
+see [its preparation guide](../../Apps/iOS/README.md). Device compilation/linkage
+passes; simulator native compilation and on-device connection remain unverified.
 In the older runtime profile, `parvi_direct` remains optional and the existing
 relay continues to work without those libraries.
 

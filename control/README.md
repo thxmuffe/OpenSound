@@ -121,9 +121,12 @@ WebRTC channels or build a connection mesh. Those remain carrier/admission and
 step-3 recovery work. The Mac source now enables `native_desk=true` alongside
 this profile: `parvi_sup` then also supervises `parvi_cluster_desk`, which owns
 the trust worker, relay client and WebRTC channels. The native JSON bridge
-adapts this single cluster to the existing chat UI. iPhone and Windows retain
-their earlier runtime profile. See [Mac usage](../Apps/macOS/README.md) for the
-integration's current limitations. UI/source naming cleanup remains deferred.
+adapts this single cluster to the existing chat UI. iPhone sources now also
+select the native path by default, with an explicit relay build option; current
+Windows sources retain the earlier profile. Previously installed apps are
+unchanged. See [Mac usage](../Apps/macOS/README.md) and
+[iPhone preparation](../Apps/iOS/README.md) for implementation/validation limits.
+UI/source naming cleanup remains deferred.
 
 ## Network scope
 
