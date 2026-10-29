@@ -1,5 +1,20 @@
 # Progress
 
+## 2026-10-29 — Plan revised around incremental implementation
+
+Removed the requirement to complete internet/recovery checks and broad failure
+handling before native app integration. Next is a small Mac integration of the
+existing carrier, trust worker, desk connector and shared OTP chat runtime, then
+iPhone packaging. Connection checks support that work when needed; TURN and
+broader recovery remain follow-ups rather than prerequisites. Keep asking before
+adding automated tests or hardening.
+
+Removed the stale competing next-steps list, corrected the desk deployment
+status, and marked the original audio research milestones as reference rather
+than current development gates. Render CLI login and access to the single
+global desk are confirmed. This was a documentation revision; no app code,
+connection test, deployment or service interruption was performed.
+
 ## 2026-10-29 — Use the global Render desk for development
 
 Clarified step 3b: development and connection checks use the single global

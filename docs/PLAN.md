@@ -64,7 +64,7 @@ remains deferred.
 - Direct connections are preferred; the Reception Desk introduces nodes and
   relays only when required. For native apps, networking and negotiation belong
   in BEAM, using third-party `ex_webrtc`/`ex_sctp`, not Swift UI/runtime transport
-   code. An isolated Mac prototype survives desk shutdown; integrate Mac first
+  code. An isolated Mac prototype survives desk shutdown; integrate Mac first
   and address iPhone packaging in its own increment.
 - Keep UI behavior direct and simple. Runtime code validates invitations and
   operations; ordinary editing, selection, copy and paste remain available.
@@ -78,16 +78,16 @@ the current functionality requires them. Retain the existing native apps.
 The accepted risk is the youth of the browser port and LocalLiveView. Popcorn's
 BEAM transition was announced on 2026-10-27; examples and the language tour had
 used that runtime for about a month. This is not evidence of mature production
-adoption for the combined stack. Pin compatible versions and verify on the
-actual target browsers before expanding the implementation.
+adoption for the combined stack. When browser work resumes, pin compatible
+versions and check browser behavior as that implementation develops.
 
 ### Trusted native OTP cluster direction accepted 2026-10-28
 
 Aim to carry native Erlang distribution over WebRTC for mutually trusted Parvi
 devices, supporting remote processes and later distributed DSP execution. This
 supersedes the assumption that all native inter-node traffic must remain an
-application-level protocol. Retain the working relay/application transport until
-the carrier and admission model are verified. Cluster trust and logical swarm
+application-level protocol. Reuse the existing apps while integrating the native
+path incrementally. Cluster trust and logical swarm
 membership are distinct: overlapping swarms must not silently extend VM access.
 The current easy invitation/mutual-removal policy remains the user-facing goal;
 secure cluster admission and removal are explicit implementation work.
@@ -135,34 +135,40 @@ secure cluster admission and removal are explicit implementation work.
    the existing app path until native app integration: legacy swarm modules may
    remain for compatibility but must not be dependencies of the native runtime.
    No Windows or graph edits; no broad UI/source renaming in this step.
-3. **Internet and recovery:** separate access networks, relay-required paths,
-   desk outages, network changes, connection arbitration, bounded queues and
-   backpressure. Reuse rendezvous/relay facilities rather than rebuilding them.
-   Complete admission-actor crash/partition recovery, cancelled-join cleanup,
-   partial policy publication and revocation receipts before app integration.
-   Step 2 fails closed on authority outage but is not a consensus/recovery design.
-   Work incrementally; ask before adding tests or hardening behavior.
+3. **Internet connection support (develop alongside app integration):** reuse
+   rendezvous/relay facilities rather than rebuilding them. The desk connector
+   is implemented; move it into a usable app path next. Separate-network access,
+   TURN, desk outages and recovery are targeted follow-up work when needed,
+   not a mandatory test matrix before step 4. Step 2 currently fails closed on
+   authority outage; crash/partition recovery, cancelled-join cleanup, partial
+   policy publication and revocation receipts remain known limitations.
    - **3a — Reception Desk introductions (implemented, compilation only,
      2026-10-29):** reuse the authenticated WebSocket/mailbox client with an
      explicit envelope recipient. An isolated Erlang connector exchanges SDP/ICE,
      then uses the existing trust handshake and native carrier. Accept STUN/TURN
-     configuration through the third-party library. Keep working apps and the
-     public desk unchanged; compilation does not prove connectivity.
-   - **3b — Connection proof (pending):** use the single global Reception Desk
-     hosted on Render (`wss://parvi-reception-desk.onrender.com/relay/v1`) for
+     configuration through the third-party library. This slice did not change
+     apps or the public desk; compilation does not prove connectivity.
+   - **3b — Connection checks (as needed during integration):** use the global
+     Reception Desk on Render (`wss://parvi-reception-desk.onrender.com/relay/v1`) for
      development and connection checks; do not start a separate test desk.
-     First check two nodes through that desk, then across separate access networks;
-     configure TURN for a relay-required path. Reception Desk signalling and TURN
-     data forwarding are different roles. Verify established traffic with the
-     introduction service unavailable. OpenSound currently uses one shared
+     Check the invitation/join/chat path as it becomes usable. Check separate
+     access networks, configure TURN or interrupt the desk when the work needs
+     that evidence. Reception Desk signalling and TURN data forwarding are
+     different roles. OpenSound currently uses one shared
      development, testing and production environment; the user authorizes
      changes to the Render desk, including interruption for this check.
-   - **3c — Recovery (pending):** choose each next behavior with the user before
-     hardening: failed/cancelled joins, reconnect and simultaneous attempts,
+   - **3c — Recovery (deferred until needed):** fix failures encountered during
+     development; discuss broader hardening before adding it. Possible work:
+     failed/cancelled joins, reconnect and simultaneous attempts,
      connection mesh, backpressure, authority recovery/publication/receipts.
      Do not add a second membership system alongside OTP.
-4. **Native Mac/iPhone integration:** package the libraries and carrier, then
-   verify real devices, suspension, recovery and failure isolation.
+4. **Native Mac/iPhone integration (next):** package the existing libraries,
+   carrier, trust worker and desk connector for Mac. Reuse the shared native OTP
+   chat runtime and expose invitation/join and chat through the existing UI.
+   Keep the change focused; no Windows, graph or broad naming cleanup.
+   Then extend packaging to iPhone. Check device behavior as needed; suspension,
+   recovery and failure isolation can be separate increments rather than entry
+   requirements for using the native path.
 5. **Distributed DSP proof:** one timestamped binary audio stream, a remote DSP
    worker and returned results; measure latency, jitter, CPU and missed deadlines.
    Keep final playback/timing local initially. Native distribution does not fix
@@ -171,17 +177,20 @@ secure cluster admission and removal are explicit implementation work.
    using device capacity, network delay and processing deadlines. OTP remote
    execution is not an automatic DSP load balancer.
 
-The isolated experiment belongs in `control/transport/experiments/otp_dist`,
-outside production compilation and app packaging. A passing step 1 authorizes
-neither automatic cluster admission nor deployment of the prototype.
+The existing experiment is in `control/transport/experiments/otp_dist` and is
+currently outside app packaging. During step 4, move the needed runtime modules
+into the shared transport build; keep probe/harness code experimental. Retain
+explicit invitation-based admission when integrating the carrier.
 
 ### Implementation update: native relay first
 
 The browser BEAM/full WebApp experiment is deferred. The first native relay is
 implemented in `Services/ReceptionDesk`, with Windows integration and shared Apple
 configuration/packaging sources. See [protocol](RELAY_PROTOCOL.md) for the actual
-wire contract and limits. Public deployment and the Windows-iPhone test across
-separate internet connections remain acceptance work; they are not yet proven.
+wire contract and limits. The global desk is deployed on Render; public-WSS
+checks and physical Mac–iPhone chat are recorded in the progress log. Windows–
+iPhone operation across separate access networks remains unverified, rather
+than a prerequisite for the next native implementation increment.
 
 ### Code reuse audit 2026-10-28
 
@@ -204,7 +213,7 @@ Sources: [Gun 2.7 options and automatic pong behavior](https://ninenines.eu/docs
 [Foundation asynchronous file reading](https://developer.apple.com/documentation/foundation/filehandle/bytes),
 and [the existing graph investigation](NODE_GRAPH_INVESTIGATION.md).
 
-### Next steps and acceptance checks
+### Audio direction and deferred browser work
 
 The application's purpose is **binary audio publish/subscribe**, not text chat.
 Any node may publish audio, subscribe to audio from other nodes, or do both.
@@ -227,26 +236,25 @@ text/base64 chat messages or assume reliable ordered delivery is appropriate for
 live audio. Evaluate the third-party WebRTC library's RTP/media facilities as
 well as binary data channels against synchronization and DSP requirements.
 
-1. Keep the source separation already completed: WebApp and ReceptionDesk.
-2. Prove browser BEAM startup, a supervised chat worker, message delivery and
-   worker restart. Render a small swarm view through LocalLiveView and verify
-   normal input-field behavior. Check the shared core's actual compatibility.
-3. Prepare the Reception Desk for Render hosting and implement internet
-   invitations and transport. Start with outbound encrypted WebSocket connections
-   from Mac and iPhone; test across separate internet connections first.
-4. Verify admission, scoped chat, node presence, reconnect, leave and mutual
-   removal. A node can belong to multiple swarms and has an ephemeral session
-   identity. Retain the agreed invitation and removal semantics.
-5. Add direct peer paths/NAT traversal and relay fallback as needed. Same-Wi-Fi
-   operation is a subsequent test, not a prerequisite for internet connectivity.
-
-The next implementation order may interleave the browser experiment and native
-internet transport; neither depends on finishing the other. Audio streaming,
-playback synchronization and large-swarm scaling need separate measured work.
+WebApp and ReceptionDesk are already separate, and the global desk is hosted.
+Browser BEAM/LocalLiveView work remains deferred; it does not precede native
+integration. When resumed, start with one supervised worker and a small view,
+checking shared-core compatibility and ordinary input behavior as needed.
+Audio streaming follows the native integration path above. Measure timing when
+implementing synchronized playback; large-swarm scaling can wait for a need.
 
 Decision evidence: [LiveView history](https://phoenixframework.org/blog/phoenix-liveview-1.0-released),
 [Popcorn's BEAM transition](https://swmansion.com/blog/popcorn-1-0-moving-from-atom-vm-to-otp-beam/),
 [LocalLiveView examples](https://github.com/software-mansion/popcorn/tree/main/local-live-view).
+
+## Original audio research proposal — reference, not current gates
+
+The milestones below preserve the original research ideas and provisional
+targets. They do not impose a Linux/wired-LAN prerequisite, fixed test order,
+two-hour qualification run or interoperability programme on current development.
+Choose a small audio increment using the implemented native stack when that
+work begins. Measurements remain necessary to claim synchronization or latency;
+they are not a prerequisite for implementing an initial stream or DSP worker.
 
 ## Objective
 
@@ -358,7 +366,8 @@ in them.
 
 ## Resuming work
 
-For the current chat-first phase, start with `docs/PROGRESS.md` and decision 0001.
-When beginning audio, start with Milestone 0: select receiver and capture hardware
-and record the reuse assessment before implementing transport. Preserve measured
-failures as useful results and update this plan when evidence changes an assumption.
+Start with the implementation approach and next step at the top of this file,
+then `docs/PROGRESS.md` for completed work and known limitations. Continue with
+Mac native integration; do not restart completed proofs or treat the historical
+audio milestones as prerequisites. Update the plan as implementation reveals
+what is useful next.
