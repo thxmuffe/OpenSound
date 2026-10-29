@@ -118,8 +118,12 @@ The isolated [WebRTC distribution experiment](transport/experiments/otp_dist/REA
 now runs this same core and verifies chat, observers, supervision and revocation
 across independent VMs. The profile does not itself introduce peers, establish
 WebRTC channels or build a connection mesh. Those remain carrier/admission and
-step-3 recovery work. It is not enabled in the Mac/iPhone apps yet. UI and
-source naming cleanup is deferred.
+step-3 recovery work. The Mac source now enables `native_desk=true` alongside
+this profile: `parvi_sup` then also supervises `parvi_cluster_desk`, which owns
+the trust worker, relay client and WebRTC channels. The native JSON bridge
+adapts this single cluster to the existing chat UI. iPhone and Windows retain
+their earlier runtime profile. See [Mac usage](../Apps/macOS/README.md) for the
+integration's current limitations. UI/source naming cleanup remains deferred.
 
 ## Network scope
 

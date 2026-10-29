@@ -2,7 +2,10 @@
 
 Steps 1, 2 and 2a of the trusted-cluster plan: independent OTP **29.1.2 / ERTS 17.1.1**
 VMs use a reliable, ordered binary WebRTC DataChannel as their native Erlang
-distribution carrier. This is isolated experimental code, not app integration.
+distribution carrier. The reusable carrier, admission and desk modules have
+moved to `control/src/` for Mac app integration. This directory retains the
+isolated probe drivers. See [Mac usage](../../../../Apps/macOS/README.md) for the
+new app path, which has not yet been connection-tested.
 
 ## Run
 
@@ -39,8 +42,9 @@ local, transient and best effort; this adds no delivery acknowledgment or replay
 
 The local harness explicitly establishes the tested native links. Automated
 connection topology, internet recovery and mobile packaging remain later steps.
-Current apps keep their compatibility runtime until native integration; names
-and UI labels are deliberately unchanged.
+The Mac source now selects the native profile with a supervised desk connector;
+iPhone and Windows retain the compatibility runtime. Names and UI labels are
+deliberately unchanged, except the native cluster's display name.
 
 ## Reception Desk introductions (step 3a, compiled only)
 

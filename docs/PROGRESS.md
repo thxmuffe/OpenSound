@@ -1,5 +1,43 @@
 # Progress
 
+## 2026-10-29 — Native Mac integration in source
+
+Moved the reusable WebRTC carrier, distribution controller, admission authority,
+trust worker and desk connector from the experiment into `control/src/`.
+Probe drivers stay isolated; their existing compile helper follows the move.
+The Mac host now selects the native profile/carrier without EPMD or automatic
+transitive connections. Its supervisor starts shared `pg`/chat and the connector;
+legacy swarm routing, discovery and topology workers do not run in that profile.
+
+Added a native JSON adapter for create/invite/join/chat and cluster-wide mutual
+removal through the existing UI. Invitations are cached rather than issued on
+every UI poll. Join submission is explicitly pending; it does not claim
+connection success. Removal's confirmation text reflects full-cluster scope;
+the graph's rendering/interaction and Windows sources are unchanged. Native
+operation failures are surfaced in status snapshots.
+
+The Mac build now compiles the pinned Mix dependencies, packages Elixir support
+and OTP compiler resources, dereferences build-cache links and relocates/signs
+native dependencies. A packaging check exposed SRTP path/header-size issues;
+short sibling library paths resolve those without rebuilding upstream NIFs.
+The shared JSON additions are optional for existing iPhone/Windows snapshots.
+
+Validation: shared Erlang compilation passes with warnings as errors; shared
+Swift module compilation and Mac-host type-checking pass. Dependency packaging
+and native signing complete in `/private/tmp/opensound-native-packaging`.
+No automated tests were added or run. No full app rebuild, launch, connection
+test, iPhone deployment or Render service change was performed. These checks
+do not establish a working connection through the new Mac app path.
+
+Limits: one native cluster per app session, represented by the existing swarm
+view. Additional independent swarms, desk/cluster switching, voluntary leave,
+connection mesh and automatic reconnect are not implemented. Failed joins need
+a restart. Quitting disconnects but does not revoke remote membership. Existing
+authority/publication recovery limits remain. Current iPhone/Windows builds and
+previously installed Mac apps retain their earlier transport and cannot use
+native cluster invitations. Next implementation is iPhone native packaging;
+use/check the updated Mac path when needed, without a separate testing phase.
+
 ## 2026-10-29 — Plan revised around incremental implementation
 
 Removed the requirement to complete internet/recovery checks and broad failure

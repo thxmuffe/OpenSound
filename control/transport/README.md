@@ -1,8 +1,11 @@
 # BEAM direct transport prototype
 
-The newer [native OTP carrier experiment](experiments/otp_dist/README.md) tests
-native distribution over WebRTC separately from the existing application
-transport below. It is not automatically included in the working apps.
+The [native OTP carrier](experiments/otp_dist/README.md) now lives in
+`control/src/` and is integrated into the Mac app sources and build. The Mac
+native bridge reuses the shared OTP chat worker and the global Render desk for
+introductions. See [Mac usage and limitations](../../Apps/macOS/README.md).
+Probe drivers remain experimental. The older application transport below is
+retained for the current iPhone/Windows path and existing regression helpers.
 
 Parvi reuses **ex_webrtc 0.17.0** and **ex_sctp 0.1.3**, pinned in `mix.lock`.
 These third-party libraries implement WebRTC and SCTP. All Parvi transport
@@ -64,11 +67,12 @@ launcher with the compiled transport and Elixir library paths. The upstream
 precompiled SRTP dependency expects OpenSSL 3; the helper supplies its Homebrew
 library search path without changing OS trust or system library locations.
 
-## Packaging gate
+## Platform packaging
 
-The transport is optional: without its runtime libraries, `parvi_direct` stays
-disabled and the existing relay continues to work. It is not yet included in
-the shipping Mac/iPhone bundles. Packaging and iPhone verification are unfinished.
+The Mac build now packages the upstream dependencies and native carrier. Its
+source integration is not yet a verified running app. iPhone packaging is next.
+In the older runtime profile, `parvi_direct` remains optional and the existing
+relay continues to work without those libraries.
 
 Although most protocol code is Elixir, this is not a 100% pure-language stack:
 DTLS/SRTP use native libraries and SCTP uses a Rust NIF. Those belong inside the

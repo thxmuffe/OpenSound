@@ -27,11 +27,17 @@ Use the single Render-hosted Reception Desk for development, testing and
 production. Service changes and interruptions are authorized; no separate desk
 or environment is required.
 
-**Next implementation:** integrate the existing native carrier, trust worker
-and desk connector into the Mac app, reusing the shared OTP runtime. Make one
-invitation/join/chat path usable first. Check that path through Render when
-needed to make the integration work, then extend the packaging to iPhone.
-Address recovery and TURN when actual use or the next feature requires them.
+**Current implementation:** Mac sources now integrate the native carrier, trust
+worker and desk connector with the shared OTP chat runtime and existing UI.
+Erlang compilation, Swift checks and dependency packaging pass; the new app has
+not been rebuilt, launched or connection-tested. This increment represents one
+native cluster per session; voluntary leave, switching and reconnect remain
+unimplemented. See the Mac README for usage and limits.
+
+**Next implementation:** extend the native packaging/integration to iPhone.
+Build/use the updated Mac path and check connections through Render when needed
+to support that work. Address recovery and TURN when actual use or the next
+feature requires them; no separate testing phase is required.
 
 ### Architecture decision: BEAM/OTP on server and in browser
 
@@ -162,9 +168,10 @@ secure cluster admission and removal are explicit implementation work.
      failed/cancelled joins, reconnect and simultaneous attempts,
      connection mesh, backpressure, authority recovery/publication/receipts.
      Do not add a second membership system alongside OTP.
-4. **Native Mac/iPhone integration (next):** package the existing libraries,
-   carrier, trust worker and desk connector for Mac. Reuse the shared native OTP
-   chat runtime and expose invitation/join and chat through the existing UI.
+4. **Native Mac/iPhone integration (Mac sources implemented; iPhone next):**
+   Mac build/host sources now package the libraries, carrier, trust worker and
+   desk connector, reuse the shared native OTP chat runtime and expose
+   invitation/join/chat through the existing UI. App execution is unverified.
    Keep the change focused; no Windows, graph or broad naming cleanup.
    Then extend packaging to iPhone. Check device behavior as needed; suspension,
    recovery and failure isolation can be separate increments rather than entry
@@ -177,10 +184,10 @@ secure cluster admission and removal are explicit implementation work.
    using device capacity, network delay and processing deadlines. OTP remote
    execution is not an automatic DSP load balancer.
 
-The existing experiment is in `control/transport/experiments/otp_dist` and is
-currently outside app packaging. During step 4, move the needed runtime modules
-into the shared transport build; keep probe/harness code experimental. Retain
-explicit invitation-based admission when integrating the carrier.
+The reusable carrier, trust and desk modules now live in `control/src/` and
+compile with the shared core. Probe/harness code remains experimental in
+`control/transport/experiments/otp_dist`. Mac packaging includes the native
+runtime dependencies and retains explicit invitation-based admission.
 
 ### Implementation update: native relay first
 
@@ -368,6 +375,6 @@ in them.
 
 Start with the implementation approach and next step at the top of this file,
 then `docs/PROGRESS.md` for completed work and known limitations. Continue with
-Mac native integration; do not restart completed proofs or treat the historical
+iPhone native packaging and the Mac path as needed; do not restart completed proofs or treat the historical
 audio milestones as prerequisites. Update the plan as implementation reveals
 what is useful next.

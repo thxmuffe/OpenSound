@@ -7,6 +7,7 @@ request(JSON) ->
         Request = json:decode(JSON),
         Result = command(Request),
         Response = case Result of
+            status -> snapshot();
             {ok, Data} -> (snapshot())#{error => null, result => Data};
             ok -> (snapshot())#{error => null};
             {error, Reason} -> (snapshot())#{error => error_text(Reason)}
@@ -17,7 +18,7 @@ request(JSON) ->
     end,
     iolist_to_binary(json:encode(Reply)).
 
-command(#{<<"method">> := <<"snapshot">>}) -> ok;
+command(#{<<"method">> := <<"snapshot">>}) -> status;
 command(#{<<"method">> := <<"create_swarm">>}) ->
     case parvi_cluster_desk:create() of
         {ok, #{<<"cluster">> := Id}} -> {ok, #{swarm_id => Id}};
@@ -65,7 +66,7 @@ snapshot() ->
                members => [atom_to_binary(N) || N <- ChatNodes], messages => Messages}];
         _ -> []
     end,
-    #{node => atom_to_binary(node()), native_cluster => true,
+    #{node => atom_to_binary(node()), native_cluster => true, error => event_error(Event),
       relay => parvi_relay:status(),
       direct => #{enabled => true, peers => [atom_to_binary(N) || N <- nodes()]},
       connection_string => null, known_nodes => [],
@@ -86,3 +87,8 @@ error_text(already_clustered_or_not_created) ->
     <<"This increment supports one native cluster per session. Restart to create or join another.">>;
 error_text(Reason) when is_binary(Reason) -> Reason;
 error_text(Reason) -> iolist_to_binary(io_lib:format("Native operation: ~p", [Reason])).
+
+event_error({rejected, Reason}) -> error_text(Reason);
+event_error({native_connected, _, false}) -> <<"Native connection failed. Restart to retry the invitation.">>;
+event_error({channel_stopped, _}) -> <<"Native channel stopped. Restart to reconnect in this increment.">>;
+event_error(_) -> null.
