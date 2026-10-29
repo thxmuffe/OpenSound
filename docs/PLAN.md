@@ -122,6 +122,22 @@ secure cluster admission and removal are explicit implementation work.
    Complete admission-actor crash/partition recovery, cancelled-join cleanup,
    partial policy publication and revocation receipts before app integration.
    Step 2 fails closed on authority outage but is not a consensus/recovery design.
+   Work incrementally; ask before adding tests or hardening behavior.
+   - **3a — Reception Desk introductions (implemented, compilation only,
+     2026-10-29):** reuse the authenticated WebSocket/mailbox client with an
+     explicit envelope recipient. An isolated Erlang connector exchanges SDP/ICE,
+     then uses the existing trust handshake and native carrier. Accept STUN/TURN
+     configuration through the third-party library. Keep working apps and the
+     public desk unchanged; compilation does not prove connectivity.
+   - **3b — Connection proof (pending):** when the user requests testing, check
+     two-node introductions locally, then across separate access networks;
+     configure TURN for a relay-required path. Reception Desk signalling and TURN
+     data forwarding are different roles. Verify established traffic with the
+     introduction service unavailable.
+   - **3c — Recovery (pending):** choose each next behavior with the user before
+     hardening: failed/cancelled joins, reconnect and simultaneous attempts,
+     connection mesh, backpressure, authority recovery/publication/receipts.
+     Do not add a second membership system alongside OTP.
 4. **Native Mac/iPhone integration:** package the libraries and carrier, then
    verify real devices, suspension, recovery and failure isolation.
 5. **Distributed DSP proof:** one timestamped binary audio stream, a remote DSP

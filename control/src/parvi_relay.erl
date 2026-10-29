@@ -1,9 +1,11 @@
 %% Outbound, authenticated WebSocket transport. No distribution ports required.
 -module(parvi_relay).
 -behaviour(gen_server).
--export([start_link/0, id/0, enabled/0, url/0, valid_url/1, open/2, close/1, send/3, watch/1, status/0]).
+-export([start_link/0, start_link/1, id/0, enabled/0, url/0, valid_url/1, open/2, close/1, send/3, watch/1, status/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
-start_link() -> gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+start_link() -> start_link(#{owner => parvi_swarms, delivery => swarm}).
+%% A native connector can receive mailbox envelopes without the swarm decoder.
+start_link(Options) -> gen_server:start_link({local, ?MODULE}, ?MODULE, Options, []).
 id() -> persistent_term:get({?MODULE, id}, node()).
 enabled() -> is_binary(id()).
 url() -> persistent_term:get({?MODULE, url}, undefined).
@@ -24,7 +26,7 @@ valid_url(URL) when is_binary(URL), byte_size(URL) =< 512 ->
         true
     catch _:_ -> false end;
 valid_url(_) -> false.
-init([]) ->
+init(#{owner := Owner, delivery := Delivery}) ->
     URL = case application:get_env(parvi, reception_desk_url) of
         {ok, U} -> U;
         undefined -> case os:getenv("PARVI_RECEPTION_DESK_URL") of
@@ -39,7 +41,8 @@ init([]) ->
     end,
     persistent_term:put({?MODULE, id}, Identity), persistent_term:put({?MODULE, url}, URL),
     case URL of undefined -> ok; _ -> self() ! connect end,
-    {ok, #{url => URL, private => Private, conn => undefined, stream => undefined,
+    {ok, #{owner => Owner, delivery => Delivery,
+           url => URL, private => Private, conn => undefined, stream => undefined,
            ready => false, boxes => #{}, watch => [], online => [], backoff => 500, error => null}}.
 handle_call(status, _, S) ->
     {reply, #{id => name(id()), url => case url() of undefined -> null; U -> U end,
@@ -97,23 +100,31 @@ incoming(#{<<"op">> := <<"ready">>, <<"v">> := 1, <<"id">> := Id}, S) ->
     Id = id(), Next = S#{ready := true, backoff := 500, error := null},
     [ws(#{op => <<"open">>, swarm => Swarm, mailbox => Cap}, Next) || {Cap, Swarm} <- maps:to_list(maps:get(boxes, S))],
     ws(#{op => <<"watch">>, nodes => maps:get(watch, S)}, Next),
-    notify(connected), Next;
+    notify(connected, Next), Next;
 incoming(#{<<"op">> := <<"delivery">>, <<"from">> := From, <<"mailbox">> := Cap, <<"payload">> := Payload}, #{boxes := Boxes} = S) ->
     case maps:find(Cap, Boxes) of
         {ok, Swarm} ->
-            case parvi_swarm_wire:decode(Payload) of
-                {ok, Swarm, Event} -> notify({delivery, From, Event});
-                _ -> ok
+            case maps:get(delivery, S) of
+                raw ->
+                    case Payload of
+                        #{<<"swarm">> := Swarm} -> notify({delivery, From, Cap, Payload}, S);
+                        _ -> ok
+                    end;
+                swarm ->
+                    case parvi_swarm_wire:decode(Payload) of
+                        {ok, Swarm, Event} -> notify({delivery, From, Event}, S);
+                        _ -> ok
+                    end
             end;
         _ -> ok
     end, S;
 incoming(#{<<"op">> := <<"presence">>, <<"online">> := Online}, S) when is_list(Online), length(Online) =< 256 -> S#{online := Online};
 incoming(#{<<"op">> := <<"error">>, <<"request">> := Request, <<"error">> := Error}, S) ->
-    notify({error, Request, Error}), S#{error := Error};
+    notify({error, Request, Error}, S), S#{error := Error};
 incoming(_, S) -> S.
 retry(#{conn := Pid, backoff := Delay} = S) ->
     case Pid of undefined -> ok; _ -> try gun:close(Pid) catch _:_ -> ok end end,
-    erlang:send_after(Delay + rand:uniform(250), self(), connect), notify(disconnected),
+    erlang:send_after(Delay + rand:uniform(250), self(), connect), notify(disconnected, S),
     S#{conn := undefined, stream := undefined, ready := false, online := [],
        error := <<"Connection failed. Check the desk URL and TLS trust.">>, backoff := min(10000, Delay * 2)}.
 maybe_ws(Msg, #{ready := true} = S) -> ws(Msg, S);
@@ -128,7 +139,9 @@ ws(Msg, #{conn := Pid, stream := Stream}) ->
             end;
         false -> {error, too_large}
     end.
-notify(Event) -> case whereis(parvi_swarms) of undefined -> ok; Pid -> Pid ! {relay, Event} end.
+notify(Event, #{owner := Owner}) when is_pid(Owner) -> Owner ! {relay, Event};
+notify(Event, #{owner := Name}) ->
+    case whereis(Name) of undefined -> ok; Pid -> Pid ! {relay, Event} end.
 name(N) when is_atom(N) -> atom_to_binary(N);
 name(N) -> N.
 tls_options() ->

@@ -2,6 +2,8 @@
 
 An open platform for synchronized, distributed audio playback and processing.
 
+Repository design principles and development practices: [AGENTS.md](AGENTS.md).
+
 **Status: first Erlang/OTP chat prototype; audio remains in early design.**
 
 A native Mac app is now available: [build and launch Parvi](Apps/macOS/README.md).

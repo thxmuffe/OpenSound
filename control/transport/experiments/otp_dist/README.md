@@ -42,6 +42,76 @@ connection topology, internet recovery and mobile packaging remain later steps.
 Current apps keep their compatibility runtime until native integration; names
 and UI labels are deliberately unchanged.
 
+## Reception Desk introductions (step 3a, compiled only)
+
+`parvi_cluster_desk` replaces the local probe parent's SDP/ICE forwarding for
+an initial pair of nodes. It reuses `parvi_relay` and the existing desk protocol;
+the public service and working apps are unchanged. The relay client now accepts
+an explicit Erlang owner and raw-envelope delivery. Its default still decodes
+swarm messages for current apps.
+
+The inviter creates a cluster and opens a mailbox. Its link wraps the existing
+native invitation with the desk URL, relay identity and mailbox capability:
+
+```text
+parvi://cluster/v2?desk=URL&node=RELAY_ID&mailbox=CAP&invitation=NATIVE_V1_INVITATION
+```
+
+All values are percent encoded. This is an experimental link, not a shipping
+app link. Both endpoints must already use the same configured desk URL, from
+the existing default/override settings. The relay key addresses a desk socket;
+the separate native key pinned by the inner invitation authorizes VM trust.
+
+The joiner opens a reply mailbox and requests a connection. SDP/ICE goes through
+the desk. Once the library opens the DataChannel, the existing signed,
+DTLS-bound handshake validates admission and installs the native route/cookie.
+The inviter admits the controller and the joiner calls `net_kernel:connect_node/1`.
+OTP then handles process messaging, RPC, `pg` and failure detection. Native
+packets, admission proofs and cookies travel through the DataChannel. The desk
+carries introductions only; the connector does not route chat or decode terms.
+
+Compile from the repository root (after the existing transport build):
+
+```sh
+(cd control && rebar3 compile)
+erlc -Werror +debug_info -o builds/intermediates/OTPWebRTCProbe \
+  control/transport/experiments/otp_dist/src/*.erl
+```
+
+For later manual use, launch independent named VMs with the core, transport and
+experiment library paths, `-proto_dist parvi_webrtc`, `-start_epmd false` and
+`-kernel connect_all false dist_auto_connect never`, as in the probe launcher.
+Then, after `net_kernel` is started:
+
+```erlang
+parvi:start(native_cluster).
+parvi_cluster_desk:start_link().
+parvi_cluster_desk:status(). % Wait for desk.connected = true.
+% On the inviter:
+parvi_cluster_desk:create().
+parvi_cluster_desk:invite(259200).
+% On the joiner, with the returned link:
+parvi_cluster_desk:join(Invitation).
+% After OTP/pg shows the peer, use parvi:send/1 and history/0.
+```
+
+`join/1` returning `ok` confirms submission to the relay client, not successful
+admission/connection. `status/0` shows the latest event and OTP connected nodes.
+Failed joins currently require restarting the connector; retry/session repair
+is deferred. The connector establishes only the inviter/joiner edge, with no
+automatic mesh or additional membership registry.
+
+`parvi_transport`'s `native_ice_servers` setting is passed to the library's
+`ice_servers` option. Its default uses `parvi.direct_stun_urls`. Explicit maps
+can include TURN `urls`, `username` and `credential`. No TURN service or
+credentials are provisioned here. Reception Desk is not TURN and does not carry
+native-distribution fallback traffic.
+
+**Validation: compilation only, as requested.** The connector flow, separate
+Internet networks, TURN and operation during desk outage remain unverified.
+Reconnection/arbitration, cancelled joins, authority recovery and backpressure
+are still later parts of step 3. No new tests or deployment in this slice.
+
 ## Responsibilities
 
 - `parvi_webrtc_dist`: OTP carrier callbacks and bindings for pre-established

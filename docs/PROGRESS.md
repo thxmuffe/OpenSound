@@ -1,5 +1,27 @@
 # Progress
 
+## 2026-10-29 — Step 3a Reception Desk introductions, compiled only
+
+Started step 3 with a small isolated connector. The user requested implementation,
+compilation and documentation only; no tests were added or run for this slice
+and no live desk was contacted.
+
+`parvi_relay:start_link/1` can send mailbox envelopes to an explicit Erlang owner
+without the legacy swarm decoder. Existing defaults remain for current apps.
+`parvi_cluster_desk` uses it to introduce an inviter/joiner pair, exchange SDP/ICE,
+and hand admission/native setup to the existing trust worker and OTP carrier.
+Experimental v2 links wrap native v1 invitations with desk/mailbox addresses.
+Cookies and native packets stay on the WebRTC DataChannel.
+
+The carrier accepts the third-party library's ICE-server configuration for
+STUN/TURN; no TURN service was provisioned. Shared core and all experimental
+Erlang modules compile with warnings as errors. No app, Windows, graph, test or
+public-service changes. Internet connectivity and recovery remain unverified.
+
+Next, when requested: connection proof (3b), then individual recovery behaviors
+(3c). See [the plan](PLAN.md) and
+[connector usage and limitations](../control/transport/experiments/otp_dist/README.md#reception-desk-introductions-step-3a-compiled-only).
+
 ## 2026-10-29 — OTP foundation alignment step 2a
 
 Completed the interrupted foundation work before internet/recovery step 3.

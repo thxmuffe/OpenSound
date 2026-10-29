@@ -2,18 +2,20 @@
 %% Typed length framing separates admission envelopes from opaque OTP packets.
 -module(parvi_dist_channel).
 -behaviour(gen_server).
--export([start_link/2, signal/2, stats/1]).
+-export([start_link/2, start_link/3, signal/2, stats/1]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2]).
 -define(PC, 'Elixir.ExWebRTC.PeerConnection').
 -define(SD, 'Elixir.ExWebRTC.SessionDescription').
 -define(ICE, 'Elixir.ExWebRTC.ICECandidate').
 -define(MAX_PACKET, 8388608).
 
-start_link(Owner, Initiator) -> gen_server:start_link(?MODULE, {Owner, Initiator}, []).
+start_link(Owner, Initiator) -> start_link(Owner, Initiator, []).
+start_link(Owner, Initiator, IceServers) ->
+    gen_server:start_link(?MODULE, {Owner, Initiator, IceServers}, []).
 signal(Pid, Signal) -> gen_server:cast(Pid, {signal, Signal}).
 stats(Pid) -> gen_server:call(Pid, stats).
-init({Owner, Initiator}) ->
-    {ok, PC} = ?PC:start_link([{ice_servers, []}, {audio_codecs, []}, {video_codecs, []}]),
+init({Owner, Initiator, IceServers}) ->
+    {ok, PC} = ?PC:start_link([{ice_servers, IceServers}, {audio_codecs, []}, {video_codecs, []}]),
     self() ! start,
     {ok, #{owner => Owner, pc => PC, initiator => Initiator, channel => undefined,
         ready => false, handle => undefined, pending => [], buffer => <<>>,
