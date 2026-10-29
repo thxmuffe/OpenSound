@@ -1,6 +1,6 @@
 # Native OTP distribution over WebRTC experiment
 
-Steps 1 and 2 of the trusted-cluster plan: independent OTP **29.1.2 / ERTS 17.1.1**
+Steps 1, 2 and 2a of the trusted-cluster plan: independent OTP **29.1.2 / ERTS 17.1.1**
 VMs use a reliable, ordered binary WebRTC DataChannel as their native Erlang
 distribution carrier. This is isolated experimental code, not app integration.
 
@@ -14,11 +14,33 @@ python3 control/transport/tools/otp-dist-smoke.py
 python3 control/transport/tools/otp-trust-smoke.py
 ```
 
-The script compiles only these experimental modules with warnings as errors,
-under `builds/intermediates/OTPWebRTCProbe`. It checks the installed OTP version.
+The carrier script compiles these experimental modules with warnings as errors,
+under `builds/intermediates/OTPWebRTCProbe`. The trust script also compiles and
+loads the shared `control` application. Both check the installed OTP version.
 It uses the same local Elixir library paths and Mac OpenSSL 3 search path as the
 existing direct-transport experiment. Per-VM logs are in that build directory.
 It does not launch, install or modify any Parvi app or Reception Desk.
+
+## Shared OTP foundation (step 2a)
+
+The trust probe starts `parvi:start(native_cluster)`, which runs the existing
+`pg` scope and chat `gen_server` under `parvi_sup`. No custom swarm, relay-chat,
+direct application router, discovery or network/topology worker starts. The
+third-party WebRTC libraries carry native distribution; OTP supplies remote
+PIDs, process groups, casts, monitors and supervision. Invitation records
+continue to express admission permission, independently of live `pg` membership.
+
+The trust smoke exercises four independent VMs, shared chat in both directions,
+one observer notification per test send, dead-observer cleanup (core EUnit),
+chat-worker restart with retained observers, scope restart with explicit
+resubscription, group pruning after removal/disconnection and fresh re-admission.
+It also checks surviving chat during admission-actor outage. History remains
+local, transient and best effort; this adds no delivery acknowledgment or replay.
+
+The local harness explicitly establishes the tested native links. Automated
+connection topology, internet recovery and mobile packaging remain later steps.
+Current apps keep their compatibility runtime until native integration; names
+and UI labels are deliberately unchanged.
 
 ## Responsibilities
 

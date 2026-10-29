@@ -100,7 +100,7 @@ secure cluster admission and removal are explicit implementation work.
    removal choice when the apps adopt it; existing app UI/relay behavior is not
    changed by the isolated implementation. See the experiment README for tested
    attacks, bounds and the full-VM trust assumption.
-2a. **OTP foundation alignment (execute before step 3):** behavior and reuse take
+2a. **OTP foundation alignment (passed isolated checks 2026-10-29):** behavior and reuse take
    priority over renaming. Keep current `parvi`/`swarm` source identifiers and UI
    labels until later; do not add a replacement room/session framework. The
    native runtime uses standard node connections, remote PIDs, links/monitors,

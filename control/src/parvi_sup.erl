@@ -6,12 +6,19 @@ start_link() -> supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
     %% Restart chat too if its process-group scope disappears.
-    {ok, {#{strategy => rest_for_one, intensity => 5, period => 10}, [
+    Core = [
         #{id => parvi_pg, start => {pg, start_link, [parvi_pg]}},
-        #{id => parvi_chat, start => {parvi_chat, start_link, []}},
+        #{id => parvi_chat, start => {parvi_chat, start_link, []}}
+    ],
+    Compatibility = [
         #{id => parvi_discovery, start => {parvi_discovery, start_link, []}},
         #{id => parvi_relay, start => {parvi_relay, start_link, []}},
         #{id => parvi_direct, start => {parvi_direct, start_link, []}},
         #{id => parvi_network, start => {parvi_network, start_link, []}},
         #{id => parvi_swarms, start => {parvi_swarms, start_link, []}}
-    ]}}.
+    ],
+    Children = case application:get_env(parvi, runtime_profile, legacy_apps) of
+        native_cluster -> Core;
+        legacy_apps -> Core ++ Compatibility
+    end,
+    {ok, {#{strategy => rest_for_one, intensity => 5, period => 10}, Children}}.

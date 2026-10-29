@@ -93,10 +93,33 @@ local acceptance, not remote receipt. There are no acknowledgements, offline
 delivery, replay, deduplication, durable history, or cross-sender ordering.
 The history limit does not bound the process mailbox under overload.
 
-OTP restarts a failed worker; its history and UI subscriptions are lost.
-If `pg` fails, the supervisor restarts chat too so it rejoins. A UI should monitor
-the worker and resubscribe after restart. Disconnected nodes disappear after
+OTP restarts a failed worker; its history is lost. Local UI subscriptions live
+in `pg`, so they survive a chat-worker restart and disappear when the observer
+process exits. If `pg` fails, the supervisor restarts chat too so it rejoins;
+observers must resubscribe after that scope restart. Disconnected nodes disappear after
 Erlang/`pg` detects them. Reconnection is manual; prior history is not merged.
+
+## Native cluster foundation (opt-in)
+
+`parvi:start(native_cluster)` starts only the existing `parvi_pg` and
+`parvi_chat` workers under the standard supervisor. It must be called before
+the application starts. The default `parvi:start()` keeps the current apps'
+compatibility workers. The selected profile is application configuration and
+persists across application stops; unset `runtime_profile` to return to the
+default before restarting.
+
+The native profile uses OTP process groups and remote `gen_server` casts for
+chat. It does not start swarm gossip, application relay/direct routing,
+discovery or topology polling. OTP connection/process liveness is separate from
+the invitation policy's permission to reconnect. Group membership converges
+asynchronously; there is no additional application membership registry.
+
+The isolated [WebRTC distribution experiment](transport/experiments/otp_dist/README.md)
+now runs this same core and verifies chat, observers, supervision and revocation
+across independent VMs. The profile does not itself introduce peers, establish
+WebRTC channels or build a connection mesh. Those remain carrier/admission and
+step-3 recovery work. It is not enabled in the Mac/iPhone apps yet. UI and
+source naming cleanup is deferred.
 
 ## Network scope
 

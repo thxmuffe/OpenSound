@@ -10,6 +10,8 @@ main() ->
     {ok, _} = net_kernel:start(list_to_atom(os:getenv("PARVI_PROBE_NAME")),
                               #{name_domain => longnames, net_ticktime => 12}),
     true = erlang:set_cookie(binary_to_atom(parvi_cluster_auth:fresh(32))),
+    {ok, _} = parvi:start(native_cluster),
+    ok = parvi:subscribe(),
     {ok, _} = parvi_cluster_trust:start_link(self()),
     Owner = self(), spawn_link(fun() -> read_commands(Owner) end),
     emit(#{event => <<"booted">>, identity => parvi_cluster_trust:identity()}),
@@ -39,6 +41,8 @@ loop(Connections) ->
             event(Ctrl, #{event => <<"authorized">>, peer => atom_to_binary(Node)}, Connections), loop(Connections);
         {trust, Ctrl, rejected, Reason} ->
             event(Ctrl, #{event => <<"rejected">>, reason => atom_to_binary(Reason)}, Connections), loop(Connections);
+        {parvi_message, Message} ->
+            emit(#{event => <<"chat">>, message => chat_message(Message)}), loop(Connections);
         _ -> loop(Connections)
     end.
 event(Ctrl, Message, Connections) ->
@@ -115,6 +119,11 @@ command(#{<<"op">> := <<"save_cookie">>, <<"peer">> := Name}, C) ->
     put({cookie, Name}, erlang:get_cookie(binary_to_existing_atom(Name))), {true, C};
 command(#{<<"op">> := <<"restore_cookie">>, <<"peer">> := Name}, C) ->
     true = erlang:set_cookie(binary_to_existing_atom(Name), get({cookie, Name})), {true, C};
+command(#{<<"op">> := <<"chat_send">>, <<"text">> := Text}, C) ->
+    {ok, Message} = parvi:send(Text), {chat_message(Message), C};
+command(#{<<"op">> := <<"subscribe">>}, C) -> {parvi:subscribe() =:= ok, C};
+command(#{<<"op">> := <<"restart_chat">>}, C) -> {restart(parvi_chat), C};
+command(#{<<"op">> := <<"restart_pg">>}, C) -> {restart(parvi_pg), C};
 command(#{<<"op">> := <<"status">>}, C) ->
     Connections = maps:map(fun(_, Ctrl) ->
         try parvi_dist_channel:stats(Ctrl) catch exit:_ -> #{ready => false, native => false} end
@@ -124,7 +133,30 @@ command(#{<<"op">> := <<"status">>}, C) ->
         _ -> case parvi_cluster_trust:policy() of undefined -> null; P -> P end
     end,
     {#{policy => Policy,
-        connected => [atom_to_binary(N) || N <- nodes(connected)], connections => Connections}, C}.
+        connected => [atom_to_binary(N) || N <- nodes(connected)], connections => Connections,
+        chat => chat_status(),
+        workers => [Id || {Id, _, _, _} <- supervisor:which_children(parvi_sup)],
+        legacy_workers => [N || N <- [parvi_swarms, parvi_relay, parvi_direct, parvi_discovery, parvi_network],
+                                whereis(N) =/= undefined]}, C}.
+
+chat_message(#{id := Ref, sender := Sender, text := Text, sent_at_ms := Time}) ->
+    #{id => list_to_binary(erlang:ref_to_list(Ref)), sender => atom_to_binary(Sender), text => Text, time => Time}.
+chat_status() ->
+    Status = parvi:status(),
+    #{pid => list_to_binary(pid_to_list(whereis(parvi_chat))),
+      nodes => [atom_to_binary(N) || N <- maps:get(chat_nodes, Status)],
+      process_count => maps:get(chat_process_count, Status),
+      subscribers => maps:get(subscriber_count, Status),
+      messages => [chat_message(M) || M <- parvi:history()]}.
+restart(Name) ->
+    Old = whereis(parvi_chat), exit(whereis(Name), kill), await_chat(Old, 100),
+    #{old => list_to_binary(pid_to_list(Old)), new => list_to_binary(pid_to_list(whereis(parvi_chat)))}.
+await_chat(_, 0) -> error(chat_restart_timeout);
+await_chat(Old, Attempts) ->
+    case whereis(parvi_chat) of
+        New when is_pid(New), New =/= Old -> ok;
+        _ -> timer:sleep(10), await_chat(Old, Attempts - 1)
+    end.
 
 result({ok, Value}) -> #{ok => Value};
 result({error, Reason}) -> #{error => Reason};

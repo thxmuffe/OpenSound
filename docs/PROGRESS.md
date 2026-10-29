@@ -1,5 +1,36 @@
 # Progress
 
+## 2026-10-29 — OTP foundation alignment step 2a
+
+Completed the interrupted foundation work before internet/recovery step 3.
+Behavior and reuse take priority; `parvi`/`swarm` names and UI labels remain for
+later cleanup. No Windows, graph, native UI or Reception Desk changes.
+
+Added opt-in `parvi:start(native_cluster)`. Its supervisor starts only the
+existing `parvi_pg` scope and shared chat `gen_server`. Custom swarm gossip,
+application relay/direct routing, discovery and topology workers do not run in
+that profile. Existing apps retain the compatibility startup path until native
+integration. The profile does not establish channels or a connection mesh.
+
+Replaced the chat worker's observer monitor map with OTP `pg` membership.
+Observer exit cleanup is automatic, duplicate subscriptions remain idempotent,
+and subscriptions survive chat-worker restart. A scope restart rebuilds chat
+membership and requires explicit observer resubscription. History stays local,
+bounded and transient; sends remain best effort. Admission permission stays
+separate from OTP's live node/process membership.
+
+Validation: shared-core compilation and all 16 EUnit tests pass. The extended
+trust smoke passes using four independent BEAM VMs over real WebRTC: shared
+chat, one observer event per test send, worker/scope restart recovery, native
+group pruning after cluster-wide removal, fresh re-admission, authority
+handover/outage and trust-manager shutdown. All previous admission rejection
+checks still pass. The original carrier regression also passes binary RPC,
+remote execution, ordered messages, links/monitors, idle ticks, silent loss and
+bad-cookie rejection. Socket tests require local UDP access outside the sandbox.
+
+Next: step 3 internet/recovery, including connection establishment/arbitration,
+backpressure and admission-actor failure recovery, before native app integration.
+
 ## 2026-10-28 — Trusted native cluster admission step 2
 
 The user chose cluster-wide mutual removal: the caller and target lose native
