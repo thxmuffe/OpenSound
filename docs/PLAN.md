@@ -1,6 +1,6 @@
-# Preliminary development plan
+# Development plan
 
-Created: 2026-10-23. Status: proposal for discussion and experimentation.
+Created: 2026-10-23. Current development order revised: 2026-10-29.
 
 Update 2026-10-26: the newer [Parvi handover](notes%2020261026.md) introduces a
 chat-first feasibility phase before these audio milestones. The Mac OTP chat
@@ -13,6 +13,25 @@ for current scope and next steps. The audio targets below remain unvalidated.
 This section governs the immediate Parvi app and connectivity work. The original
 audio milestones below remain research proposals; their stable-device-identity
 and LAN-first assumptions do not govern the current swarm protocol.
+
+### Implementation approach — revised 2026-10-29
+
+Build small, useful increments and continue implementation without a separate
+testing phase or a comprehensive recovery programme as a prerequisite. Check
+behavior when a change needs evidence, something seems wrong, or the next
+implementation decision depends on it. Ask before adding automated tests or
+hardening; routine builds, deployments and repeated regression runs are not
+default tasks. Record what is implemented and what remains unverified.
+
+Use the single Render-hosted Reception Desk for development, testing and
+production. Service changes and interruptions are authorized; no separate desk
+or environment is required.
+
+**Next implementation:** integrate the existing native carrier, trust worker
+and desk connector into the Mac app, reusing the shared OTP runtime. Make one
+invitation/join/chat path usable first. Check that path through Render when
+needed to make the integration work, then extend the packaging to iPhone.
+Address recovery and TURN when actual use or the next feature requires them.
 
 ### Architecture decision: BEAM/OTP on server and in browser
 
@@ -45,8 +64,8 @@ remains deferred.
 - Direct connections are preferred; the Reception Desk introduces nodes and
   relays only when required. For native apps, networking and negotiation belong
   in BEAM, using third-party `ex_webrtc`/`ex_sctp`, not Swift UI/runtime transport
-  code. An isolated Mac prototype survives desk shutdown; iPhone packaging is
-  still a required gate before this becomes the native app transport.
+   code. An isolated Mac prototype survives desk shutdown; integrate Mac first
+  and address iPhone packaging in its own increment.
 - Keep UI behavior direct and simple. Runtime code validates invitations and
   operations; ordinary editing, selection, copy and paste remain available.
 
@@ -129,11 +148,15 @@ secure cluster admission and removal are explicit implementation work.
      then uses the existing trust handshake and native carrier. Accept STUN/TURN
      configuration through the third-party library. Keep working apps and the
      public desk unchanged; compilation does not prove connectivity.
-   - **3b — Connection proof (pending):** when the user requests testing, check
-     two-node introductions locally, then across separate access networks;
+   - **3b — Connection proof (pending):** use the single global Reception Desk
+     hosted on Render (`wss://parvi-reception-desk.onrender.com/relay/v1`) for
+     development and connection checks; do not start a separate test desk.
+     First check two nodes through that desk, then across separate access networks;
      configure TURN for a relay-required path. Reception Desk signalling and TURN
      data forwarding are different roles. Verify established traffic with the
-     introduction service unavailable.
+     introduction service unavailable. OpenSound currently uses one shared
+     development, testing and production environment; the user authorizes
+     changes to the Render desk, including interruption for this check.
    - **3c — Recovery (pending):** choose each next behavior with the user before
      hardening: failed/cancelled joins, reconnect and simultaneous attempts,
      connection mesh, backpressure, authority recovery/publication/receipts.

@@ -1,5 +1,15 @@
 # Progress
 
+## 2026-10-29 — Use the global Render desk for development
+
+Clarified step 3b: development and connection checks use the single global
+Reception Desk at `wss://parvi-reception-desk.onrender.com/relay/v1`.
+No separate local/test desk is needed. The user confirmed that this is one
+shared development, testing and production environment and authorized changes
+regardless of risks, including hosted-desk interruption for the outage check.
+This update changes the plan only; no connection check or service change was
+performed. Step 3a remains compiled only, and step 3b remains pending.
+
 ## 2026-10-29 — Step 3a Reception Desk introductions, compiled only
 
 Started step 3 with a small isolated connector. The user requested implementation,
