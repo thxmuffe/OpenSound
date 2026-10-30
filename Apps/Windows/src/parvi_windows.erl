@@ -50,7 +50,15 @@ build_window(Saved) ->
     Local = wxStaticText:new(Sidebar, ?wxID_ANY, "Starting node..."), add(Side, Local, 0, 16),
     wxPanel:setSizer(Sidebar, Side), wxSizer:add(Row, Sidebar, [{flag, ?wxEXPAND}]),
     Content = wxPanel:new(Root), wxPanel:setBackgroundColour(Content, {255,255,255}),
-    Column = wxBoxSizer:new(?wxVERTICAL), Header = wxBoxSizer:new(?wxHORIZONTAL),
+    Column = wxBoxSizer:new(?wxVERTICAL), InputRow = wxBoxSizer:new(?wxHORIZONTAL),
+    wxSizer:add(InputRow, title(Content, "Audio input - Windows output", 14), [{proportion, 1}]),
+    InputButton = button(Content, "Start input", audio_input), wxSizer:add(InputRow, InputButton),
+    add(Column, InputRow, 0, 12),
+    InputLevel = wxGauge:new(Content, ?wxID_ANY, 96, [{size, {-1, 12}}]),
+    add(Column, InputLevel, 0, 8),
+    InputInfo = wxStaticText:new(Content, ?wxID_ANY, "Input stopped. Captures the current default output; no virtual device is installed."),
+    add(Column, InputInfo, 0, 12),
+    Header = wxBoxSizer:new(?wxHORIZONTAL),
     Heading = title(Content, "Choose a swarm", 20),
     wxSizer:add(Header, Heading, [{proportion, 1}, {flag, ?wxALIGN_CENTER_VERTICAL}]),
     Leave = button(Content, "Leave swarm", leave), wxSizer:add(Header, Leave),
@@ -104,6 +112,7 @@ build_window(Saved) ->
     wxFrame:connect(Frame, move, [{skip, true}]),
     case maps:find(position, Saved) of {ok, Position} -> wxFrame:move(Frame, Position); error -> ok end,
     S = #{frame => Frame, content => Content, swarms => Swarms, create => Create, join => Join,
+          input_button => InputButton, input_level => InputLevel, input_info => InputInfo,
           incoming => Incoming, desk_label => DeskLabel, desk => Desk, configure => Configure, local => Local, heading => Heading, leave => Leave,
           summary => Summary, invitation => Invitation, invitation_label => InvitationLabel,
           notebook => Notebook, graph => Graph, peers => Peers, details => Details, remove => Remove,
@@ -112,11 +121,17 @@ build_window(Saved) ->
           node_names => [], node_rows => [], swarm_rows => []},
     Ready = sync(Saved, S),
     wxFrame:show(Frame), wxFrame:maximize(Frame, [{maximize, maps:get(maximized, Saved, false)}]),
-    self() ! refresh, {Frame, Ready}.
+    self() ! refresh, self() ! audio_refresh, {Frame, Ready}.
 
 handle_event(#wx{event = #wxClose{}}, S) -> {stop, normal, S};
 handle_event(#wx{event = #wxSize{}}, S) -> remember_geometry(S), self() ! relayout, {noreply, S};
 handle_event(#wx{event = #wxMove{}}, S) -> remember_geometry(S), {noreply, S};
+handle_event(#wx{userData = audio_input}, S) ->
+    case parvi_windows_audio:status() of
+        #{state := State} when State =:= running; State =:= starting -> parvi_windows_audio:stop();
+        _ -> parvi_windows_audio:start()
+    end,
+    {noreply, S};
 handle_event(#wx{userData = edit_draft}, S) ->
     Model = parvi_windows_model:get(),
     case maps:get(selected, S) of
@@ -181,6 +196,25 @@ handle_event(#wx{userData = remove}, #{selected := Id, selected_node := Target} 
     case Answer of ?wxID_YES -> action(#{method => remove_both, swarm_id => Id, target => Target}, remove, S); _ -> {noreply, S} end;
 handle_event(_, S) -> {noreply, S}.
 
+handle_info(audio_refresh, S) ->
+    erlang:send_after(100, self(), audio_refresh),
+    Audio = parvi_windows_audio:status(), State = maps:get(state, Audio),
+    wxButton:setLabel(maps:get(input_button, S), case State of
+        running -> "Stop input"; starting -> "Stop input"; _ -> "Start input"
+    end),
+    {Level, Info} = case Audio of
+        #{state := running, meter := M} ->
+            Peak = maps:get(<<"peak_db">>, M),
+            {round(max(0, min(96, Peak + 96))), io_lib:format("~ts~nPeak ~.1f dBFS | RMS ~.1f dBFS | ~B Hz / ~B ch | ~B frames",
+                [maps:get(<<"source">>, M), Peak, maps:get(<<"rms_db">>, M), maps:get(<<"rate">>, M),
+                 maps:get(<<"channels">>, M), maps:get(<<"frames">>, M)])};
+        #{state := error, error := Error} -> {0, Error};
+        #{state := starting} -> {0, "Opening Windows default output (loopback)..."};
+        _ -> {0, "Input stopped. Captures the current default output; no virtual device is installed."}
+    end,
+    wxGauge:setValue(maps:get(input_level, S), Level),
+    wxStaticText:setLabel(maps:get(input_info, S), Info),
+    {noreply, S};
 handle_info(refresh, S) ->
     erlang:send_after(600, self(), refresh),
     parvi_windows_model:request(#{method => snapshot}, snapshot, self(), make_ref()),

@@ -1,6 +1,6 @@
 # Development plan
 
-Created: 2026-10-23. Current development order revised: 2026-10-29.
+Created: 2026-10-23. Current development order revised: 2026-10-30.
 
 Update 2026-10-26: the newer [Parvi handover](notes%2020261026.md) introduces a
 chat-first feasibility phase before these audio milestones. The Mac OTP chat
@@ -27,7 +27,14 @@ Use the single Render-hosted Reception Desk for development, testing and
 production. Service changes and interruptions are authorized; no separate desk
 or environment is required.
 
-**Current implementation:** Mac and iPhone sources now integrate the native
+**Working app path:** on 2026-10-29 the user demonstrated Windows–iPhone swarm
+admission and chat through the Render Reception Desk, with Windows on a school
+network and iPhone on mobile data. Screenshots show the same two-member swarm
+and the phone's message received on Windows. This is user-observed relay
+interoperability across separate networks, not a native OTP/WebRTC or audio
+timing result. The user also confirmed the Windows status fix took effect.
+
+**Separate native implementation:** Mac and iPhone sources now integrate the native
 carrier, trust worker and desk connector with the shared OTP chat runtime and
 existing UI. Erlang compilation, Swift checks, Mac dependency packaging and
 iPhone device static compilation/linkage pass. Neither new app has been fully
@@ -35,11 +42,53 @@ rebuilt, launched or connection-tested. This increment represents one
 native cluster per session; voluntary leave, switching and reconnect remain
 unimplemented. See the Mac README for usage and limits.
 
-**Next implementation:** a small binary-stream/remote-DSP increment (step 5),
-with explicit worker placement and local playback/timing initially. Build/use
-the updated native apps and check connections through Render when needed to
-support that work. Address recovery and TURN when actual use or the next feature
-requires them; no separate testing phase is required.
+**Next product target — updated 2026-10-30:** audio from an external source
+reproduced in sync by two iPhones. Parvi receives, processes and transmits signals;
+the upstream player owns songs, decoding and playback controls. Continue
+incrementally; the user does not want a
+cleanup phase before audio. The binary-stream/remote-DSP increment (step 5)
+remains a possible supporting step, with explicit worker placement initially.
+Build/use the native apps and check connections through Render when that work
+needs evidence. Address recovery and TURN when actual use or the next feature
+requires them; no separate testing phase is required. Preserve the wider ideas
+in [the audio/calibration idea record below](#audio-and-calibration-ideas--recorded-2026-10-30).
+
+**Immediate next slice — audio entering Parvi:** the user wants an OS-selectable
+Parvi output device feeding an input meter, using an existing player/browser as
+the source. Work in Windows only; do not edit iOS or Mac app sources in this
+increment. A first Windows capture/meter implementation now reads the current
+default multimedia output through WASAPI loopback and shows peak/RMS dBFS,
+format and captured frames. It does not yet create the requested virtual Parvi
+device, forward PCM to BEAM/network workers, or show a frequency spectrum.
+Next select/reuse a Windows virtual-audio-device adapter for that selectable
+endpoint and expose captured sample blocks for the processing/transmission
+path. Keep the device-routing requirement distinct from the working loopback
+meter; no virtual driver has been selected or installed.
+
+**Following audio sequence — corrected product boundary:** select the
+remaining input/output adapters and the audio-port contract. Inputs supply sample
+blocks with format/channel and timing information; outputs consume scheduled
+samples. Candidate adapters include audio-device capture/render, a cooperating
+app/plugin host, desktop system-audio capture or a network stream. OS audio
+integration and network media protocol are separate selections. A virtual audio
+driver is one possible adapter, not an assumed requirement for Parvi's core.
+Do not add a song library, file decoder, bundled-song playback or transport
+controls to Parvi. The earlier preloaded-song recommendation was rejected by
+the user on 2026-10-30.
+
+Connect one external source through a chosen input port and deliver its audio
+to one iPhone output, then two scheduled iPhone outputs with a common time
+mapping and output-delay compensation. Measure acoustic alignment/drift and add
+the correction those observations require. Native platform audio handles device
+I/O; BEAM coordinates routing, networking and processing work. A temporary common
+recording can provide the first measurement; the full distributed microphone
+calibration loop is a later option.
+Confirm which iPhone runtime profile is actually built/running as part of making
+this slice usable; the successful installed relay apps do not validate the newer
+native-profile sources. Select the first stream transport for this port-to-port
+increment rather than inferring it from the working chat path. Remote DSP and
+automatic calibration follow when useful. No Windows NIF port, browser work, broad cleanup or complete
+recovery programme is a prerequisite for the two-iPhone goal.
 
 **Windows follow-up requested 2026-10-29:** launch/profile and UI sources now
 understand the shared native runtime, cluster-wide removal and pending joins.
@@ -48,8 +97,10 @@ native carrier without EPMD. The legacy app is rebuilt. Windows NIF packaging is
 still incomplete: the upstream build stops at missing Cargo, and the pinned
 DTLS/Unifex/Shmex sources also depend on POSIX facilities. Keep the legacy relay
 build available until those dependencies have a supported Windows build/port.
-Next for Windows: finish that dependency increment, build the native app, then
-check invitation/admission/chat through the global Render desk as needed.
+When Windows native distribution is needed: finish that dependency increment,
+build the native app, then check invitation/admission/chat through the global
+Render desk as needed. The existing Windows relay path already works with the
+installed iPhone app across separate networks, as recorded above.
 Do not describe this source integration as runnable native Windows support.
 
 Windows status correction: the legacy relay snapshot now reports the local
@@ -203,7 +254,7 @@ secure cluster admission and removal are explicit implementation work.
    Check device behavior as needed; suspension,
    recovery and failure isolation can be separate increments rather than entry
    requirements for using the native path.
-5. **Distributed DSP proof:** one timestamped binary audio stream, a remote DSP
+5. **Distributed DSP proof (follow-on to the immediate playback slice):** one timestamped binary audio stream, a remote DSP
    worker and returned results; measure latency, jitter, CPU and missed deadlines.
    Keep final playback/timing local initially. Native distribution does not fix
    the eventual latency-sensitive audio media path.
@@ -222,9 +273,10 @@ The browser BEAM/full WebApp experiment is deferred. The first native relay is
 implemented in `Services/ReceptionDesk`, with Windows integration and shared Apple
 configuration/packaging sources. See [protocol](RELAY_PROTOCOL.md) for the actual
 wire contract and limits. The global desk is deployed on Render; public-WSS
-checks and physical Mac–iPhone chat are recorded in the progress log. Windows–
-iPhone operation across separate access networks remains unverified, rather
-than a prerequisite for the next native implementation increment.
+checks and physical Mac–iPhone chat are recorded in the progress log. On
+2026-10-29 the user also demonstrated Windows–iPhone relay chat between a school
+network and mobile data. This closes that relay-connectivity observation; native
+distribution, sustained audio and synchronised playback remain separate work.
 
 ### Code reuse audit 2026-10-28
 
@@ -280,6 +332,91 @@ implementing synchronized playback; large-swarm scaling can wait for a need.
 Decision evidence: [LiveView history](https://phoenixframework.org/blog/phoenix-liveview-1.0-released),
 [Popcorn's BEAM transition](https://swmansion.com/blog/popcorn-1-0-moving-from-atom-vm-to-otp-beam/),
 [LocalLiveView examples](https://github.com/software-mansion/popcorn/tree/main/local-live-view).
+
+### Audio and calibration ideas — recorded 2026-10-30
+
+This records the discussion, including speculative or potentially impractical
+ideas, so they are not forgotten. These are product goals, hypotheses and
+candidate approaches, not implemented behavior or proven performance. They do
+not require a new framework, cleanup programme or implementation all at once.
+
+**Goals and priorities**
+
+- Near term: two iPhones reproduce the same externally supplied audio and remain
+  in sync. The earlier idea of a song preloaded into each Parvi app was rejected
+  on 2026-10-30: player functionality belongs upstream. Buffering received signal
+  blocks for scheduled rendering remains part of Parvi's signal path.
+- A useful subsequent target is 10–100 speakers on commodity devices, with
+  distributed playback, DSP and acoustic calibration. Buffered home listening
+  can accept substantial startup/presentation delay in exchange for reliable
+  delivery; minimal-latency large-concert operation is a longer-term ambition.
+- Explore stereo-to-surround upmixing and immersive/spatial playback, including
+  the user's Dolby Surround/Atmos vision. An original spatial renderer/upmixer
+  and actual Dolby compatibility are separate possibilities; neither is
+  implemented or implied by playing stereo through many speakers.
+- Reuse ordinary devices, native audio facilities and existing DSP/protocol
+  libraries, with Erlang/OTP coordinating devices and workers. The hope is a
+  simpler, cheaper system; comparable professional performance/cost remains a
+  hypothesis. Standards such as AES67 may guide transport/timing and eventual
+  interoperability without requiring specialised equipment as an initial goal.
+
+**Proposed acoustic feedback loop during music playback**
+
+1. Know the upcoming source audio and its intended sample/presentation timeline.
+   Analyse the song ahead of playback for recognisable features: drum kicks,
+   sharp peaks/transients, frequency patterns or other suitable passages.
+2. Alternatively insert small known probe sounds/audio samples into the media
+   stream, potentially with distinct signatures for different speakers. A probe
+   must actually be rendered as sound to be acoustically detectable; packet
+   metadata alone is insufficient. Audibility and reliable detectability remain
+   open questions; do not assume a probe can be inaudible and still work.
+3. Schedule short microphone-recording windows around the expected arrival,
+   using microphones on nearby devices, potentially all participating devices.
+   Include enough timing context and surrounding audio to accommodate unknown
+   offsets. The aim is useful feedback while songs continue playing.
+4. Send recordings and the corresponding known reference/timing information to
+   an available or idle node for analysis. Distributing this mathematics is a
+   candidate use of the remote-DSP workers. Start with explicit placement;
+   automatic scheduling by spare capacity can follow when useful.
+5. Compare the expected and recorded signals, for example using correlation,
+   to estimate relative arrival offsets and their change over time. Explore
+   whether these observations can also support room-response/EQ calibration,
+   speaker placement and listening-position optimisation.
+6. Feed the estimates back into scheduled output-delay and, where needed,
+   playback-rate/resampling corrections. Re-estimate periodically or when the
+   acoustic/device situation changes. A little user input (such as identifying
+   the listening position/devices) or heuristics may help resolve ambiguity.
+
+**Hypotheses and unresolved details to retain**
+
+- Model timing initially as clock offset plus rate difference, with output-path
+  delay. Investigate which terms remain stable and which change during playback
+  or after an audio-route/buffer change. Larger buffers can absorb network
+  arrival variation; they do not alone remove relative clock drift, output-path
+  differences or room effects, nor improve fidelity without limit.
+- Microphones observe a mixture of speakers, direct sound, reflections and
+  noise. Repeated beats, narrow frequency features and identical audio from
+  several speakers may yield ambiguous matches. Candidate aids include
+  identifiable probes, an initial speaker-by-speaker measurement, known
+  geometry, multiple microphones or user-assisted calibration.
+- Microphone capture has its own clock, timestamp and input delay. An observed
+  lag includes the speaker output path, acoustic travel and recording path;
+  it cannot automatically be attributed entirely to the speaker's output delay.
+- Choose what is being aligned: electrical emission, arrival at a particular
+  seat, or a compromise across a listening area. Alignment at one microphone
+  does not imply alignment everywhere. Test whether position/room changes can
+  be distinguished from device drift.
+- Determine how much signal is needed, when measurements are trustworthy,
+  whether probes/music features remain identifiable after DSP, and how quickly
+  a remote analysis result becomes stale. Explore gradual corrections that
+  avoid audible jumps, rather than presuming repeated offset jumps are harmless.
+- The user is optimistic that this closes much of the gap with professional
+  AV systems using commodity hardware. Preserve that ambition while measuring
+  actual acoustic alignment, drift and dropouts; chat connectivity is separate
+  evidence from sustained synchronised audio.
+
+No feasibility claim is made for the complete feedback loop. Revisit these
+ideas as the two-phone playback increment produces useful evidence.
 
 ## Original audio research proposal — reference, not current gates
 
@@ -401,8 +538,9 @@ in them.
 ## Resuming work
 
 Start with the implementation approach and next step at the top of this file,
-then `docs/PROGRESS.md` for completed work and known limitations. Continue with
-the binary-stream/remote-DSP increment and native apps as needed; do not restart
+then `docs/PROGRESS.md` for completed work and known limitations. Continue toward
+two-phone synchronised playback, using binary-stream/remote-DSP work and native
+apps as needed; do not restart
 completed proofs or treat the historical
 audio milestones as prerequisites. Update the plan as implementation reveals
 what is useful next.

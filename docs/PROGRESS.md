@@ -1,5 +1,71 @@
 # Progress
 
+## 2026-10-30 — First Windows audio input meter
+
+Implemented a user-mode WASAPI loopback helper and an OTP-owned native port,
+with Start/Stop input, endpoint name, peak gauge, peak/RMS dBFS, sample format
+and captured-frame count in the Windows UI. This reads actual default-output
+PCM; only meter summaries cross to BEAM. Audio is neither saved nor transmitted.
+No player or decoder was added. Capture is node-local and independent of chat.
+No new dependency, virtual driver, machine audio-setting change, iOS app change
+or Mac app change. The build script now builds/packages the native helper.
+
+Validation: C++ `/W4 /WX` and Erlang warnings-as-errors compilation pass. Direct
+capture opens the Projector/AMD default output at 48 kHz stereo; a brief quiet
+external diagnostic tone measures about -37 dBFS and yields 44,160 captured
+frames. The live Windows UI opens capture and reports those frames. The direct
+helper exits with code 0 after stdin closes. Input was stopped after checking.
+No automated tests were added, no test suite or full app build was run, and no
+service was deployed. The existing Windows app was launched with staged beams.
+
+The user's selectable Parvi default-device goal remains incomplete. Next is
+choosing/reusing the virtual-device adapter, then exposing PCM blocks for
+processing/transmission. Device-change recovery is manual stop/start, and
+protected/exclusive output may not be captured. No FFT/spectrum yet.
+
+## 2026-10-30 — Correct the player/signal-processing boundary
+
+The user rejected adding preloaded-song playback to Parvi. Songs, decoding and
+player controls belong to an upstream player; Parvi owns signal input/output,
+processing and transmission. Corrected the immediate plan accordingly: select
+audio-port adapters/contract and a media transport, connect an external source
+to one iPhone output, then two synchronised outputs. A virtual driver, an audio
+plugin or an app using native audio I/O are integration options rather than
+definitions of the core. No adapter/protocol selection has been implemented.
+Documentation only; no code, build, tests or deployment.
+
+## 2026-10-30 — Reconcile plan with demonstrated relay chat and next audio slice
+
+Recorded the user's 2026-10-29 Windows–iPhone success over separate school and
+mobile-data networks. Supplied screenshots show the shared two-member swarm
+and the phone's message on Windows; this is relay chat evidence, not proof of
+native OTP-over-WebRTC, two-way message delivery or audio timing. The user also
+confirmed the status correction worked. Earlier dated entries retain their
+validation limits at the time they were written.
+
+Corrected the stale separate-network status in the current plan. Made the next
+audio slice explicit: one iPhone plays a preloaded song, then two phones schedule
+the same song, measure acoustic alignment/drift and correct it. Confirm the
+actual iPhone runtime profile while making the increment usable. Continuous
+streaming, distributed DSP and microphone-based automatic calibration remain
+follow-ons. No cleanup or Windows native dependency port blocks this product
+target. Documentation only; no builds, tests or deployments performed.
+
+## 2026-10-30 — Preserve audio and in-playback calibration ideas
+
+Recorded the discussion in the master plan: two-iPhone synchronised music as
+the next product target; a later 10–100-speaker commodity-device system;
+buffering, spatial/upmixed playback and the Dolby compatibility distinction;
+known-song features or inserted acoustic probes; scheduled short distributed
+microphone captures; analysis on available nodes; and ongoing timing/drift,
+room-response and listening-position correction. Included speculative ideas,
+user input/heuristics, clock/output/input-delay distinctions and unresolved
+measurement ambiguities without claiming feasibility. The user prefers moving
+forward without a cleanup phase. Existing distributed-DSP work remains a
+possible supporting increment, rather than replacing the stated product goal.
+
+Documentation only. No implementation, build, tests or deployment performed.
+
 ## 2026-10-29 — Clear obsolete desk-disconnection error after reconnect
 
 The live Render health endpoint returns HTTP 200, and a temporary client using

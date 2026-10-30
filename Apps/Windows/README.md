@@ -10,6 +10,38 @@ OTP-over-WebRTC profile used by the updated Mac/iPhone sources. Its Windows NIF
 build is incomplete. The default Windows build therefore retains the working
 legacy relay profile; it does not claim native-cluster interoperability.
 
+## Windows audio input meter
+
+Select **Start input** above the swarm view, then play audio in an existing
+player or browser using the Windows default multimedia output. Parvi displays
+the captured endpoint name, a peak meter, peak/RMS levels in **dBFS**, sample
+rate, channel count and captured-frame count. The meter floor is -96 dBFS;
+0 dBFS is digital full scale, not a measurement of room loudness. This input is
+local to the node and works independently of a swarm or desk connection.
+
+This uses Windows' existing WASAPI loopback API to read actual PCM samples.
+`parvi_windows_audio` supervises/owns the `parvi_audio_input.exe` port; the native
+helper computes levels over roughly 100 ms windows and sends meter summaries
+to BEAM. UI reloads do not own its capture state. **Stop input** closes the
+port; input is stopped initially. The helper also exits when its owning pipe
+closes. No captured audio is saved or transmitted in this increment, and raw
+sample blocks are not yet delivered to Erlang DSP/network workers.
+
+This does **not** install a virtual driver or create a selectable **Parvi**
+output device. Audio continues through the selected Windows output. A virtual
+audio-device adapter is separate work, preferably reusing an existing driver.
+If the default device changes or disconnects, stop/start input to reopen it.
+Only shared Windows output is captured; protected content and exclusive-mode
+applications may not be available. No frequency spectrum is implemented yet.
+
+The normal build compiles the helper with Visual Studio and the Windows SDK;
+keep it beside `Parvi.exe`. Stop input before rebuilding the native helper.
+Validation: native and Erlang compilation pass with warnings as errors; the
+helper reads the machine's 48 kHz stereo default endpoint, a short external
+quiet test tone produces a nonzero reading (about -37 dBFS), and the live UI
+reports captured frames. Closing stdin ends the standalone helper cleanly.
+No new automated tests were added. iOS and Mac sources were not edited.
+
 ## Native source integration and remaining work
 
 The native launcher disables EPMD, automatic transitive connections and automatic

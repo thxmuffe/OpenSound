@@ -83,6 +83,18 @@ if (!(Test-Path -LiteralPath $launcher) -or
 } else {
     Write-Host 'Native launcher unchanged; compiled Erlang modules only.'
 }
+# The audio input is a small user-mode WASAPI helper, not an installed driver.
+$audioSource = Join-Path $PSScriptRoot 'audio_input.cpp'
+$audioHelper = Join-Path $out 'parvi_audio_input.exe'
+if (!(Test-Path -LiteralPath $audioHelper) -or
+    (Get-Item -LiteralPath $audioSource).LastWriteTimeUtc -gt (Get-Item -LiteralPath $audioHelper).LastWriteTimeUtc) {
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    $vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+    if (!$vs) { throw 'Visual Studio C++ build tools are required for WASAPI input.' }
+    $dev = Join-Path $vs 'Common7\Tools\VsDevCmd.bat'
+    & $env:ComSpec /d /s /c "`"$dev`" -no_logo -arch=x64 -host_arch=x64 && cl /nologo /W4 /WX /EHsc /std:c++17 /MT `"$audioSource`" /Fo`"$work\audio_input.obj`" /Fe`"$audioHelper`" /link ole32.lib uuid.lib"
+    if ($LASTEXITCODE) { throw 'Audio input build failed. Stop input before rebuilding its executable.' }
+}
 if ($Test) {
     $tests = @(Get-ChildItem -LiteralPath (Join-Path $repo 'control\test') -Filter '*.erl' | ForEach-Object FullName)
     $tests += Join-Path $PSScriptRoot 'test\parvi_windows_model_tests.erl'
