@@ -2,6 +2,14 @@
 
 Created: 2026-10-23. Current development order revised: 2026-10-30.
 
+Repository layout updated 2026-10-30: implementation components now live under
+`src/`, with audio code in `src/Audio/`. Existing cross-component integration
+checks live under `tests/`; component unit tests remain beside their component.
+`docs/`, `scripts/` and ignored `builds/` stay at the repository root. See the
+[repository layout](../README.md#repository-layout-and-builds) and
+[integration-check guide](../tests/README.md). This is a source-layout change;
+the current product sequence and runtime behavior are unchanged.
+
 Update 2026-10-26: the newer [Parvi handover](notes%2020261026.md) introduces a
 chat-first feasibility phase before these audio milestones. The Mac OTP chat
 baseline is now implemented; iPhone execution is verified on the physical phone. Follow

@@ -1,5 +1,30 @@
 # Progress
 
+## 2026-10-30 — Group implementation under src and integration checks under tests
+
+Moved app, service and shared control sources under `src/`. Grouped the existing
+Erlang meter/Windows audio worker under `src/Audio/src/` and the unchanged WASAPI
+helper under `src/Audio/native/Windows/`. The control build includes the audio
+sources in the existing `parvi` application; no new runtime application or service
+was introduced. Moved existing multi-process/app/service smoke checks and Windows
+probe helpers into top-level `tests/`, retaining component unit tests locally.
+
+Updated build/launch scripts, root discovery, Apple packaging paths, Docker COPY
+paths, Render configuration, documentation links and repository guidance.
+Generated products and caches retain their existing top-level `builds/` paths.
+Apple implementation changes are limited to path references; no audio feature
+or platform behavior was changed by this move.
+
+Validation: both the independent control build and root Rebar workspace compile.
+Shared/audio/Windows modules and existing unit tests also compile in an isolated
+output directory with warnings as errors; all 14 existing core/swarm/relay and
+Windows-model tests pass there. All 18 Python files parse, PowerShell scripts
+parse and shell scripts pass `bash -n`. All 157 pre-move tracked files are
+accounted for and previously valid Markdown links remain valid. Historical
+progress entries still mention files removed in earlier work. Erlang/Git Bash
+helper startup required execution outside the sandbox. No new automated tests,
+running-app replacement, Apple build, Docker build or service deployment.
+
 ## 2026-10-30 — Compare and try reusable Windows audio bindings
 
 Reviewed Comet/erl_com, cffi, Erlaudio/PortAudio and miniaudio against the user's
