@@ -12,6 +12,11 @@ legacy relay profile; it does not claim native-cluster interoperability.
 
 ## Windows audio input meter
 
+The [audio-library comparison and trial](../../docs/decisions/0004-windows-audio-library-trial.md)
+favours PortAudio for reusable device I/O, but its existing Erlang binding failed
+the isolated Windows stream-open trial. The app retains the direct WASAPI bridge;
+PortAudio is not a build or runtime dependency.
+
 Select **Start input** above the swarm view, then play audio in an existing
 player or browser using the Windows default multimedia output. Parvi displays
 the captured endpoint name, a peak meter, peak/RMS levels in **dBFS**, sample
@@ -20,12 +25,29 @@ rate, channel count and captured-frame count. The meter floor is -96 dBFS;
 local to the node and works independently of a swarm or desk connection.
 
 This uses Windows' existing WASAPI loopback API to read actual PCM samples.
-`parvi_windows_audio` supervises/owns the `parvi_audio_input.exe` port; the native
-helper computes levels over roughly 100 ms windows and sends meter summaries
-to BEAM. UI reloads do not own its capture state. **Stop input** closes the
+`parvi_windows_audio` owns the supervised `parvi_audio_input.exe` port. The thin
+native bridge opens WASAPI and transfers untouched format information, PCM
+buffers, flags, frame positions and capture timestamps. Erlang controls read
+requests (currently about 10 ms apart), interprets Windows sample formats,
+handles silent buffers, counts frames and computes levels over roughly 100 ms
+windows using shared `control/src/parvi_audio_meter.erl`. No metering, sample
+conversion, polling timer or background thread remains in the C++ bridge.
+UI reloads do not own its capture state. **Stop input** closes the
 port; input is stopped initially. The helper also exits when its owning pipe
-closes. No captured audio is saved or transmitted in this increment, and raw
-sample blocks are not yet delivered to Erlang DSP/network workers.
+closes. Raw samples now reach the Erlang input worker and meter; no captured
+audio is saved or transmitted to other nodes. Metering/DSP starts in Erlang;
+native algorithm offloading needs measured justification later.
+
+The local bridge uses OTP's `{packet,4}` framing, with a big-endian payload
+length and a one-byte message type. Type 1 contains a little-endian 32-bit
+WAVEFORMAT byte count, the raw Windows format and UTF-16LE source name. Type 2
+contains little-endian frame count/flags (32 bits each), device position/QPC
+capture time (64 bits each), then raw interleaved PCM; silent buffers omit PCM
+and Erlang supplies zeros. QPC time uses WASAPI's 100 ns units, local to this
+machine, not a shared session clock; flags retain timestamp validity information.
+Type 3 contains the Windows HRESULT, and type 4 ends a read batch. Erlang sends
+the single byte `r` in a framed packet to request another batch. This is private
+OS-bridge IPC, not a decision about network audio transport or interoperability.
 
 This does **not** install a virtual driver or create a selectable **Parvi**
 output device. Audio continues through the selected Windows output. A virtual
@@ -36,10 +58,13 @@ applications may not be available. No frequency spectrum is implemented yet.
 
 The normal build compiles the helper with Visual Studio and the Windows SDK;
 keep it beside `Parvi.exe`. Stop input before rebuilding the native helper.
-Validation: native and Erlang compilation pass with warnings as errors; the
-helper reads the machine's 48 kHz stereo default endpoint, a short external
-quiet test tone produces a nonzero reading (about -37 dBFS), and the live UI
-reports captured frames. Closing stdin ends the standalone helper cleanly.
+Validation: native and Erlang compilation pass with warnings as errors. Direct
+checks cover float32 and PCM16/24/32 metering. An end-to-end Windows capture
+check passes raw 48 kHz stereo samples through the port into the Erlang meter,
+with a quiet external diagnostic tone measuring about -35 dBFS and Stop
+returning the worker to stopped. Stop input before installing a rebuilt helper
+and matching Erlang worker: the earlier JSON-only bridge is incompatible with
+the raw-buffer protocol. No full app restart is needed for this update.
 No new automated tests were added. iOS and Mac sources were not edited.
 
 ## Native source integration and remaining work

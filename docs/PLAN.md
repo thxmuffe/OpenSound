@@ -58,10 +58,22 @@ Parvi output device feeding an input meter, using an existing player/browser as
 the source. Work in Windows only; do not edit iOS or Mac app sources in this
 increment. A first Windows capture/meter implementation now reads the current
 default multimedia output through WASAPI loopback and shows peak/RMS dBFS,
-format and captured frames. It does not yet create the requested virtual Parvi
-device, forward PCM to BEAM/network workers, or show a frequency spectrum.
+format and captured frames. Following the user's Erlang-first direction, the
+native bridge now only calls WASAPI and transfers raw buffers/metadata. The
+Erlang worker controls reads and computes the meter from PCM. No built-in OTP
+WASAPI/COM binding was found; the small native boundary remains necessary for
+these Windows calls. Keep algorithms in Erlang initially; offload only for
+measured performance needs. This does not yet create the requested virtual
+Parvi device, forward audio between nodes, or show a frequency spectrum.
+The [Windows binding trial](decisions/0004-windows-audio-library-trial.md) selected
+PortAudio as the strongest reusable audio I/O candidate, but its old Erlaudio
+binding failed stream opening in an isolated VM and has native ownership/type
+defects. Direct PortAudio loopback capture succeeded. Keep the working WASAPI
+adapter; no replacement dependency is integrated. Generic COM/FFI candidates
+were not established as ready x64 Windows bindings. A future reusable adapter
+must preserve timing metadata and Erlang-owned policy.
 Next select/reuse a Windows virtual-audio-device adapter for that selectable
-endpoint and expose captured sample blocks for the processing/transmission
+endpoint and connect the existing Erlang sample input to further processing/transmission
 path. Keep the device-routing requirement distinct from the working loopback
 meter; no virtual driver has been selected or installed.
 

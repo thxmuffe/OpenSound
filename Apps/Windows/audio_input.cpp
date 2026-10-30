@@ -1,47 +1,25 @@
-// WASAPI loopback input. PCM stays local; only meter summaries go to BEAM.
-#define NOMINMAX
+// Thin WASAPI bridge. Erlang requests reads and interprets the raw buffers.
 #include <windows.h>
 #include <mmdeviceapi.h>
 #include <audioclient.h>
 #include <functiondiscoverykeys_devpkey.h>
-#include <ksmedia.h>
 #include <wrl/client.h>
-#include <atomic>
-#include <algorithm>
-#include <cmath>
 #include <cstdio>
-#include <cstring>
-#include <string>
-#include <thread>
-#include <vector>
+#include <cstdint>
+#include <io.h>
+#include <fcntl.h>
 
 using Microsoft::WRL::ComPtr;
-static std::atomic<bool> running{true};
 static void check(HRESULT hr) { if (FAILED(hr)) throw hr; }
-static double db(double value) { return 20 * std::log10(std::max(value, 0.0000158489319)); }
-
-static std::string json_string(const wchar_t* text) {
-    int size = WideCharToMultiByte(CP_UTF8, 0, text, -1, nullptr, 0, nullptr, nullptr);
-    std::string utf8(static_cast<size_t>(size), '\0'), result = "\"";
-    WideCharToMultiByte(CP_UTF8, 0, text, -1, utf8.data(), size, nullptr, nullptr);
-    for (int i = 0; i < size - 1; ++i) {
-        unsigned char c = static_cast<unsigned char>(utf8[i]);
-        if (c == '"' || c == '\\') result += '\\';
-        if (c < 32) { char escaped[7]; sprintf_s(escaped, "\\u%04x", c); result += escaped; }
-        else result += static_cast<char>(c);
-    }
-    return result + '"';
+static void write(const void* data, size_t size) {
+    if (size && fwrite(data, 1, size, stdout) != size) throw E_FAIL;
 }
-
-static double sample(const BYTE* p, WORD bits, bool floating) {
-    if (floating) { float value; std::memcpy(&value, p, 4); return std::isfinite(value) ? value : 0; }
-    if (bits == 16) { short value; std::memcpy(&value, p, 2); return value / 32768.0; }
-    if (bits == 24) {
-        int value = p[0] | (p[1] << 8) | (p[2] << 16);
-        if (value & 0x800000) value -= 0x1000000;
-        return value / 8388608.0;
-    }
-    int value; std::memcpy(&value, p, 4); return value / 2147483648.0;
+// Standard Erlang {packet,4} framing: big-endian size, then a typed payload.
+static void packet(BYTE type, uint32_t bytes) {
+    uint32_t size = bytes + 1;
+    BYTE header[] = {static_cast<BYTE>(size >> 24), static_cast<BYTE>(size >> 16),
+                     static_cast<BYTE>(size >> 8), static_cast<BYTE>(size), type};
+    write(header, sizeof(header));
 }
 
 static void capture() {
@@ -53,73 +31,52 @@ static void capture() {
     check(device->OpenPropertyStore(STGM_READ, &properties));
     PROPVARIANT name; PropVariantInit(&name);
     check(properties->GetValue(PKEY_Device_FriendlyName, &name));
-    std::string source = json_string(name.vt == VT_LPWSTR ? name.pwszVal : L"Windows default output");
-    PropVariantClear(&name);
+    const wchar_t* source = name.vt == VT_LPWSTR ? name.pwszVal : L"Windows default output";
     ComPtr<IAudioClient> client;
     check(device->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, &client));
-    WAVEFORMATEX* allocated = nullptr;
-    check(client->GetMixFormat(&allocated));
-    std::vector<BYTE> format(sizeof(WAVEFORMATEX) + allocated->cbSize);
-    std::memcpy(format.data(), allocated, format.size()); CoTaskMemFree(allocated);
-    auto* wave = reinterpret_cast<WAVEFORMATEX*>(format.data());
-    bool floating = wave->wFormatTag == WAVE_FORMAT_IEEE_FLOAT;
-    bool pcm = wave->wFormatTag == WAVE_FORMAT_PCM;
-    if (wave->wFormatTag == WAVE_FORMAT_EXTENSIBLE && wave->cbSize >= 22) {
-        auto* extended = reinterpret_cast<WAVEFORMATEXTENSIBLE*>(wave);
-        floating = IsEqualGUID(extended->SubFormat, KSDATAFORMAT_SUBTYPE_IEEE_FLOAT);
-        pcm = IsEqualGUID(extended->SubFormat, KSDATAFORMAT_SUBTYPE_PCM);
-    }
-    if ((!floating || wave->wBitsPerSample != 32) &&
-        (!pcm || (wave->wBitsPerSample != 16 && wave->wBitsPerSample != 24 && wave->wBitsPerSample != 32)))
-        throw AUDCLNT_E_UNSUPPORTED_FORMAT;
-    check(client->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK,
-                            1000000, 0, wave, nullptr));
+    WAVEFORMATEX* wave = nullptr;
+    check(client->GetMixFormat(&wave));
+    const WORD blockAlign = wave->nBlockAlign;
+    HRESULT initialized = client->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_LOOPBACK,
+                                            1000000, 0, wave, nullptr);
+    if (FAILED(initialized)) { CoTaskMemFree(wave); PropVariantClear(&name); throw initialized; }
+    uint32_t formatBytes = static_cast<uint32_t>(sizeof(WAVEFORMATEX)) + wave->cbSize;
+    uint32_t nameBytes = static_cast<uint32_t>(wcslen(source) * sizeof(wchar_t));
+    packet(1, 4 + formatBytes + nameBytes);
+    write(&formatBytes, sizeof(formatBytes)); write(wave, formatBytes); write(source, nameBytes);
+    CoTaskMemFree(wave); PropVariantClear(&name); fflush(stdout);
+
     ComPtr<IAudioCaptureClient> input;
     check(client->GetService(IID_PPV_ARGS(&input)));
     check(client->Start());
-    unsigned long long framesSeen = 0, count = 0, discontinuities = 0;
-    double peak = 0, squares = 0;
-    ULONGLONG report = GetTickCount64();
-    const WORD bytes = wave->wBitsPerSample / 8;
-    while (running) {
-        Sleep(10);
+    // Erlang sends a {packet,4}-framed 'r' to drain packets. EOF closes capture.
+    BYTE command[5];
+    while (fread(command, 1, sizeof(command), stdin) == sizeof(command) &&
+           command[0] == 0 && command[1] == 0 && command[2] == 0 && command[3] == 1 && command[4] == 'r') {
         UINT32 available = 0;
         check(input->GetNextPacketSize(&available));
         while (available) {
             BYTE* data = nullptr; UINT32 frames = 0; DWORD flags = 0;
-            check(input->GetBuffer(&data, &frames, &flags, nullptr, nullptr));
-            if (flags & AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY) ++discontinuities;
-            for (UINT32 frame = 0; frame < frames; ++frame) {
-                for (WORD channel = 0; channel < wave->nChannels; ++channel) {
-                    double value = (flags & AUDCLNT_BUFFERFLAGS_SILENT) ? 0 :
-                        sample(data + frame * wave->nBlockAlign + channel * bytes, wave->wBitsPerSample, floating);
-                    peak = std::max(peak, std::abs(value)); squares += value * value; ++count;
-                }
-            }
-            framesSeen += frames;
+            UINT64 position = 0, qpc = 0;
+            check(input->GetBuffer(&data, &frames, &flags, &position, &qpc));
+            uint32_t bytes = (flags & AUDCLNT_BUFFERFLAGS_SILENT) ? 0 : frames * blockAlign;
+            packet(2, 24 + bytes);
+            write(&frames, 4); write(&flags, 4); write(&position, 8); write(&qpc, 8); write(data, bytes);
             check(input->ReleaseBuffer(frames));
             check(input->GetNextPacketSize(&available));
         }
-        if (GetTickCount64() - report >= 100) {
-            printf("{\"source\":%s,\"rate\":%lu,\"channels\":%u,\"peak_db\":%.2f,\"rms_db\":%.2f,"
-                   "\"frames\":%llu,\"discontinuities\":%llu}\n", source.c_str(), wave->nSamplesPerSec,
-                   wave->nChannels, db(peak), db(count ? std::sqrt(squares / static_cast<double>(count)) : 0),
-                   framesSeen, discontinuities);
-            fflush(stdout); peak = 0; squares = 0; count = 0; report = GetTickCount64();
-        }
+        packet(4, 0); fflush(stdout);
     }
     client->Stop();
 }
 
 int main() {
-    // Closing the owning Erlang port closes stdin and ends the helper too.
-    std::thread([] { while (getchar() != EOF) {} running = false; }).detach();
+    _setmode(_fileno(stdin), _O_BINARY); _setmode(_fileno(stdout), _O_BINARY);
     HRESULT init = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     try {
         check(init); capture(); CoUninitialize(); return 0;
     } catch (HRESULT hr) {
-        printf("{\"error\":\"WASAPI input failed (0x%08lx). Check the default output, then stop/start input.\"}\n",
-               static_cast<unsigned long>(hr));
-        fflush(stdout); if (SUCCEEDED(init)) CoUninitialize(); return 1;
+        packet(3, 4); write(&hr, 4); fflush(stdout);
+        if (SUCCEEDED(init)) CoUninitialize(); return 1;
     }
 }

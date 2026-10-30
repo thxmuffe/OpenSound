@@ -1,5 +1,55 @@
 # Progress
 
+## 2026-10-30 — Compare and try reusable Windows audio bindings
+
+Reviewed Comet/erl_com, cffi, Erlaudio/PortAudio and miniaudio against the user's
+small-parts, Erlang-first, low-latency/configurability preferences. PortAudio is
+the preferred reusable device-I/O library, but the existing Erlaudio binding
+was rejected after an isolated x64 Windows/OTP trial. Both libraries compiled;
+the NIF loaded and enumerated WASAPI loopback devices, then the first stream-open
+trial crashed the isolated VM with an access violation. A second stream-open
+attempt also failed to return. Source review found independent term-width,
+binary ownership and string-buffer defects; the precise crash cause is not
+debugger-confirmed. Direct native PortAudio capture of 480 silent stereo frames
+at 48 kHz succeeded, distinguishing basic library operation from binding failure.
+
+No dependency integrated, no upstream source patched, no running Parvi process
+replaced, no device settings changed and no iOS/Mac app sources edited. Generated
+trial artifacts remain ignored under `builds/intermediates/Windows/`. The working
+WASAPI-to-Erlang adapter remains in use; latency and sustained capture through
+PortAudio were not measured. See [decision 0004](decisions/0004-windows-audio-library-trial.md)
+for exact pins, comparisons, source references and validation limits.
+
+## 2026-10-30 — Move sample handling and metering into Erlang
+
+Replaced the native meter with a thin WASAPI port bridge. It passes raw Windows
+format/source information, PCM, capture flags, device positions and local QPC
+timestamps. Erlang requests read batches, owns the read/report timers, decodes
+sample formats/silence and computes peak/RMS. The shared pure Erlang
+`parvi_audio_meter` supports float32 and PCM16/24/32. The C++ source is reduced
+from 126 to 82 lines with no meter calculations, sample conversion, polling
+timer or background thread. OTP's built-in packet framing carries local binary
+IPC; no network audio protocol has been selected. No driver or dependency added.
+
+Recorded the user's enduring preference in AGENTS.md and updated the earlier
+native-engine proposal: implement processing in Erlang first, with native code
+limited to necessary bindings; offload later for measured performance needs.
+WASAPI is a native COM interface; no built-in OTP binding or existing Erlang
+WASAPI binding was found in this review. iOS and Mac sources were not edited.
+
+Validation: native `/W4 /WX` and Erlang warnings-as-errors compilation pass.
+Direct checks of all four sample formats produce the expected -6.0206 dBFS for
+half-scale samples. End-to-end capture using the bundled OTP receives real
+48 kHz stereo PCM, computes about -35 dBFS for a quiet external diagnostic tone,
+counts 79,872 frames and stops cleanly. The sandbox initially rejected native
+port startup with `einval`; the authorized native run passed. These are focused
+manual checks; no automated test files were added and no test suite was run.
+This replaces the earlier helper-to-Erlang JSON meter protocol; Stop input
+before replacing the helper and worker together. No service deployment.
+Staged the matching bridge/BEAM files with input stopped; the live app then
+started capture through the updated worker and displayed 48 kHz stereo sample
+counts without a full app restart. Stopped input again after verification.
+
 ## 2026-10-30 — First Windows audio input meter
 
 Implemented a user-mode WASAPI loopback helper and an OTP-owned native port,

@@ -135,7 +135,7 @@ These are proposals to validate, not settled requirements:
 | Component | Initial direction |
 | --- | --- |
 | Session control | Erlang/OTP for lifecycle, subscriptions, supervision, and health |
-| Audio engine | Rust, with existing native audio libraries where useful |
+| Audio processing | Erlang/OTP first; minimal native OS bindings, with later offloading justified by measurements |
 | Audio transport | RTP over UDP; evaluate existing implementations first |
 | Prototype format | Uncompressed 48 kHz PCM; choose bit depth during the first experiment |
 | Discovery | Evaluate mDNS/DNS-SD for a local subnet |
@@ -143,7 +143,7 @@ These are proposals to validate, not settled requirements:
 | Local processing | Evaluate CamillaDSP integration before building a DSP engine |
 | Configuration | Versioned, documented messages over a reliable authenticated connection |
 
-The public protocol must not depend on Erlang, Rust, or participation in an Erlang cluster. Audio deadlines belong in the native engine; control-process scheduling must not determine sample playback.
+The public protocol must not depend on Erlang, Rust, or participation in an Erlang cluster. Initial audio processing and timing/buffering policy belong in Erlang; native adapters access OS audio buffers. Measure playback deadlines and offload specific work only when the results justify it.
 
 Transport independence is an architectural goal, not a promise of identical performance. Ethernet and Wi-Fi can share IP protocols. Bluetooth would require a dedicated adapter or gateway, capability negotiation, and timing translation; it is outside the first prototype.
 
