@@ -1,0 +1,23 @@
+// Pinned OTP runtime; prepare-runtime.py populates these ignored folders.
+PARVI_OTP_ROOT = $(SRCROOT)/../../../builds/intermediates/iOS/otp-device
+PARVI_OTP_ROOT[sdk=iphonesimulator*] = $(SRCROOT)/../../../builds/intermediates/iOS/otp-sim
+PARVI_TRANSPORT = native
+PARVI_RUNTIME_RESOURCES = $(SRCROOT)/../../../builds/intermediates/iOS/Resources-$(PARVI_TRANSPORT)-device
+PARVI_RUNTIME_RESOURCES[sdk=iphonesimulator*] = $(SRCROOT)/../../../builds/intermediates/iOS/Resources-$(PARVI_TRANSPORT)-sim
+PARVI_ERTS_LIB = $(PARVI_OTP_ROOT)/erts-17.1.1/lib
+PARVI_TRANSPORT_LIB = $(SRCROOT)/../../../builds/intermediates/iOS/transport-device/lib
+PARVI_TRANSPORT_LIB[sdk=iphonesimulator*] = $(SRCROOT)/../../../builds/intermediates/iOS/transport-sim/lib
+PARVI_CRYPTO_native = $(PARVI_TRANSPORT_LIB)/libcrypto.a
+PARVI_CRYPTO_relay = $(PARVI_ERTS_LIB)/libcrypto.a
+PARVI_FLAGS_native = "$(PARVI_TRANSPORT_LIB)/libparvi_transport.a" "$(PARVI_TRANSPORT_LIB)/libex_sctp.a" "$(PARVI_TRANSPORT_LIB)/libssl.a" "$(PARVI_TRANSPORT_LIB)/libsrtp2.a" -Wl,-export_dynamic -framework Security -framework SystemConfiguration
+PARVI_DEFINES_native = PARVI_NATIVE_TRANSPORT=1
+PARVI_SWIFT_native = PARVI_NATIVE_TRANSPORT
+GCC_PREPROCESSOR_DEFINITIONS = $(inherited) $(PARVI_DEFINES_$(PARVI_TRANSPORT))
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) $(PARVI_SWIFT_$(PARVI_TRANSPORT))
+OTHER_LDFLAGS = $(inherited) "$(PARVI_ERTS_LIB)/libbeam.a" "$(PARVI_ERTS_LIB)/internal/liberts_internal_r.a" "$(PARVI_ERTS_LIB)/internal/libethread.a" "$(PARVI_ERTS_LIB)/libzstd.a" "$(PARVI_ERTS_LIB)/libepcre.a" "$(PARVI_ERTS_LIB)/libryu.a" "$(PARVI_ERTS_LIB)/asn1rt_nif.a" "$(PARVI_ERTS_LIB)/crypto.a" "$(PARVI_CRYPTO_$(PARVI_TRANSPORT))" $(PARVI_FLAGS_$(PARVI_TRANSPORT)) -lz -lc++ -lpthread
+SWIFT_OBJC_BRIDGING_HEADER = Parvi/Parvi-Bridging-Header.h
+ENABLE_USER_SCRIPT_SANDBOXING = NO
+ARCHS = arm64
+
+// Product location is supplied globally by build.sh so the app and Swift package
+// use the same directory. A target-only override can load stale package metadata.

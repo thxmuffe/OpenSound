@@ -45,6 +45,6 @@ Act as an experienced **Erlang/OTP architect**, not merely a coding assistant.
 
 - Keep networking, negotiation, trust and runtime behavior in the BEAM layer. UI layers submit commands and display state; keep ordinary text editing, selection, copy and paste simple and available.
 - Use OTP for process lifecycle, supervision, messaging, links/monitors and process-group membership. Keep admission permission distinct from observed connection/process liveness.
-- Platform app sources belong in `Apps/`, app-specific shared code in `Apps/Shared/`, shared Erlang runtime code in `control/`, and independent services in `Services/`.
+- Implementation sources belong under `src/`: platform apps in `src/Apps/`, app-specific shared code in `src/Apps/Shared/`, audio processing and native audio adapters in `src/Audio/`, shared networking/swarm runtime in `src/control/`, and independently deployed services in `src/Services/`. Cross-component integration checks belong in top-level `tests/`; component unit tests can stay beside their component. Documentation belongs in `docs/` and repository-wide tooling in `scripts/`.
 - Generated apps, dependencies, runtimes and caches belong under the ignored top-level `builds/` directory. Modify project sources rather than generated copies or downloaded dependency files.
 - Keep experimental implementations isolated until the planned integration step. Follow the current accepted plan in [docs/PLAN.md](docs/PLAN.md); do not turn speculative future requirements into present architecture.

@@ -141,14 +141,14 @@ dependencies, so this is not a plan to reimplement WebRTC or rewrite the working
 Reception Desk merely to remove a source language. The browser experiment
 remains deferred.
 
-- `Services/ReceptionDesk`: independent service for rendezvous, permission-checked
+- `src/Services/ReceptionDesk`: independent service for rendezvous, permission-checked
   mailboxes and relay mechanisms. Its Erlang workers can run inside the
   Phoenix/Cowboy BEAM application without another server-language runtime.
-- `Apps/WebApp`: a browser-local node, using Popcorn's WebAssembly BEAM runtime
+- `src/Apps/WebApp`: a browser-local node, using Popcorn's WebAssembly BEAM runtime
   and LocalLiveView for rendering and events. The Reception Desk does not own
   browser nodes or swarms. Both components may share hosting without merging
   their responsibilities.
-- `control/`: shared Erlang/OTP swarm and chat logic. Reuse compatible modules
+- `src/control/`: shared Erlang/OTP swarm and chat logic. Reuse compatible modules
   in native apps, server and browser; isolate platform/network adapters. Browser
   compatibility must be demonstrated, not assumed.
 - Communication: an explicit, versioned WebSocket message protocol usable by
@@ -194,7 +194,7 @@ secure cluster admission and removal are explicit implementation work.
    The isolated smoke check passes native RPC/spawn, 256 KiB binary round trips,
    ordered messaging, remote links/monitors, idle ticks, silent-loss node-down
    detection and mismatched-cookie rejection. See
-   [the experiment](../control/transport/experiments/otp_dist/README.md).
+   [the experiment](../src/control/transport/experiments/otp_dist/README.md).
 2. **Trusted admission (isolated checks passed 2026-10-28):** expiring invitations
    pin the inviter's ephemeral public key. Signed challenges/proofs bind the
    device key and native name to actual DTLS fingerprints and fresh nonces;
@@ -274,15 +274,15 @@ secure cluster admission and removal are explicit implementation work.
    using device capacity, network delay and processing deadlines. OTP remote
    execution is not an automatic DSP load balancer.
 
-The reusable carrier, trust and desk modules now live in `control/src/` and
+The reusable carrier, trust and desk modules now live in `src/control/src/` and
 compile with the shared core. Probe/harness code remains experimental in
-`control/transport/experiments/otp_dist`. Mac packages the runtime dependencies;
+`src/control/transport/experiments/otp_dist`. Mac packages the runtime dependencies;
 iPhone builds them statically. Both retain explicit invitation-based admission.
 
 ### Implementation update: native relay first
 
 The browser BEAM/full WebApp experiment is deferred. The first native relay is
-implemented in `Services/ReceptionDesk`, with Windows integration and shared Apple
+implemented in `src/Services/ReceptionDesk`, with Windows integration and shared Apple
 configuration/packaging sources. See [protocol](RELAY_PROTOCOL.md) for the actual
 wire contract and limits. The global desk is deployed on Render; public-WSS
 checks and physical Mac–iPhone chat are recorded in the progress log. On
@@ -299,13 +299,13 @@ vendored third-party source separately from Parvi logic.
 
 | Priority | Location | Opportunity and limits |
 | --- | --- | --- |
-| Done | `control/src/parvi_relay.erl` | Removed manual pong replies and enabled Gun's default ping suppression. Gun 2.7 already replies to pings; our handler sent a second reply. No new dependency. |
-| Done | `Apps/macOS/Parvi/MacErlangRuntime.swift`, `Apps/iOS/Parvi/IOSErlangRuntime.swift` | Both hosts use a shared reader over Foundation `FileHandle.bytes` and deliver typed snapshots; ChatModel no longer decodes them again. `.lines` was rejected after a regression test showed it splits Unicode paragraph separators inside valid JSON. A small shared LF-only framer preserves the protocol, fragmented UTF-8 and incomplete-record EOF behavior. Windows and graph sources remain unchanged. |
-| Separate easy deletion candidate | `Apps/Windows/src/parvi_node_status.erl`, `parvi_topology.erl` | 128 lines of older monitoring workers have no callers outside these two modules in the checked-in sources. The current Windows model uses shared bridge network snapshots. These are candidates for deletion after Windows build/reload checks, rather than reasons to add a library. |
-| Largest conditional saving | `Apps/Windows/src/parvi_fgraph_win.erl` | 829-line modified OTP Reltool viewer. The force-layout engine is already reused unchanged. Direct upstream reuse could remove the fork, but would lose Parvi node-click events, pause behavior, labels, arrows and styling unless supported upstream. This is an internal OTP module; the existing graph investigation records the missing hooks. No drop-in replacement is established. |
-| Investigate later | `control/src/parvi_relay.erl` | Gun provides retry/retry_fun; our client disables retries and implements backoff. Savings are small, and authentication, mailbox reopening, handshake deadlines and iPhone DNS refresh still belong to Parvi. Do not blindly enable both retry mechanisms. |
-| Keep | `Apps/WebApp/public/qrcode.js` | Already the vendored MIT-licensed qrcode-generator library, not 2,297 lines of custom QR logic. Switching to a CDN would remove local source without reducing the code shipped, and would add availability/privacy dependencies. |
-| Keep | Core wire/invitation/membership logic and `Apps/iOS/Parvi/parvi_beam.c` | URI/JSON/crypto already use OTP libraries. Swarm authorization and mutual-removal rules are product behavior; no library replacement is established. The 79-line iPhone host is specific static-runtime ABI/startup glue based on Mob, not a hand-written runtime. |
+| Done | `src/control/src/parvi_relay.erl` | Removed manual pong replies and enabled Gun's default ping suppression. Gun 2.7 already replies to pings; our handler sent a second reply. No new dependency. |
+| Done | `src/Apps/macOS/Parvi/MacErlangRuntime.swift`, `src/Apps/iOS/Parvi/IOSErlangRuntime.swift` | Both hosts use a shared reader over Foundation `FileHandle.bytes` and deliver typed snapshots; ChatModel no longer decodes them again. `.lines` was rejected after a regression test showed it splits Unicode paragraph separators inside valid JSON. A small shared LF-only framer preserves the protocol, fragmented UTF-8 and incomplete-record EOF behavior. Windows and graph sources remain unchanged. |
+| Separate easy deletion candidate | `src/Apps/Windows/src/parvi_node_status.erl`, `parvi_topology.erl` | 128 lines of older monitoring workers have no callers outside these two modules in the checked-in sources. The current Windows model uses shared bridge network snapshots. These are candidates for deletion after Windows build/reload checks, rather than reasons to add a library. |
+| Largest conditional saving | `src/Apps/Windows/src/parvi_fgraph_win.erl` | 829-line modified OTP Reltool viewer. The force-layout engine is already reused unchanged. Direct upstream reuse could remove the fork, but would lose Parvi node-click events, pause behavior, labels, arrows and styling unless supported upstream. This is an internal OTP module; the existing graph investigation records the missing hooks. No drop-in replacement is established. |
+| Investigate later | `src/control/src/parvi_relay.erl` | Gun provides retry/retry_fun; our client disables retries and implements backoff. Savings are small, and authentication, mailbox reopening, handshake deadlines and iPhone DNS refresh still belong to Parvi. Do not blindly enable both retry mechanisms. |
+| Keep | `src/Apps/WebApp/public/qrcode.js` | Already the vendored MIT-licensed qrcode-generator library, not 2,297 lines of custom QR logic. Switching to a CDN would remove local source without reducing the code shipped, and would add availability/privacy dependencies. |
+| Keep | Core wire/invitation/membership logic and `src/Apps/iOS/Parvi/parvi_beam.c` | URI/JSON/crypto already use OTP libraries. Swarm authorization and mutual-removal rules are product behavior; no library replacement is established. The 79-line iPhone host is specific static-runtime ABI/startup glue based on Mob, not a hand-written runtime. |
 
 Sources: [Gun 2.7 options and automatic pong behavior](https://ninenines.eu/docs/en/gun/2.7/manual/gun/),
 [Foundation asynchronous file reading](https://developer.apple.com/documentation/foundation/filehandle/bytes),
@@ -327,7 +327,7 @@ choices to measure, not an assumption that a packet contains only one frequency.
 
 Chat and the current reliable data-channel experiment prove connectivity and
 membership only. They do not determine the eventual media transport. Keep
-control/signalling separate from binary media delivery, with explicit sample
+src/control/signalling separate from binary media delivery, with explicit sample
 format/codec, channel or object descriptions, sequence/sample timestamps,
 playback timing, buffering and loss behavior. Do not carry audio through JSON
 text/base64 chat messages or assume reliable ordered delivery is appropriate for
@@ -530,20 +530,20 @@ Design bounded gain, limiting, fades, and explicit mute behavior for invalid con
 
 ```text
 README.md
-Apps/                platform app sources
+src/Apps/                platform app sources
 builds/              generated apps and compiler intermediates (Git-ignored)
 docs/PLAN.md
 LICENSE
 docs/decisions/       architecture decisions
 docs/protocol/        experimental specifications and schemas
-control/             Erlang/OTP session services
+src/control/             Erlang/OTP session services
 audio/               native audio transport, timing, and DSP integration
 tools/               measurement and fault-injection utilities
 tests/interop/       protocol vectors and independent-client tests
 examples/            reproducible hardware and session configurations
 ```
 
-`control/` now contains the initial chat application and `docs/` records its
+`src/control/` now contains the initial chat application and `docs/` records its
 decisions and progress. Add the remaining directories when there is code to put
 in them.
 

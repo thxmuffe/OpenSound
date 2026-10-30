@@ -239,7 +239,7 @@ the new native apps when that work needs connection evidence.
 ## 2026-10-29 — Native Mac integration in source
 
 Moved the reusable WebRTC carrier, distribution controller, admission authority,
-trust worker and desk connector from the experiment into `control/src/`.
+trust worker and desk connector from the experiment into `src/control/src/`.
 Probe drivers stay isolated; their existing compile helper follows the move.
 The Mac host now selects the native profile/carrier without EPMD or automatic
 transitive connections. Its supervisor starts shared `pg`/chat and the connector;
@@ -319,7 +319,7 @@ public-service changes. Internet connectivity and recovery remain unverified.
 
 Next, when requested: connection proof (3b), then individual recovery behaviors
 (3c). See [the plan](PLAN.md) and
-[connector usage and limitations](../control/transport/experiments/otp_dist/README.md#reception-desk-introductions-step-3a-compiled-only).
+[connector usage and limitations](../src/control/transport/experiments/otp_dist/README.md#reception-desk-introductions-step-3a-compiled-only).
 
 ## 2026-10-29 — OTP foundation alignment step 2a
 
@@ -357,7 +357,7 @@ backpressure and admission-actor failure recovery, before native app integration
 The user chose cluster-wide mutual removal: the caller and target lose native
 cluster access across their logical swarms. Implemented the isolated policy in
 Erlang without changing the working apps, Windows, graphs, core relay or public
-service. See [the experiment](../control/transport/experiments/otp_dist/README.md)
+service. See [the experiment](../src/control/transport/experiments/otp_dist/README.md)
 and [the updated plan](PLAN.md#trusted-native-otp-cluster-direction-accepted-2026-10-28).
 
 `parvi_cluster_auth` uses OTP Ed25519, JSON/URI parsing and secure randomness.
@@ -394,13 +394,13 @@ compromise. Authority crash/partition recovery, cancelled-join cleanup, partial
 publication and reliable revocation receipts remain step-3 work. Admission fails
 closed during authority outage while existing native connections continue.
 
-Run: `python3 control/transport/tools/otp-trust-smoke.py` and
-`python3 control/transport/tools/otp-dist-smoke.py`.
+Run: `python3 tests/transport/otp-trust-smoke.py` and
+`python3 tests/transport/otp-dist-smoke.py`.
 
 ## 2026-10-28 — Native OTP distribution over WebRTC step 1 passed
 
 Added an isolated carrier proof under
-`control/transport/experiments/otp_dist`, outside normal compilation and app
+`src/control/transport/experiments/otp_dist`, outside normal compilation and app
 packaging. The three Erlang modules supply carrier callbacks, a WebRTC process
 distribution controller and a local probe harness. OTP `dist_util` handles the
 native handshake, cookie verification, connection supervision and ticks;
@@ -427,7 +427,7 @@ work are recorded in [the plan](PLAN.md#trusted-native-otp-cluster-direction-acc
 End-to-end backpressure, reconnection and audio latency remain unverified.
 Working apps, Windows, graph code and public services were not changed.
 
-Run: `python3 control/transport/tools/otp-dist-smoke.py`.
+Run: `python3 tests/transport/otp-dist-smoke.py`.
 
 ## 2026-10-28 — Shared Apple snapshot reader and single decoding
 
@@ -464,7 +464,7 @@ installed app was changed.
 
 ## 2026-10-28 — Direct connection worker moved to Erlang
 
-Removed `control/transport/lib/peer.ex`. `parvi_peer_connection` is now an Erlang
+Removed `src/control/transport/lib/peer.ex`. `parvi_peer_connection` is now an Erlang
 `gen_server` calling the existing WebRTC library directly, retaining per-peer
 process isolation, signalling, candidate handling and connection-state events.
 `parvi_direct` starts and communicates with that worker using ordinary Erlang
@@ -492,13 +492,13 @@ retain independent swarms and a shared connection, then interoperate with a
 relay-only peer after desk recovery. The public Render service is unchanged.
 The transport's native dependency packaging and physical iPhone test remain
 unfinished; installed apps continue using the working relay. See
-[the transport prototype](../control/transport/README.md).
+[the transport prototype](../src/control/transport/README.md).
 
 ## 2026-10-28 — Apple apps rebuilt for the public relay
 
 Reviewed the Windows relay/default-configuration changes and rebuilt both Apple
 apps against the shared OTP settings, Gun/Cowlib and v2 invitation protocol.
-The default Render URL remains defined only in `control/src/parvi.app.src`;
+The default Render URL remains defined only in `src/control/src/parvi.app.src`;
 neither Apple adapter nor the new Mac smoke check duplicates it.
 
 Fixed iPhone trust-bundle export for OTP 29's certificate-record representation.
@@ -528,7 +528,7 @@ this exchange used the public Render relay regardless of local network layout.
 
 ## 2026-10-28 - Shared default Reception Desk configuration
 
-The shared OTP settings in `control/src/parvi.app.src` now bundle the public
+The shared OTP settings in `src/control/src/parvi.app.src` now bundle the public
 desk URL once for Windows, macOS and iOS. Fresh native sessions connect without
 manual URL entry. `PARVI_RECEPTION_DESK_URL` overrides the default; an empty value
 selects local-only development. Explicit OTP/UI configuration takes precedence.
@@ -563,7 +563,7 @@ The Linux image built and booted on Render, and `/health` passed. Two disposable
 Windows BEAM clients with Distributed Erlang disabled passed public WSS
 certificate verification/authentication, invitation admission, bidirectional
 chat, a 50-second idle check followed by delivery, and departure. The reusable
-test is `Services/ReceptionDesk/tools/public-smoke.py`; its clients were stopped.
+test is `tests/ReceptionDesk/public-smoke.py`; its clients were stopped.
 This verifies the public relay from this laptop, not separate physical networks.
 Rebuilt Mac/iPhone apps and cross-device testing remain pending. Free-plan
 inactivity can cause a cold start on the next connection.
@@ -586,7 +586,7 @@ verified on this Windows machine. Existing apps need restarting/rebuilding.
 Deployment is prepared as one Render Docker service; nothing is published.
 The old directory launchers remain explicit legacy-only test paths.
 
-See [relay protocol](RELAY_PROTOCOL.md) and [desk guide](../Services/ReceptionDesk/README.md).
+See [relay protocol](RELAY_PROTOCOL.md) and [desk guide](../src/Services/ReceptionDesk/README.md).
 
 Validation on Windows: 14 core/model EUnit checks, 13 workspace/legacy checks,
 and two Phoenix authorization tests pass. Three independent BEAM clients with
@@ -634,8 +634,8 @@ networking functionality has been implemented.
 
 ## 2026-10-28 — WebApp and ReceptionDesk separated
 
-Moved the browser assets and QR license to `Apps/WebApp`, and the Erlang service,
-API, launchers and directory tests to `Services/ReceptionDesk`. Build outputs are
+Moved the browser assets and QR license to `src/Apps/WebApp`, and the Erlang service,
+API, launchers and directory tests to `src/Services/ReceptionDesk`. Build outputs are
 `builds/WebApp` and `builds/Services/ReceptionDesk`; service compiler caches use
 `builds/intermediates/ReceptionDesk`. Updated workspace and Windows references.
 The service root identifies ReceptionDesk; browser assets have their own host.
@@ -684,15 +684,15 @@ checks on the phone remain manual. Mac–iPhone networking is still disabled.
 
 ## 2026-10-27 — Shared app code belongs with the apps
 
-Moved `ParviKit` to `Apps/Shared/ParviKit`. Updated Mac build/test scripts, the
-iOS local-package reference and documentation. `control/` remains the top-level
+Moved `ParviKit` to `src/Apps/Shared/ParviKit`. Updated Mac build/test scripts, the
+iOS local-package reference and documentation. `src/control/` remains the top-level
 Erlang layer; build outputs remain under `builds/`. The Mac build and seven
 Swift model tests pass; the iPhone project is checked through an unsigned build.
 
 ## 2026-10-27 — Platform sources and generated builds separated
 
-Moved app sources to `Apps/macOS`, `Apps/iOS`, `Apps/Windows` and `Apps/Web`.
-Shared app code is in `Apps/Shared/`; shared Erlang code remains in `control/`. Existing local
+Moved app sources to `src/Apps/macOS`, `src/Apps/iOS`, `src/Apps/Windows` and `src/Apps/Web`.
+Shared app code is in `src/Apps/Shared/`; shared Erlang code remains in `src/control/`. Existing local
 artifacts were moved under the Git-ignored `builds/` directory; platform products
 and compiler/runtime caches are separated into platform folders and
 `builds/intermediates/`. Absolute-path Apple caches were regenerated in place of
@@ -784,7 +784,7 @@ The graph and ticker are disposed with the old window during UI reload.
 A separately supervised topology worker gathers real peer adjacency reports
 without assuming a fully connected mesh. Reports are sampled and uncertain or
 indirectly known nodes remain distinguishable. This is connectivity, not audio
-routing. Source provenance is in `Apps/Windows/THIRD_PARTY.md`.
+routing. Source provenance is in `src/Apps/Windows/THIRD_PARTY.md`.
 
 The live Windows instances successfully reloaded and kept their original nodes,
 worker PIDs and chat history. An initial wrong notebook constructor made the UI
@@ -799,7 +799,7 @@ probe of its force graph. Embedding, live graph updates, four status colours and
 shutdown cleanup pass. Identified private-API, fixed-controls, callback, event
 handling and continuous-redraw constraints. No production UI was changed.
 See [investigation](NODE_GRAPH_INVESTIGATION.md) and
-`Apps/Windows/test/parvi_graph_probe.erl` for the result and reproducible probe.
+`tests/Windows/parvi_graph_probe.erl` for the result and reproducible probe.
 
 ## 2026-10-27 — OTP node-status lights, applied through live UI reload
 
@@ -853,7 +853,7 @@ test pass. The test proves repeated automatic replacements, retained UI fields,
 unchanged node/cookie/chat and pg workers, peer connectivity and message delivery
 across reloads, invalid-file rejection, failed-build rollback, corrected-build
 recovery, and normal shutdown. The deliberate broken-build crash report is
-expected. See `Apps/Windows/reload-smoke.py`.
+expected. See `tests/Windows/reload-smoke.py`.
 
 ## 2026-10-27 — Click a node to copy its connection string
 
@@ -889,11 +889,11 @@ passes using the combined string for connection and bidirectional chat.
 
 ## 2026-10-27 — Windows wxErlang exercise
 
-Added `Apps/Windows/`: native wxErlang chat UI, Win32 C launcher, private pinned OTP
+Added `src/Apps/Windows/`: native wxErlang chat UI, Win32 C launcher, private pinned OTP
 29.1.2 runtime setup, PowerShell build/diagnostic scripts, and a loopback smoke
 test. Reuses the existing `parvi` workers and shared request/snapshot contract.
 The shared bridge accepts Windows app node names alongside Mac names while
-preserving the loopback restriction. Added `Apps/Web/run.ps1` for the unchanged
+preserving the loopback restriction. Added `src/Apps/Web/run.ps1` for the unchanged
 Reception desk service. No audio or mobile/LAN transport was added.
 
 Validation on Windows x64: warnings-as-errors Erlang compilation; all four core
@@ -903,7 +903,7 @@ nodes, directory discovery, cookie-authenticated connection, bidirectional UTF-8
 chat, oversized-message rejection, and peer departure. The sandbox blocked OTP's
 native DNS helper, so the passing integration run used normal desktop permissions.
 
-Build and run: [Windows guide](../Apps/Windows/README.md). The package is unsigned and
+Build and run: [Windows guide](../src/Apps/Windows/README.md). The package is unsigned and
 retains the full OTP libraries; installer, size reduction, and cross-device
 transport remain future work.
 
@@ -913,7 +913,7 @@ Replaced the unavailable iOS adapter with a real in-process OTP host using the
 pinned Mob iOS runtime artifacts for OTP 29.1.2 / ERTS 17.1.1. SHA-256 checks
 match the upstream release digests. Native startup and static-driver glue are
 small platform-specific files; the UI, chat state, JSON contract and supervision
-remain shared. Runtime provenance is in `Apps/iOS/THIRD_PARTY.md`.
+remain shared. Runtime provenance is in `src/Apps/iOS/THIRD_PARTY.md`.
 
 Validation:
 
@@ -941,7 +941,7 @@ signed physical-phone test, then private-LAN transport.
 
 ## 2026-10-26 — Reception desk (local discovery)
 
-Added `Apps/Web/`: supervised in-memory directory, OTP HTTP server on
+Added `src/Apps/Web/`: supervised in-memory directory, OTP HTTP server on
 127.0.0.1:8765, JSON list/register API, join form and local QR generation. Duplicate
 names are deduplicated and all names are forgotten on restart. The directory
 stores names as binaries, caps resource usage and makes no liveness claims.
@@ -957,14 +957,14 @@ Broker EUnit and control EUnit checks pass. Both Mac and unsigned iPhone UI
 builds succeed. End-to-end testing passed for real app registration, returned
 peer names, authenticated Erlang connection, two-way chat and broker reset.
 Native registration and idempotent web registration were also verified in the
-UI; the page renders its local QR code. See [broker guide and API](../Services/ReceptionDesk/README.md)
+UI; the page renders its local QR code. See [broker guide and API](../src/Services/ReceptionDesk/README.md)
 for usage, limits, QR behavior and the integration-test command.
 
 ## 2026-10-26 — Shared native code and iPhone project
 
-Extracted the existing Mac UI and model into the local `Apps/Shared/ParviKit` Swift
+Extracted the existing Mac UI and model into the local `src/Apps/Shared/ParviKit` Swift
 package. Mac retains a small app entry point and its Erlang process adapter.
-Created `Apps/iOS/Parvi.xcodeproj` using that same package, with an explicit unavailable
+Created `src/Apps/iOS/Parvi.xcodeproj` using that same package, with an explicit unavailable
 embedded-runtime adapter. There is no fake iPhone chat or remote-execution proxy.
 Extracted the transport-independent Erlang JSON entry point `parvi_bridge:request/1`.
 
@@ -976,13 +976,13 @@ shared SwiftUI view was verified in the native Mac window.
 
 Next: pin and integrate an actual in-process iOS BEAM runtime, then prove shared
 Erlang worker execution on a signed physical device. Building the UI shell does
-not satisfy that gate. See [iPhone project](../Apps/iOS/README.md),
-[shared package](../Apps/Shared/ParviKit/README.md) and
+not satisfy that gate. See [iPhone project](../src/Apps/iOS/README.md),
+[shared package](../src/Apps/Shared/ParviKit/README.md) and
 [decision 0002](decisions/0002-shared-native-app-code.md).
 
 ## 2026-10-26 — Native Mac application
 
-Added a SwiftUI application in `Apps/macOS/` with chat bubbles, composition, runtime
+Added a SwiftUI application in `src/Apps/macOS/` with chat bubbles, composition, runtime
 status, visible chat peers and a manual connection sheet. The `.app` bundles an
 OTP release and starts Erlang as a child process. A private JSON pipe bridge
 keeps chat and membership logic in Erlang. No terminal is needed to launch it.
@@ -995,7 +995,7 @@ The bundled-runtime smoke test passed for startup, UTF-8, validation, two-way
 chat and peer departure. The native app was launched and visually checked;
 sending through the SwiftUI composer displayed the message in history. Existing
 EUnit checks still pass (3 tests). The app's ad hoc signature verifies. See
-[Mac build and usage](../Apps/macOS/README.md).
+[Mac build and usage](../src/Apps/macOS/README.md).
 
 ## 2026-10-26 — Mac chat baseline
 
@@ -1003,7 +1003,7 @@ Read all design documents and followed the newer Parvi handover's chat-first
 scope. [Decision and iOS investigation](decisions/0001-chat-first-and-ios-feasibility.md)
 record the runtime candidates, recommendation, environment and remaining gate.
 
-Implemented `control/`: OTP application, supervisor, `pg` group membership,
+Implemented `src/control/`: OTP application, supervisor, `pg` group membership,
 chat worker, terminal/UI API, bounded in-memory history and loopback defaults.
 Installed Erlang/OTP 29.1.2 and rebar3 3.27.3 through Homebrew. Homebrew also
 installed runtime dependencies and upgraded libpng/pcre2 as part of installation.
@@ -1024,4 +1024,4 @@ Next required environment work: full Xcode, iOS SDK, Apple ID development signin
 and a connected physical iPhone. Then reproduce a pinned embedded full-BEAM
 runtime and execute the Erlang chat worker on the phone before adding UI or audio.
 
-Build and demo instructions: [control/README.md](../control/README.md).
+Build and demo instructions: [src/control/README.md](../src/control/README.md).

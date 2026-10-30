@@ -2,7 +2,7 @@
 
 The macOS, iOS and Windows apps follow this interaction model. Platform controls
 and responsive layouts can differ; membership and chat behavior come from the
-same Erlang/OTP core in `control/`.
+same Erlang/OTP core in `src/control/`.
 
 The following multi-swarm behavior describes the legacy app profile. Updated
 Mac/iPhone native sources, and the optional Windows native source path, instead

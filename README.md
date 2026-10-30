@@ -6,33 +6,33 @@ Repository design principles and development practices: [AGENTS.md](AGENTS.md).
 
 **Status: first Erlang/OTP chat prototype; audio remains in early design.**
 
-A native Mac app is now available: [build and launch Parvi](Apps/macOS/README.md).
+A native Mac app is now available: [build and launch Parvi](src/Apps/macOS/README.md).
 It bundles Erlang and supports chat between app instances on the same Mac.
 
-A native [Windows wxErlang exercise](Apps/Windows/README.md) reuses the same Erlang
+A native [Windows wxErlang exercise](src/Apps/Windows/README.md) reuses the same Erlang
 chat and discovery workers, with a bundled runtime and `Parvi.exe` launcher.
 Windows sources now also understand the newer native OTP profile; Windows NIF
 packaging remains incomplete, so the default build retains the earlier relay.
-The Reception desk also has a Windows launcher: `Services/ReceptionDesk/run.ps1`.
+The Reception desk also has a Windows launcher: `src/Services/ReceptionDesk/run.ps1`.
 
-The Mac app and [iPhone project](Apps/iOS/README.md) reuse the local
-[ParviKit package](Apps/Shared/ParviKit/README.md). The iPhone app now embeds real
+The Mac app and [iPhone project](src/Apps/iOS/README.md) reuse the local
+[ParviKit package](src/Apps/Shared/ParviKit/README.md). The iPhone app now embeds real
 Erlang/OTP, with startup and UI messaging verified in the simulator. The signed
 physical-iPhone build also passes its runtime self-test. New relay sources need
 a fresh Apple build and physical-device networking verification.
 
-The [Reception desk](Services/ReceptionDesk/README.md) now hosts a Phoenix/Cowboy
+The [Reception desk](src/Services/ReceptionDesk/README.md) now hosts a Phoenix/Cowboy
 WebSocket relay with authenticated node sessions and scoped mailboxes. Native
 nodes retain their swarms/chats and reconnect after desk restart. A test desk is
 deployed at https://parvi-reception-desk.onrender.com; native apps use
 `wss://parvi-reception-desk.onrender.com/relay/v1`.
 Rebuilt apps connect automatically using the shared OTP settings in
-`control/src/parvi.app.src`; `PARVI_RECEPTION_DESK_URL` overrides the default.
-The full browser [WebApp](Apps/WebApp/README.md) remains deferred.
+`src/control/src/parvi.app.src`; `PARVI_RECEPTION_DESK_URL` overrides the default.
+The full browser [WebApp](src/Apps/WebApp/README.md) remains deferred.
 
 The newer [Parvi Audio handover](docs/notes%2020261026.md) sets the immediate goal:
 real Erlang chat on Mac and iPhone, before audio. The first Mac step is implemented
-in [control/](control/README.md), with supervised chat actors and a two-node local
+in [src/control/](src/control/README.md), with supervised chat actors and a two-node local
 smoke test. iPhone runtime execution is verified on the physical phone; see the
 [iOS investigation](docs/decisions/0001-chat-first-and-ios-feasibility.md) and
 [progress log](docs/PROGRESS.md). No audio or interoperability guarantee exists yet.
@@ -46,49 +46,54 @@ multiple swarm memberships, and swarm-owned Graph/Chat views.
 
 ## Repository layout and builds
 
-Platform app sources live under `Apps/`; generated products and caches live under
-the Git-ignored `builds/` directory. Shared app code lives in `Apps/Shared/`;
-the Erlang layer remains in `control/`.
+Implementation sources live under `src/`; documentation lives in `docs/`.
+Cross-component integration checks live in `tests/`, while component unit tests
+remain beside their component. Generated products and dependency caches stay
+under the Git-ignored `builds/` directory.
 
 ```text
-Apps/
-  macOS/                 SwiftUI desktop app
-  iOS/                   embedded-runtime iPhone app
-  Windows/               wxErlang desktop app
-  WebApp/                browser app (currently directory/QR prototype)
-  Shared/ParviKit/        shared Apple UI/model
-Services/ReceptionDesk/  Phoenix/Cowboy host and Erlang relay workers
-control/                 shared Erlang runtime and swarm logic
-docs/
+docs/                         plans, protocols and decisions
+src/
+  Audio/                      Erlang audio processing and native adapters
+  Apps/
+    macOS/                    SwiftUI desktop app
+    iOS/                      embedded-runtime iPhone app
+    Windows/                  wxErlang desktop app
+    WebApp/                   browser directory/QR prototype
+    Shared/ParviKit/           shared Apple UI/model
+  Services/ReceptionDesk/     Phoenix/Cowboy host and Erlang relay workers
+  control/                    shared Erlang networking and swarm runtime
+tests/                        existing cross-component integration checks
+scripts/                      repository-wide tooling
 builds/
   macOS/Parvi.app/
   iOS/Debug-iphoneos/Parvi.app/
-  Windows/Parvi/          executable, runtime and companion files
-  WebApp/                static browser app
-  Services/ReceptionDesk/ compiled Reception Desk service
-  intermediates/         compilers, downloaded runtimes and caches
+  Windows/Parvi/               executable, runtime and companion files
+  WebApp/                     static browser app
+  Services/ReceptionDesk/     compiled Reception Desk service
+  intermediates/              compilers, downloaded runtimes and caches
 ```
 
 From the repository root:
 
 | Task | Command |
 | --- | --- |
-| Build Mac app | `bash Apps/macOS/build.sh` |
+| Build Mac app | `bash src/Apps/macOS/build.sh` |
 | Launch Mac app | `open builds/macOS/Parvi.app` |
-| Check Apple UI/model | `bash Apps/macOS/test.sh` |
-| Build unsigned iPhone app | `bash Apps/iOS/build.sh device` |
-| Build unsigned iPhone simulator app | `bash Apps/iOS/build.sh sim` |
-| Build browser app | `bash Apps/WebApp/build.sh` |
-| Run browser app | `bash Apps/WebApp/run.sh` |
-| Build Reception Desk | `bash Services/ReceptionDesk/build.sh` |
-| Run Reception Desk | `bash Services/ReceptionDesk/run.sh` |
-| Prepare and build Windows app | `.\Apps\Windows\setup.ps1`, then `.\Apps\Windows\build.ps1 -Test` |
+| Check Apple UI/model | `bash src/Apps/macOS/test.sh` |
+| Build unsigned iPhone app | `bash src/Apps/iOS/build.sh device` |
+| Build unsigned iPhone simulator app | `bash src/Apps/iOS/build.sh sim` |
+| Build browser app | `bash src/Apps/WebApp/build.sh` |
+| Run browser app | `bash src/Apps/WebApp/run.sh` |
+| Build Reception Desk | `bash src/Services/ReceptionDesk/build.sh` |
+| Run Reception Desk | `bash src/Services/ReceptionDesk/run.sh` |
+| Prepare and build Windows app | `.\src\Apps\Windows\setup.ps1`, then `.\src\Apps\Windows\build.ps1 -Test` |
 | Check Erlang core and legacy directory | `rebar3 eunit` |
-| Check Reception Desk | `cd Services/ReceptionDesk && mix test` |
+| Check Reception Desk | `cd src/Services/ReceptionDesk && mix test` |
 
 Windows builds require Windows and Visual Studio. iOS builds require Xcode;
 the helper builds unsigned and does not install or export an `.ipa`. Open
-`Apps/iOS/Parvi.xcodeproj` for signing and device installation. An Android source
+`src/Apps/iOS/Parvi.xcodeproj` for signing and device installation. An Android source
 folder will be added when that app exists. Runnable app bundles and Windows
 runtime folders contain multiple files; installers and release archives can be
 added later without mixing them with source.
@@ -165,7 +170,7 @@ OpenSound is not currently compatible with any of these systems. Prefer reuse an
 
 ## Roadmap and participation
 
-See [PLAN.md](docs/PLAN.md) for the longer-term audio milestones, experiments, acceptance criteria, and unresolved decisions. Start with [the chat prototype guide](control/README.md) to build and run the current implementation.
+See [PLAN.md](docs/PLAN.md) for the longer-term audio milestones, experiments, acceptance criteria, and unresolved decisions. Start with [the chat prototype guide](src/control/README.md) to build and run the current implementation.
 
 Early contributions are especially welcome in clock synchronization, audio drivers, DSP, network protocols, measurements, and accessibility. Propose substantial changes through an issue or pull request with the problem, alternatives, and a reproducible validation plan.
 

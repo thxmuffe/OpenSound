@@ -26,7 +26,7 @@ and `del_link` calls. Node colours can be RGB tuples or separate outline/fill
 colours, so the existing RabbitMQ-derived Parvi status palette works directly.
 Deleting a vertex removes its incident edges. Labels are generated from node keys.
 
-`Apps/Windows/test/parvi_graph_probe.erl` compiled with warnings as errors and passed
+`tests/Windows/parvi_graph_probe.erl` compiled with warnings as errors and passed
 native embedding, synthetic node/link addition and deletion, colour updates,
 continued force-layout execution, and cleanup. These were synthetic vertices,
 not observations of live Parvi connections.
