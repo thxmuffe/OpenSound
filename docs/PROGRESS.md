@@ -1,5 +1,39 @@
 # Progress
 
+## 2026-10-31 — Repository line-ending policy
+
+Added repository-owned `.gitattributes` and `.editorconfig`: text uses LF,
+with CRLF checkout/editor exceptions for Windows `.bat`/`.cmd` scripts.
+Normalized 25 tracked text files without changing their content. Preserved
+the preceding product-discussion notes in PLAN.md and this progress log.
+The one-time index normalization is staged for review; no commit, build,
+tests or deployment performed. Commit the policy and normalization together
+so the Windows checkout receives the same rules after pulling.
+
+## 2026-10-31 — Mac handover review and product discussion
+
+Compared all 23 initially dirty files against HEAD: each working file is
+byte-for-byte identical to its committed content. HEAD/index contain CRLF;
+the global Git attributes file marks Markdown as text, so Git's clean filter
+normalizes working content to LF and reports apparent modifications. There
+were no local content changes, staged changes or untracked files at the start.
+No restore/reset, newline normalization, Git-setting change or commit performed.
+The branch matched origin/main as last fetched; no fetch was needed for this review.
+
+Reviewed the Windows WASAPI/raw-buffer input, shared Erlang meter, audio binding
+trial and source reorganization. Apple audio adapters and cross-node audio
+remain unimplemented; prior source/native-link checks do not prove current
+Apple native apps running together. No builds, tests, deployment or live service
+check performed in this review.
+
+Recorded the user's main playback experience, preference for standard node/
+cluster terminology and a shared human/operational message stream in PLAN.md.
+Kept channels/filters/replies/images as later ideas. Proposed Mac external-source
+metering, followed by iPhone receive/meter/render toward the two-phone goal;
+platform source/adapter choices are for discussion before code changes. Only
+PLAN.md and this progress entry received actual content changes in this review;
+existing line endings were preserved.
+
 ## 2026-10-30 — Group implementation under src and integration checks under tests
 
 Moved app, service and shared control sources under `src/`. Grouped the existing

@@ -61,10 +61,50 @@ needs evidence. Address recovery and TURN when actual use or the next feature
 requires them; no separate testing phase is required. Preserve the wider ideas
 in [the audio/calibration idea record below](#audio-and-calibration-ideas--recorded-2026-10-30).
 
-**Immediate next slice — audio entering Parvi:** the user wants an OS-selectable
+### Product and terminology discussion — 2026-10-31
+
+The main experience is to open Parvi (or leave it running where the platform
+allows), play music in an existing player and hear it through the chosen
+cluster's speakers. Parvi handles signal input/output, processing, routing and
+synchronisation; the source player continues to own content and playback controls.
+Background operation is a product goal, not implemented iPhone behavior.
+
+Use standard terminology first: **node** and **cluster** for the distributed
+Erlang design. Prefer cluster to swarm in new product/design descriptions. Existing
+source identifiers and legacy labels can migrate in focused changes; this does
+not equate legacy relay groups with established native OTP cluster connections.
+No broad rename is part of this discussion.
+
+Evolve chat into one **cluster message stream** containing human communication
+and important operational events: invitations/admission, connections, processing
+changes, playback start/stop and removals. Preserve human messages alongside
+structured events identifying their origin, kind and time. Distinguish a node's
+local observation from a confirmed cluster action. Never treat message text as
+authority to admit/remove nodes. Developer diagnostics remain with OTP Logger;
+raw buffer/meter updates do not belong in the shared human-readable stream.
+Filters, channels, replies, pictures and durable history are later possibilities,
+not requirements for the first increment. Existing removal semantics remain;
+this records reporting of removals, not a new permanent-ban mechanism.
+
+The current Windows input/meter is implemented. Apple audio adapters and
+cross-node media delivery remain unimplemented. The proposed next slice is a
+Mac external-audio input feeding the existing Erlang meter. For iPhone's receiver
+role, meter incoming audio samples and then render them; microphone metering is
+a different source/use case, not an equivalent of WASAPI loopback. Discuss the
+Apple input/output choices before implementation. The two-iPhone synchronized
+playback target remains the product direction; completing Windows virtual-device
+work is not a prerequisite for continuing on Mac.
+
+This is audio over IP, with separate choices for device I/O, cluster control,
+media delivery and playback timing. WebRTC/ICE/STUN/TURN can supply connectivity
+and media transport facilities; native distribution or a working chat link does
+not by itself establish an audio media format, clock mapping or synchronized
+speaker output.
+
+**Completed Windows slice — audio entering Parvi:** the user wants an OS-selectable
 Parvi output device feeding an input meter, using an existing player/browser as
-the source. Work in Windows only; do not edit iOS or Mac app sources in this
-increment. A first Windows capture/meter implementation now reads the current
+the source. That increment was scoped to Windows only. A first Windows
+capture/meter implementation now reads the current
 default multimedia output through WASAPI loopback and shows peak/RMS dBFS,
 format and captured frames. Following the user's Erlang-first direction, the
 native bridge now only calls WASAPI and transfers raw buffers/metadata. The
